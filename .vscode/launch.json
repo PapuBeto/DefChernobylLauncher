@@ -1,0 +1,77 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launcher (F5)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron.exe",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron.exe"
+      },
+      "linux": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron"
+      },
+      "osx": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+      },
+      "runtimeArgs": ["."],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "presentation": { "group": "launcher", "order": 1 }
+    },
+    {
+      "name": "Launcher + DevTools",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron.exe",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron.exe"
+      },
+      "linux": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron"
+      },
+      "osx": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+      },
+      "runtimeArgs": [".", "--dev"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "presentation": { "group": "launcher", "order": 2 }
+    },
+    {
+      "name": "Prueba: instalar Minecraft + Forge",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron.exe",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron.exe"
+      },
+      "linux": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron"
+      },
+      "program": "${workspaceFolder}/scripts/test-install.js",
+      "console": "integratedTerminal",
+      "presentation": { "group": "tests", "order": 1 }
+    },
+    {
+      "name": "Prueba: lanzar el juego",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron.exe",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron.exe"
+      },
+      "linux": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/electron/dist/electron"
+      },
+      "program": "${workspaceFolder}/scripts/test-launch.js",
+      "console": "integratedTerminal",
+      "presentation": { "group": "tests", "order": 2 }
+    }
+  ]
+}

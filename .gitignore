@@ -31,6 +31,8 @@ desktop.ini
 # Editors
 .vscode/*
 !.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 .idea/
 *.swp
 

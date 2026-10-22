@@ -39,6 +39,30 @@ npm start        # abre el launcher
 npm run dev      # igual, con DevTools
 ```
 
+### En VS Code
+
+Abre la carpeta del proyecto y pulsa **F5** (o *Ejecutar → Iniciar depuración*). Ya hay
+configuración lista en `.vscode/`:
+
+| Acción | Cómo |
+|---|---|
+| Arrancar el launcher | **F5** → `Launcher (F5)` |
+| Arrancar + DevTools | F5 → `Launcher + DevTools` (`--dev`) |
+| Poner breakpoints | En `src/main/*.js` (proceso principal) |
+| Depurar la interfaz | DevTools → pestaña *Sources* |
+| Instalar el juego sin UI | F5 → `Prueba: instalar Minecraft + Forge` |
+| Compilar el instalador | **Ctrl+Shift+B** o `Terminal → Run Build Task` |
+
+Equivalencias si vienes de .NET:
+
+| .NET | Aquí |
+|---|---|
+| `dotnet run` | `npm start` / **F5** |
+| `dotnet build` | no aplica: el código se ejecuta tal cual |
+| `dotnet publish` | `npm run dist` (instalador NSIS en `dist/`) |
+| `dotnet test` | `scripts/test-install.js` y `test-launch.js` |
+| `bin/` | `dist/` (ignorado por git) |
+
 Datos en tiempo de ejecución (Windows): `%APPDATA%\Chernobyl Z\`
 
 ```
