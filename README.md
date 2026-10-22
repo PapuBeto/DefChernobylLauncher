@@ -107,10 +107,11 @@ Imprime los objetos JSON listos para pegar en `files`.
 ```bash
 npm run pack     # carpeta desempaquetada en dist/
 npm run dist     # instalador NSIS en dist/
+npm run icon     # regenera build/icon.png + build/icon.ico
 ```
 
-Para el icono definitivo coloca `build/icon.ico` (256×256). Si no existe, electron-builder
-usa el icono genérico de Electron.
+El icono se genera por código (`scripts/generate-icon.js`). Puedes sustituir
+`build/icon.png` e `build/icon.ico` por tu propio arte (256×256) cuando lo tengas.
 
 ---
 

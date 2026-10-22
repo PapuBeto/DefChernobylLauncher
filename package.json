@@ -16,7 +16,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win",
     "test:install": "electron scripts/test-install.js",
-    "manifest": "node scripts/generate-manifest.js"
+    "manifest": "node scripts/generate-manifest.js",
+    "icon": "node scripts/generate-icon.js"
   },
   "dependencies": {
     "@xmcl/core": "^2.16.2",
