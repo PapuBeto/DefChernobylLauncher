@@ -113,6 +113,15 @@ npm run icon     # regenera build/icon.png + build/icon.ico
 El icono se genera por código (`scripts/generate-icon.js`). Puedes sustituir
 `build/icon.png` e `build/icon.ico` por tu propio arte (256×256) cuando lo tengas.
 
+> **Windows sin permisos de administrador:** electron-builder necesita crear enlaces
+> simbólicos al preparar sus herramientas. Si el build falla con *"Cannot create symbolic
+> link"*, activa el **Modo para desarrolladores** (Ajustes → Sistema → Para desarrolladores)
+> o compila desde GitHub Actions. Para probar el empaquetado sin editar el `.exe`:
+>
+> ```bash
+> npx electron-builder --dir -c.win.signAndEditExecutable=false
+> ```
+
 ---
 
 ## Estructura del proyecto
@@ -140,6 +149,7 @@ resources/
 ├── news.json
 └── links.json
 scripts/
+├── generate-icon.js
 ├── generate-manifest.js
 ├── test-install.js
 └── test-launch.js
