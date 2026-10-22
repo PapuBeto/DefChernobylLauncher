@@ -1,0 +1,37 @@
+{
+  "name": "Chernobyl Z",
+  "minecraft": "1.20.1",
+  "forge": "47.3.0",
+  "server": {
+    "name": "Chernobyl Z",
+    "host": "play.chernobylz.net",
+    "port": 25565
+  },
+  "channels": {
+    "COMPLETA": {
+      "label": "COMPLETA",
+      "description": "Todos los mods · ~6 GB RAM",
+      "memory": {
+        "min": 2048,
+        "max": 6144
+      }
+    },
+    "LITE": {
+      "label": "LITE",
+      "description": "Mods esenciales · ~4 GB RAM",
+      "memory": {
+        "min": 1536,
+        "max": 4096
+      }
+    },
+    "FPS": {
+      "label": "FPS",
+      "description": "Optimizado para gama baja · ~3 GB RAM",
+      "memory": {
+        "min": 1024,
+        "max": 3072
+      }
+    }
+  },
+  "files": []
+}

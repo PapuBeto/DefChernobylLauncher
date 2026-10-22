@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self';">
+
+  <title>Chernobyl Z — Launcher</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/launcher.css">
+</head>
+
+<body>
+
+  <div class="app" id="app">
+
+    <!-- HEADER -->
+
+    <header id="titlebar">
+
+      <div class="brand">
+        <span class="brand-symbol">☢</span>
+        <span class="brand-name">CHERNOBYL Z</span>
+        <span class="brand-version" id="brandVersion">1.0.0</span>
+      </div>
+
+      <nav class="socials">
+
+        <a class="social" href="#" data-link="discord" title="Discord">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19.54 5.04A16.84 16.84 0 0 0 15.5 3.8l-.49 1.02a15.5 15.5 0 0 0-6.02 0L8.5 3.8c-1.4.24-2.75.65-4.04 1.24C1.9 9.08 1.2 13.03 1.55 16.92a16.7 16.7 0 0 0 4.98 2.52l1.2-1.63c-.65-.24-1.27-.54-1.86-.9l.45-.34c3.58 1.68 7.7 1.68 11.28 0l.45.34c-.59.36-1.21.66-1.86.9l1.2 1.63a16.7 16.7 0 0 0 4.98-2.52c.4-4.51-.68-8.42-2.83-11.88ZM8.45 15.1c-1.05 0-1.91-.96-1.91-2.13s.84-2.14 1.91-2.14 1.92.96 1.92 2.14-.86 2.13-1.92 2.13Zm7.1 0c-1.06 0-1.92-.96-1.92-2.13s.85-2.14 1.92-2.14 1.91.96 1.91 2.14-.85 2.13-1.91 2.13Z" />
+          </svg>
+          <span>DISCORD</span>
+        </a>
+
+        <a class="social store" href="#" data-link="store">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 4h16l1.5 5H2.5L4 4Zm-.5 7h17v9h-17v-9Zm3 2v4h2v-4h-2Zm4 0v4h2v-4h-2Zm4 0v4h2v-4h-2Z" />
+          </svg>
+          <span>TIENDA</span>
+        </a>
+
+        <a class="social" href="#" data-link="youtube" title="YouTube">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M23.5 6.2a3 3 0 0 0-2.12-2.12C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.38.58A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.12 2.12C4.5 20.5 12 20.5 12 20.5s7.5 0 9.38-.58a3 3 0 0 0 2.12-2.12A31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8ZM9.6 15.7V8.3l6.3 3.7-6.3 3.7Z" />
+          </svg>
+          <span>YOUTUBE</span>
+        </a>
+
+        <a class="social" href="#" data-link="tiktok" title="TikTok">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M15.4 3h3.1c.18 1.02.69 1.93 1.46 2.6.7.62 1.6 1.02 2.54 1.12v3.12a8.3 8.3 0 0 1-4-1.28v6.05A6.39 6.39 0 1 1 13 8.25v3.2a3.2 3.2 0 1 0 2.3 3.07V3Z" />
+          </svg>
+          <span>TIKTOK</span>
+        </a>
+
+        <a class="social" href="#" data-link="instagram" title="Instagram">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 3.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5Zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5ZM17.5 6.25a1.25 1.25 0 1 1-1.25 1.25Z" />
+          </svg>
+          <span>INSTAGRAM</span>
+        </a>
+
+      </nav>
+
+      <div class="server-status" id="serverStatus">
+        <span class="server-dot" id="serverDot"></span>
+        <strong id="playerCount">—</strong>
+        <span id="serverLabel">COMPROBANDO</span>
+      </div>
+
+      <div class="profile">
+
+        <button class="profile-button" id="profileButton" title="Perfil">
+
+          <svg class="avatar" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">
+            <rect width="8" height="2" fill="#6b4226" />
+            <rect y="2" width="8" height="6" fill="#c4836d" />
+            <rect x="0" y="2" width="1" height="6" fill="#6b4226" />
+            <rect x="7" y="2" width="1" height="6" fill="#6b4226" />
+            <rect x="1" y="3" width="2" height="1" fill="#3c2b1f" />
+            <rect x="5" y="3" width="2" height="1" fill="#3c2b1f" />
+            <rect x="3" y="4" width="2" height="1" fill="#b07865" />
+            <rect x="2" y="6" width="1" height="1" fill="#8b3232" />
+            <rect x="3" y="6" width="2" height="1" fill="#3c2b1f" />
+            <rect x="5" y="6" width="1" height="1" fill="#8b3232" />
+          </svg>
+
+          <div class="profile-info">
+            <span class="profile-name" id="profileName">Superviviente</span>
+            <span class="profile-label">PERFIL ▾</span>
+          </div>
+
+        </button>
+
+        <div class="profile-menu" id="profileMenu">
+          <div class="profile-option" id="openProfiles">Gestionar perfiles</div>
+          <div class="profile-option" id="openSettings">Ajustes</div>
+          <div class="profile-option" id="openConsole">Consola</div>
+          <div class="profile-option separator" id="quitLauncher">Salir del launcher</div>
+        </div>
+
+      </div>
+
+      <div class="window-controls">
+        <button class="window-btn" id="minimizeButton" title="Minimizar">
+          <svg viewBox="0 0 10 10"><path d="M1 5h8" /></svg>
+        </button>
+        <button class="window-btn" id="maximizeButton" title="Maximizar">
+          <svg viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" /></svg>
+        </button>
+        <button class="window-btn close" id="closeButton" title="Cerrar">
+          <svg viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" /></svg>
+        </button>
+      </div>
+
+    </header>
+
+
+    <!-- MAIN -->
+
+    <main>
+
+      <!-- NEWS -->
+
+      <aside class="news">
+
+        <div class="section-label">
+          ÚLTIMAS NOTICIAS
+        </div>
+
+        <div id="newsList"></div>
+
+      </aside>
+
+
+      <!-- HERO -->
+
+      <section class="hero">
+
+        <div class="hero-content">
+
+          <div class="eyebrow">
+            <span>●</span>
+            POST-APOCALIPSIS / MODPACK OFICIAL
+          </div>
+
+          <h1 class="title">
+            CHERNOBYL <span>Z</span>
+          </h1>
+
+          <div class="subtitle">
+            SURVIVE · SCAVENGE · ENDURE
+          </div>
+
+
+          <div class="play-section">
+
+            <div class="launch-label">
+              LAUNCH SEQUENCE
+            </div>
+
+            <div class="launch-controls">
+
+              <button class="play-button" id="playButton">
+                JUGAR
+              </button>
+
+              <div class="version">
+
+                <button class="version-button" id="versionButton">
+                  <span class="version-label">VERSIÓN</span>
+                  <span class="version-current" id="currentVersion">
+                    COMPLETA
+                  </span>
+                  <span class="version-arrow" id="versionArrow">
+                    ▾
+                  </span>
+                </button>
+
+                <div class="version-menu" id="versionMenu"></div>
+
+              </div>
+
+            </div>
+
+            <div class="build-info">
+              <span id="buildLauncher">v1.0.0</span>
+              <span id="buildForge">Forge 47.3.0</span>
+              <span id="buildMinecraft">MC 1.20.1</span>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+
+    <!-- CHANGELOG MODAL -->
+
+    <div class="overlay" id="overlay">
+
+      <div class="modal">
+
+        <button class="modal-close" id="modalClose">
+          ×
+        </button>
+
+        <div class="modal-image"></div>
+
+        <div class="modal-content">
+
+          <div class="modal-meta">
+            <span class="modal-dot" id="modalDot"></span>
+            <span id="modalTag">ACTUALIZACIÓN</span>
+            <span>/</span>
+            <span id="modalDate">15 ENE</span>
+          </div>
+
+          <h2 class="modal-title" id="modalTitle">
+            Zona Irradiada añadida al mapa
+          </h2>
+
+          <p class="modal-description" id="modalDescription">
+          </p>
+
+          <div class="modal-footer">
+            CHERNOBYL Z · REGISTRO DE ACTUALIZACIÓN
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- SETTINGS MODAL -->
+
+    <div class="panel-overlay" id="settingsOverlay">
+      <div class="panel">
+
+        <button class="modal-close" id="settingsClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / CONFIGURACIÓN</span>
+          <h2 class="panel-title">Ajustes</h2>
+        </div>
+
+        <div class="panel-body">
+
+          <div class="field">
+            <div class="field-head">
+              <label for="memoryRange">Memoria asignada</label>
+              <span class="field-value" id="memoryValue">4096 MB</span>
+            </div>
+            <input type="range" id="memoryRange" min="1024" max="12288" step="512" value="4096">
+            <p class="field-hint" id="memoryHint">Recomendado para el canal actual: 6 GB.</p>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="resolutionSelect">Resolución</label>
+              <select id="resolutionSelect">
+                <option value="1280x720">1280 × 720</option>
+                <option value="1366x768">1366 × 768</option>
+                <option value="1600x900">1600 × 900</option>
+                <option value="1920x1080">1920 × 1080</option>
+                <option value="2560x1440">2560 × 1440</option>
+              </select>
+            </div>
+
+            <div class="field field-toggle">
+              <label for="fullscreenToggle">Pantalla completa</label>
+              <label class="switch">
+                <input type="checkbox" id="fullscreenToggle">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-head">
+              <label>Java</label>
+              <span class="field-value" id="javaState">Detectando…</span>
+            </div>
+            <div class="field-inline">
+              <input type="text" id="javaPath" placeholder="Auto (detectar Java 17)" readonly>
+              <button class="ghost-button" id="javaDetectButton">Detectar</button>
+              <button class="ghost-button" id="javaBrowseButton">Elegir</button>
+            </div>
+            <p class="field-hint">Minecraft 1.20.1 necesita Java 17 o superior. Si no existe, se descarga automáticamente al jugar.</p>
+          </div>
+
+          <div class="field">
+            <label>Carpeta del juego</label>
+            <div class="field-inline">
+              <input type="text" id="gameDirPath" readonly>
+              <button class="ghost-button" id="openGameFolder">Abrir</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="switch-line">
+              <span>Cerrar el launcher al entrar al juego</span>
+              <label class="switch">
+                <input type="checkbox" id="closeOnLaunchToggle">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </label>
+          </div>
+
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note" id="settingsNote">Los cambios se aplican en el próximo inicio.</span>
+          <div class="panel-actions">
+            <button class="ghost-button" id="settingsCancel">Cancelar</button>
+            <button class="primary-button" id="settingsSave">Guardar</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- PROFILES MODAL -->
+
+    <div class="panel-overlay" id="profilesOverlay">
+      <div class="panel panel-narrow">
+
+        <button class="modal-close" id="profilesClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / PERFILES</span>
+          <h2 class="panel-title">Perfiles</h2>
+        </div>
+
+        <div class="panel-body">
+          <div class="profile-list" id="profileList"></div>
+
+          <div class="field">
+            <label for="newProfileName">Nuevo perfil</label>
+            <div class="field-inline">
+              <input type="text" id="newProfileName" maxlength="16" placeholder="Nombre en el juego">
+              <button class="ghost-button" id="addProfileButton">Añadir</button>
+            </div>
+            <p class="field-hint">Solo letras, números y guion bajo. Sin cuentas premium: el servidor usa autenticación offline.</p>
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note" id="profilesNote"></span>
+          <div class="panel-actions">
+            <button class="primary-button" id="profilesDone">Listo</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- CONSOLE MODAL -->
+
+    <div class="panel-overlay" id="consoleOverlay">
+      <div class="panel panel-wide">
+
+        <button class="modal-close" id="consoleClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / DIAGNÓSTICO</span>
+          <h2 class="panel-title">Consola</h2>
+        </div>
+
+        <div class="panel-body">
+          <pre class="console" id="consoleOutput">Sin actividad todavía.</pre>
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note">Últimas 400 líneas del launcher y del juego.</span>
+          <div class="panel-actions">
+            <button class="ghost-button" id="openLogsFolder">Abrir logs</button>
+            <button class="primary-button" id="consoleDone">Cerrar</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- FOOTER -->
+
+    <footer>
+
+      <span class="footer-status" id="status">
+        Listo para jugar
+      </span>
+
+      <div class="progress">
+        <div class="progress-fill" id="progress"></div>
+      </div>
+
+      <span class="percentage" id="percentage">
+        —
+      </span>
+
+      <span class="launcher-version" id="launcherVersion">
+        LAUNCHER 1.0.0
+      </span>
+
+    </footer>
+
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>
