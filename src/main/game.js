@@ -38,46 +38,86 @@ function trackProgress(task, onFraction) {
   return () => clearInterval(timer);
 }
 
-async function ensureVanilla(folder, minecraftVersion, report) {
-  const list = await getVersionList();
+/** Reintenta una operación (las descargas de Mojang fallan de vez en cuando). */
+async function withRetries(operation, attempts = 3, onRetry = () => {}, isCancelled = () => false) {
+  let lastError;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await operation(attempt);
+    } catch (error) {
+      lastError = error;
+      if (isCancelled() || attempt === attempts - 1) break;
+      onRetry(attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
+    }
+  }
+
+  throw lastError;
+}
+
+async function ensureVanilla(folder, minecraftVersion, report, context = {}) {
+  const isCancelled = context.isCancelled || (() => false);
+  const list = await withRetries(() => getVersionList(), 3, () => {}, isCancelled);
   const meta = list.versions.find((version) => version.id === minecraftVersion);
 
   if (!meta) {
     throw new Error(`No se encontró Minecraft ${minecraftVersion} en el manifiesto de Mojang.`);
   }
 
-  const task = installTask(meta, folder, { side: 'client' });
-  const stop = trackProgress(task, report);
+  return withRetries(
+    async () => {
+      const task = installTask(meta, folder, {
+        side: 'client',
+        assetsDownloadConcurrency: 8,
+        librariesDownloadConcurrency: 8,
+      });
+      context.onTask?.(task);
+      const stop = trackProgress(task, report);
 
-  try {
-    await task.startAndWait();
-  } finally {
-    stop();
-  }
+      try {
+        await task.startAndWait();
+      } finally {
+        stop();
+      }
 
-  return task.get();
+      return task.get();
+    },
+    3,
+    () => report(0),
+    isCancelled,
+  );
 }
 
-async function ensureForge(folder, minecraftVersion, forgeVersion, report) {
-  const task = installForgeTask(
-    { mcversion: minecraftVersion, version: forgeVersion },
-    folder,
-    { side: 'client' },
+async function ensureForge(folder, minecraftVersion, forgeVersion, report, context = {}) {
+  const isCancelled = context.isCancelled || (() => false);
+
+  return withRetries(
+    async () => {
+      const task = installForgeTask(
+        { mcversion: minecraftVersion, version: forgeVersion },
+        folder,
+        { side: 'client' },
+      );
+      context.onTask?.(task);
+      const stop = trackProgress(task, report);
+
+      try {
+        await task.startAndWait();
+      } finally {
+        stop();
+      }
+
+      return task.get();
+    },
+    3,
+    () => report(0),
+    isCancelled,
   );
-
-  const stop = trackProgress(task, report);
-
-  try {
-    await task.startAndWait();
-  } finally {
-    stop();
-  }
-
-  return task.get();
 }
 
 /** Instala (si hace falta) Minecraft + Forge y devuelve el id de versión lanzable. */
-async function ensureInstance({ minecraftVersion, forgeVersion, report }) {
+async function ensureInstance({ minecraftVersion, forgeVersion, report, context = {} }) {
   const folder = MinecraftFolder.from(paths.game);
   const state = readState();
   const marker = state.install;
@@ -96,10 +136,14 @@ async function ensureInstance({ minecraftVersion, forgeVersion, report }) {
 
   fs.mkdirSync(folder.root, { recursive: true });
 
-  await ensureVanilla(folder, minecraftVersion, (fraction) => report(within([0, 0.72], fraction)));
+  await ensureVanilla(folder, minecraftVersion, (fraction) => report(within([0, 0.72], fraction)), context);
 
-  const versionId = await ensureForge(folder, minecraftVersion, forgeVersion, (fraction) =>
-    report(within([0.72, 1], fraction)),
+  const versionId = await ensureForge(
+    folder,
+    minecraftVersion,
+    forgeVersion,
+    (fraction) => report(within([0.72, 1], fraction)),
+    context,
   );
 
   writeState({
@@ -118,15 +162,29 @@ class LaunchManager extends EventEmitter {
     this.cancelled = false;
     this.child = null;
     this.watcher = null;
+    this.currentTask = null;
+    this.abortController = null;
     this.logs = [];
+    this.progressFloor = 0;
   }
 
   status(text, phase = 'idle', percent = null) {
-    this.emit('status', { text, phase, percent });
+    const value = percent === null ? null : clamp01(percent);
+    const shown = value === null || phase === 'idle' || phase === 'error'
+      ? value
+      : Math.max(this.progressFloor, value);
+    this.emit('status', { text, phase, percent: shown });
   }
 
   progress(percent, detail) {
-    this.emit('progress', { percent: clamp01(percent), detail: detail || null });
+    // La barra nunca retrocede: las tareas internas de xmcl reinician su conteo.
+    this.progressFloor = Math.max(this.progressFloor, clamp01(percent));
+    this.emit('progress', { percent: this.progressFloor, detail: detail || null });
+  }
+
+  resetProgress() {
+    this.progressFloor = 0;
+    this.emit('progress', { percent: 0, detail: null });
   }
 
   log(line) {
@@ -153,6 +211,11 @@ class LaunchManager extends EventEmitter {
     this.running = true;
     this.cancelled = false;
     this.logs = [];
+    this.currentTask = null;
+    this.abortController = new AbortController();
+    this.progressFloor = 0;
+
+    const isCancelled = () => this.cancelled;
 
     try {
       const config = configStore.load();
@@ -168,7 +231,7 @@ class LaunchManager extends EventEmitter {
       const java = await javaManager.ensure(config.javaPath, (fraction) => {
         this.status('Descargando Java 17...', 'java', within([0, 0.08], fraction));
         this.progress(within([0, 0.08], fraction), 'Java');
-      });
+      }, this.abortController.signal);
 
       if (this.cancelled) return this.finishCancelled();
       javaManager.useInPath(java.path);
@@ -182,7 +245,15 @@ class LaunchManager extends EventEmitter {
           this.status('Instalando Minecraft y Forge...', 'minecraft', within([0.08, 0.8], fraction));
           this.progress(within([0.08, 0.8], fraction), 'Minecraft / Forge');
         },
+        context: {
+          onTask: (task) => {
+            this.currentTask = task;
+          },
+          isCancelled,
+        },
       });
+
+      this.currentTask = null;
 
       this.log(`[launcher] Versión instalada: ${versionId}`);
 
@@ -201,7 +272,7 @@ class LaunchManager extends EventEmitter {
           within([0.82, 0.95], percent),
         );
         this.progress(within([0.82, 0.95], percent), detail);
-      });
+      }, this.abortController.signal);
 
       this.log(`[launcher] Modpack ${channel.id}: ${sync.files} archivos verificados, ${sync.downloaded} descargados.`);
 
@@ -272,7 +343,7 @@ class LaunchManager extends EventEmitter {
       this.watcher.on('minecraft-exit', ({ code, crashReport, crashReportLocation }) => {
         this.child = null;
         this.running = false;
-        this.progress(0, null);
+        this.resetProgress();
         this.status('Listo para jugar', 'idle', 0);
         this.emit('exit', {
           code,
@@ -285,18 +356,20 @@ class LaunchManager extends EventEmitter {
 
       this.watcher.on('error', (error) => {
         this.running = false;
+        this.resetProgress();
         this.status('Error al iniciar el juego', 'error', 0);
         this.emit('error', { message: String(error?.message || error) });
       });
 
       this.child.on('error', (error) => {
         this.running = false;
+        this.resetProgress();
         this.status('Error al iniciar el juego', 'error', 0);
         this.emit('error', { message: error.message });
       });
     } catch (error) {
       this.running = false;
-      this.progress(0, null);
+      this.resetProgress();
 
       if (this.cancelled) return this.finishCancelled();
 
@@ -310,7 +383,8 @@ class LaunchManager extends EventEmitter {
 
   finishCancelled() {
     this.running = false;
-    this.progress(0, null);
+    this.currentTask = null;
+    this.resetProgress();
     this.status('Cancelado', 'idle', 0);
     this.emit('cancelled');
   }
@@ -319,14 +393,23 @@ class LaunchManager extends EventEmitter {
     if (!this.running) return false;
     this.cancelled = true;
 
+    try {
+      this.abortController?.abort();
+    } catch {
+      /* abort best-effort */
+    }
+
+    if (this.currentTask) {
+      this.currentTask.cancel().catch(() => {});
+      this.currentTask = null;
+    }
+
     if (this.child?.pid) {
       if (process.platform === 'win32') {
         spawn('taskkill', ['/pid', String(this.child.pid), '/T', '/F'], { windowsHide: true });
       } else {
         this.child.kill('SIGTERM');
       }
-    } else {
-      this.finishCancelled();
     }
 
     return true;

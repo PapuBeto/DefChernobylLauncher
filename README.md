@@ -140,8 +140,22 @@ resources/
 └── links.json
 scripts/
 ├── generate-manifest.js
-└── test-install.js
+├── test-install.js
+└── test-launch.js
 ```
+
+### Pruebas
+
+```bash
+node_modules\electron\dist\electron.exe scripts\test-install.js
+node_modules\electron\dist\electron.exe scripts\test-launch.js
+```
+
+- `test-install.js` instala Minecraft + Forge en `%TEMP%\cz-install-test` y sincroniza el modpack.
+- `test-launch.js` abre el juego, espera 15 s y lo cierra para comprobar que arranca.
+
+El botón **CANCELAR** aborta de verdad: corta la descarga en curso, cancela la tarea de
+instalación y termina el proceso del juego si ya estaba abierto.
 
 ### Seguridad
 

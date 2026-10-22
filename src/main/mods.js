@@ -54,8 +54,8 @@ async function isValid(destination, file) {
   }
 }
 
-async function download(url, destination, onBytes) {
-  const response = await fetch(url, { redirect: 'follow' });
+async function download(url, destination, onBytes, signal) {
+  const response = await fetch(url, { redirect: 'follow', signal });
   if (!response.ok || !response.body) {
     throw new Error(`HTTP ${response.status} al descargar ${path.basename(destination)}`);
   }
@@ -66,6 +66,7 @@ async function download(url, destination, onBytes) {
 
   try {
     for await (const chunk of response.body) {
+      if (signal?.aborted) throw new Error('Descarga cancelada.');
       onBytes(chunk.length);
       if (!handle.write(chunk)) {
         await new Promise((resolve) => handle.once('drain', resolve));
@@ -85,7 +86,7 @@ async function download(url, destination, onBytes) {
  * Sincroniza los archivos del modpack (mods, configs, resourcepacks...).
  * Descarga lo que falta o está corrupto y elimina lo que ya no pertenece al canal.
  */
-async function syncFiles(root, files, channel, report = () => {}) {
+async function syncFiles(root, files, channel, report = () => {}, signal) {
   const state = readState();
   const managed = new Set(Array.isArray(state.managedFiles) ? state.managedFiles : []);
   const nextManaged = new Set();
@@ -129,6 +130,7 @@ async function syncFiles(root, files, channel, report = () => {}) {
   let cursor = 0;
   const worker = async () => {
     while (cursor < pending.length) {
+      if (signal?.aborted) throw new Error('Sincronización cancelada.');
       const item = pending[cursor++];
       const expected = Number(item.file.size) || 0;
       let received = 0;
@@ -138,7 +140,7 @@ async function syncFiles(root, files, channel, report = () => {}) {
         // Si no conocemos el tamaño usamos una fracción provisional por archivo.
         completed.set(item.destination, expected > 0 ? Math.min(received, expected) : 0);
         emit(item.file);
-      });
+      }, signal);
 
       if (item.file.sha1) {
         const hash = await sha1File(item.destination);
@@ -154,6 +156,8 @@ async function syncFiles(root, files, channel, report = () => {}) {
   };
 
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker));
+
+  if (signal?.aborted) throw new Error('Sincronización cancelada.');
 
   // Elimina archivos gestionados que ya no forman parte del canal actual.
   for (const relative of managed) {

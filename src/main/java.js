@@ -130,8 +130,8 @@ async function detect(preferredPath) {
   return null;
 }
 
-async function downloadFile(url, destination, onProgress) {
-  const response = await fetch(url, { redirect: 'follow' });
+async function downloadFile(url, destination, onProgress, signal) {
+  const response = await fetch(url, { redirect: 'follow', signal });
   if (!response.ok || !response.body) {
     throw new Error(`No se pudo descargar Java (HTTP ${response.status}).`);
   }
@@ -144,15 +144,20 @@ async function downloadFile(url, destination, onProgress) {
 
   try {
     for await (const chunk of response.body) {
+      if (signal?.aborted) throw new Error('Descarga de Java cancelada.');
       received += chunk.length;
       if (!handle.write(chunk)) {
         await new Promise((resolve) => handle.once('drain', resolve));
       }
       if (total && onProgress) onProgress(received / total);
     }
-  } finally {
+  } catch (error) {
     await new Promise((resolve) => handle.end(resolve));
+    fs.rmSync(destination, { force: true });
+    throw error;
   }
+
+  await new Promise((resolve) => handle.end(resolve));
 }
 
 function findExecutableIn(directory) {
@@ -176,7 +181,7 @@ const ADOPTIUM = {
  * Garantiza un Java 17+. Si no hay ninguno instalado descarga un JRE de
  * Eclipse Temurin dentro de userData.
  */
-async function ensure(preferredPath, onProgress = () => {}) {
+async function ensure(preferredPath, onProgress = () => {}, signal) {
   const existing = await detect(preferredPath);
   if (existing) return { ...existing, downloaded: false };
 
@@ -188,7 +193,8 @@ async function ensure(preferredPath, onProgress = () => {}) {
   const archive = path.join(paths.cache, `jre-${MIN_JAVA}.zip`);
 
   onProgress(0);
-  await downloadFile(url, archive, (fraction) => onProgress(fraction * 0.8));
+  await downloadFile(url, archive, (fraction) => onProgress(fraction * 0.8), signal);
+  if (signal?.aborted) throw new Error('Descarga de Java cancelada.');
 
   const AdmZip = require('adm-zip');
   const target = path.join(paths.java, `temurin-${MIN_JAVA}`);
