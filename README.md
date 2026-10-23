@@ -1,7 +1,7 @@
 # ☢ Chernobyl Z — Launcher
 
 Launcher de escritorio para el servidor de zombies **Chernobyl Z** (Minecraft **1.20.1 + Forge**).
-Interfaz oscura con estética post-apocalíptica, perfiles offline, sincronización de mods y
+Interfaz oscura con estética post-apocalíptica, cuentas premium y no premium, sincronización de mods y
 lanzamiento automático al servidor.
 
 ![Estado](https://img.shields.io/badge/estado-desarrollo-9cff42) ![Electron](https://img.shields.io/badge/Electron-33-9cff42) ![MC](https://img.shields.io/badge/Minecraft-1.20.1-9cff42)
@@ -15,7 +15,10 @@ lanzamiento automático al servidor.
 - **Perfiles offline**: varios nombres de jugador, sin cuenta premium.
 - **Canales de modpack**: `COMPLETA`, `LITE` y `FPS` con distinto conjunto de mods.
 - **Estado real del servidor**: ping al servidor (jugadores en línea, latencia, MOTD).
-- **Noticias dinámicas** desde `resources/news.json`.
+- **Fondo reactivo**: halo verde que sigue al ratón, con esporas flotando. Se puede
+  desactivar en **Ajustes → Fondo reactivo**.
+- **Noticias dinámicas** desde `resources/news.json`. Si está vacío, el panel de noticias
+  se oculta y la portada ocupa todo el ancho.
 - **Consola integrada** para diagnosticar problemas y reportes de crash.
 - Conexión directa al servidor al pulsar **JUGAR**.
 
@@ -120,7 +123,10 @@ Imprime los objetos JSON listos para pegar en `files`.
 
 ## Noticias y enlaces
 
-- **`resources/news.json`** → tarjetas del panel izquierdo y modal de detalle.
+- **`resources/news.json`** → tarjetas del panel izquierdo y modal de detalle. Viene vacío
+  por defecto: mientras no haya `items`, el panel no se muestra. Cada noticia admite
+  `id`, `type` (`update`/`fix`/`server`), `date`, `tag`, `title`, `shortTitle`,
+  `description` y `featured`.
 - **`resources/links.json`** → Discord, tienda, YouTube, TikTok, Instagram.
   Deja una cadena vacía para desactivar el aviso (muestra un toast recordatorio).
 

@@ -1,48 +1,5 @@
 {
   "version": 1,
-  "updatedAt": "2026-01-15T00:00:00.000Z",
-  "items": [
-    {
-      "id": "zona-irradiada",
-      "type": "update",
-      "date": "15 ENE",
-      "tag": "NUEVO",
-      "title": "Zona Irradiada añadida al mapa — oleadas nocturnas activas",
-      "shortTitle": "Zona Irradiada añadida al mapa",
-      "description": "Una nueva zona de alto riesgo se suma al mapa. Las oleadas nocturnas están activas y la radiación aumenta cuanto más tiempo permanezcas dentro.",
-      "featured": true
-    },
-    {
-      "id": "hotfix-spawn",
-      "type": "fix",
-      "date": "10 ENE",
-      "tag": "HOTFIX",
-      "title": "Hotfix spawn de zombies en zonas de base",
-      "description": "Ajustamos los puntos de aparición de zombies para evitar spawns dentro de determinadas zonas de base y mejorar la progresión durante las primeras horas."
-    },
-    {
-      "id": "modo-fps",
-      "type": "update",
-      "date": "02 ENE",
-      "tag": "OPTIMIZACIÓN",
-      "title": "Modo FPS disponible — optimización para PCs de gama baja",
-      "description": "Nueva configuración pensada para equipos de gama baja. Reduce efectos visuales y carga gráfica manteniendo la experiencia principal del modpack."
-    },
-    {
-      "id": "mantenimiento",
-      "type": "server",
-      "date": "28 DIC",
-      "tag": "SERVIDOR",
-      "title": "Mantenimiento — sábado 18 ene, 03:00 UTC",
-      "description": "El servidor permanecerá en mantenimiento durante la ventana indicada para aplicar tareas de infraestructura y comprobaciones del sistema."
-    },
-    {
-      "id": "crafteo-refugios",
-      "type": "update",
-      "date": "20 DIC",
-      "tag": "ACTUALIZACIÓN",
-      "title": "Sistema de crafteo de refugios rediseñado",
-      "description": "El sistema de crafteo de refugios fue reorganizado para que las recetas sean más claras y el proceso de construcción resulte más directo."
-    }
-  ]
+  "updatedAt": "2026-10-23T00:00:00.000Z",
+  "items": []
 }

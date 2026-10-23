@@ -23,6 +23,14 @@
 
   <div class="app" id="app">
 
+    <!-- FONDO REACTIVO -->
+
+    <div class="bg-fx" id="bgFx" aria-hidden="true">
+      <span class="bg-orb bg-orb-a"><i></i></span>
+      <span class="bg-orb bg-orb-b"><i></i></span>
+      <div class="bg-spores" id="bgSpores"></div>
+    </div>
+
     <!-- HEADER -->
 
     <header id="titlebar">
@@ -342,10 +350,21 @@
             </label>
           </div>
 
+          <div class="field">
+            <label class="switch-line">
+              <span>Fondo reactivo</span>
+              <label class="switch">
+                <input type="checkbox" id="effectsToggle">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </label>
+            <p class="field-hint">Iluminación verde que sigue al ratón. Desactívala si prefieres un fondo estático.</p>
+          </div>
+
         </div>
 
         <div class="panel-footer">
-          <span class="panel-note" id="settingsNote">Los cambios se aplican en el próximo inicio.</span>
+          <span class="panel-note" id="settingsNote">Memoria y resolución se aplican al iniciar el juego.</span>
           <div class="panel-actions">
             <button class="ghost-button" id="settingsCancel">Cancelar</button>
             <button class="primary-button" id="settingsSave">Guardar</button>

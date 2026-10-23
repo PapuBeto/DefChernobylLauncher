@@ -13,6 +13,7 @@ const DEFAULT_CONFIG = {
   resolution: { width: 1280, height: 720, fullscreen: false },
   closeOnLaunch: false,
   showSnapshots: false,
+  effects: true,
 };
 
 let cache = null;
@@ -71,6 +72,8 @@ function normalize(config) {
   merged.resolution.width = Math.max(640, Number(merged.resolution.width) || 1280);
   merged.resolution.height = Math.max(480, Number(merged.resolution.height) || 720);
   merged.resolution.fullscreen = Boolean(merged.resolution.fullscreen);
+
+  merged.effects = merged.effects !== false;
 
   return merged;
 }

@@ -100,6 +100,26 @@ function createWindow() {
             );
             await new Promise((resolve) => setTimeout(resolve, 900));
           }
+
+          const moveIndex = process.argv.indexOf('--shot-move');
+          if (moveIndex > 0 && process.argv[moveIndex + 1]) {
+            const [x, y] = String(process.argv[moveIndex + 1]).split(',').map(Number);
+            if (Number.isFinite(x) && Number.isFinite(y)) {
+              await mainWindow.webContents.executeJavaScript(
+                `window.dispatchEvent(new PointerEvent('pointermove', { clientX: ${x}, clientY: ${y} }))`,
+              );
+            }
+          }
+
+          const scrollIndex = process.argv.indexOf('--shot-scroll');
+          if (scrollIndex > 0 && process.argv[scrollIndex + 1]) {
+            const [selector, top] = String(process.argv[scrollIndex + 1]).split(',');
+            await mainWindow.webContents.executeJavaScript(
+              `document.querySelector(${JSON.stringify(selector)})?.scrollTo({ top: ${Number(top) || 0} })`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
+
           await new Promise((resolve) => setTimeout(resolve, 3000));
           const image = await mainWindow.webContents.capturePage();
           fs.writeFileSync(target, image.toPNG());
@@ -180,7 +200,7 @@ function registerIpc() {
 
   ipcMain.handle('settings:save', (_event, patch) => {
     if (!patch || typeof patch !== 'object') throw new Error('Ajustes inválidos.');
-    const allowed = ['memory', 'javaPath', 'resolution', 'closeOnLaunch', 'channel'];
+    const allowed = ['memory', 'javaPath', 'resolution', 'closeOnLaunch', 'channel', 'effects'];
     const safe = {};
     for (const key of allowed) {
       if (key in patch) safe[key] = patch[key];

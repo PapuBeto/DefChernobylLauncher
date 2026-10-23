@@ -21,6 +21,7 @@ const state = {
   auth: {},
   skins: {},
   skinPending: new Set(),
+  effects: true,
   update: null,
   signingIn: false,
   manualUpdateCheck: false,
@@ -30,6 +31,9 @@ const $ = (id) => document.getElementById(id);
 
 const els = {
   body: document.body,
+  main: document.querySelector('main'),
+  bgFx: $('bgFx'),
+  bgSpores: $('bgSpores'),
   playButton: $('playButton'),
   progress: $('progress'),
   percentage: $('percentage'),
@@ -79,6 +83,7 @@ const els = {
   gameDirPath: $('gameDirPath'),
   openGameFolder: $('openGameFolder'),
   closeOnLaunchToggle: $('closeOnLaunchToggle'),
+  effectsToggle: $('effectsToggle'),
   settingsNote: $('settingsNote'),
 
   profilesOverlay: $('profilesOverlay'),
@@ -192,7 +197,10 @@ function selectChannel(channelId) {
 function renderNews() {
   els.newsList.innerHTML = '';
 
-  if (!state.news.length) {
+  const hasNews = state.news.length > 0;
+  els.main.classList.toggle('no-news', !hasNews);
+
+  if (!hasNews) {
     els.newsList.innerHTML = '<p class="news-empty">Todavía no hay novedades publicadas.</p>';
     return;
   }
@@ -257,6 +265,96 @@ function openChangelog(item) {
   if (item.type === 'server') els.modalDot.classList.add('server');
 
   els.overlay.classList.add('open');
+}
+
+/* =========================================================
+   FONDO REACTIVO
+   ========================================================= */
+
+const glow = {
+  ready: false,
+  active: false,
+  raf: null,
+  x: 0,
+  y: 0,
+  tx: 0,
+  ty: 0,
+  x2: 0,
+  y2: 0,
+};
+
+function paintGlow() {
+  glow.raf = null;
+
+  glow.x += (glow.tx - glow.x) * 0.12;
+  glow.y += (glow.ty - glow.y) * 0.12;
+  glow.x2 += (glow.tx - glow.x2) * 0.045;
+  glow.y2 += (glow.ty - glow.y2) * 0.045;
+
+  els.bgFx.style.setProperty('--mx', `${glow.x}px`);
+  els.bgFx.style.setProperty('--my', `${glow.y}px`);
+  els.bgFx.style.setProperty('--mx2', `${glow.x2}px`);
+  els.bgFx.style.setProperty('--my2', `${glow.y2}px`);
+
+  if (Math.abs(glow.tx - glow.x) > 0.4 || Math.abs(glow.ty - glow.y) > 0.4) {
+    glow.raf = requestAnimationFrame(paintGlow);
+  }
+}
+
+function startGlow() {
+  if (!glow.active || glow.raf) return;
+  glow.raf = requestAnimationFrame(paintGlow);
+}
+
+function centerGlow() {
+  glow.tx = window.innerWidth * 0.6;
+  glow.ty = window.innerHeight * 0.42;
+  startGlow();
+}
+
+function initGlow() {
+  if (glow.ready) return;
+  glow.ready = true;
+
+  for (let index = 0; index < 18; index += 1) {
+    const spore = document.createElement('span');
+    spore.className = 'bg-spore';
+    spore.style.left = `${Math.random() * 100}%`;
+    spore.style.setProperty('--size', `${1 + Math.random() * 2.4}px`);
+    spore.style.setProperty('--dur', `${12 + Math.random() * 12}s`);
+    spore.style.setProperty('--delay', `${-Math.random() * 18}s`);
+    spore.style.setProperty('--sway', `${(Math.random() - 0.5) * 90}px`);
+    els.bgSpores.appendChild(spore);
+  }
+
+  glow.x = glow.x2 = glow.tx = window.innerWidth * 0.62;
+  glow.y = glow.y2 = glow.ty = window.innerHeight * 0.4;
+  paintGlow();
+
+  window.addEventListener('pointermove', (event) => {
+    glow.tx = event.clientX;
+    glow.ty = event.clientY;
+    startGlow();
+  }, { passive: true });
+
+  window.addEventListener('pointerleave', centerGlow);
+  window.addEventListener('blur', centerGlow);
+}
+
+function applyEffects(enabled) {
+  state.effects = Boolean(enabled);
+  document.body.classList.toggle('no-effects', !state.effects);
+
+  if (!state.effects) {
+    glow.active = false;
+    if (glow.raf) cancelAnimationFrame(glow.raf);
+    glow.raf = null;
+    return;
+  }
+
+  initGlow();
+  glow.active = true;
+  startGlow();
 }
 
 /* =========================================================
@@ -680,6 +778,7 @@ function renderSettings() {
 
   els.fullscreenToggle.checked = config.resolution.fullscreen;
   els.closeOnLaunchToggle.checked = config.closeOnLaunch;
+  els.effectsToggle.checked = config.effects !== false;
   els.javaPath.value = config.javaPath || '';
   els.gameDirPath.value = state.boot.system.gameDir;
 
@@ -723,9 +822,11 @@ async function saveSettings() {
         fullscreen: els.fullscreenToggle.checked,
       },
       closeOnLaunch: els.closeOnLaunchToggle.checked,
+      effects: els.effectsToggle.checked,
       javaPath: els.javaPath.value.trim() || null,
     });
 
+    applyEffects(state.config.effects !== false);
     renderProfile();
     closePanel(els.settingsOverlay);
     toast('Ajustes guardados.');
@@ -1002,12 +1103,21 @@ function bindEvents() {
     openPanel(els.settingsOverlay);
   });
 
-  els.settingsClose.addEventListener('click', () => closePanel(els.settingsOverlay));
-  els.settingsCancel.addEventListener('click', () => closePanel(els.settingsOverlay));
+  const closeSettings = () => {
+    closePanel(els.settingsOverlay);
+    applyEffects(state.config.effects !== false);
+  };
+
+  els.settingsClose.addEventListener('click', closeSettings);
+  els.settingsCancel.addEventListener('click', closeSettings);
   els.settingsSave.addEventListener('click', saveSettings);
 
+  els.effectsToggle.addEventListener('change', () => {
+    applyEffects(els.effectsToggle.checked);
+  });
+
   els.settingsOverlay.addEventListener('click', (event) => {
-    if (event.target === els.settingsOverlay) closePanel(els.settingsOverlay);
+    if (event.target === els.settingsOverlay) closeSettings();
   });
 
   els.memoryRange.addEventListener('input', () => {
@@ -1102,6 +1212,7 @@ async function init() {
     renderSettings();
     renderAccount();
     renderUpdate(boot.update);
+    applyEffects(boot.config.effects !== false);
 
     setLaunchState('idle');
     setProgress(0, null);

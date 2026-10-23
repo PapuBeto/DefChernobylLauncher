@@ -317,6 +317,15 @@ main {
   z-index: 1;
 }
 
+/* Sin noticias publicadas la portada ocupa todo el ancho. */
+main.no-news {
+  grid-template-columns: 1fr;
+}
+
+main.no-news .news {
+  display: none;
+}
+
 /* =========================================================
        NEWS
     ========================================================= */

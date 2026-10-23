@@ -904,3 +904,142 @@ body[data-state="running"] .footer-status {
 .update-action:hover {
   background: #b1ff68;
 }
+/* =========================================================
+   FONDO REACTIVO
+   ========================================================= */
+
+.bg-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+
+  overflow: hidden;
+  pointer-events: none;
+
+  opacity: 0;
+  transition: opacity .6s ease;
+}
+
+body:not(.no-effects) .bg-fx {
+  opacity: 1;
+}
+
+body.no-effects .bg-fx {
+  display: none;
+}
+
+.bg-orb {
+  position: absolute;
+  left: var(--mx, 62%);
+  top: var(--my, 42%);
+
+  transform: translate(-50%, -50%);
+}
+
+.bg-orb i {
+  display: block;
+  border-radius: 50%;
+
+  will-change: transform;
+}
+
+.bg-orb-a i {
+  width: 760px;
+  height: 760px;
+
+  background: radial-gradient(circle,
+      rgba(156, 255, 66, .17),
+      rgba(156, 255, 66, .05) 42%,
+      transparent 70%);
+
+  animation: orb-drift-a 19s ease-in-out infinite alternate;
+}
+
+.bg-orb-b {
+  left: var(--mx2, 58%);
+  top: var(--my2, 40%);
+}
+
+.bg-orb-b i {
+  width: 380px;
+  height: 380px;
+
+  background: radial-gradient(circle,
+      rgba(120, 255, 178, .1),
+      transparent 68%);
+
+  animation: orb-drift-b 13s ease-in-out infinite alternate;
+}
+
+@keyframes orb-drift-a {
+  from {
+    transform: translate3d(-26px, 18px, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(26px, -26px, 0) scale(1.08);
+  }
+}
+
+@keyframes orb-drift-b {
+  from {
+    transform: translate3d(14px, -14px, 0);
+  }
+
+  to {
+    transform: translate3d(-20px, 20px, 0);
+  }
+}
+
+.bg-spores {
+  position: absolute;
+  inset: 0;
+}
+
+.bg-spore {
+  position: absolute;
+  bottom: -14px;
+
+  width: var(--size, 2px);
+  height: var(--size, 2px);
+
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px rgba(156, 255, 66, .5);
+
+  opacity: 0;
+
+  animation: spore-rise var(--dur, 16s) linear var(--delay, 0s) infinite;
+}
+
+@keyframes spore-rise {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+
+  8% {
+    opacity: .5;
+  }
+
+  85% {
+    opacity: .16;
+  }
+
+  100% {
+    transform: translate3d(var(--sway, 20px), -96vh, 0);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .bg-orb i,
+  .bg-spore {
+    animation: none;
+  }
+
+  .bg-spore {
+    display: none;
+  }
+}
