@@ -1,7 +1,7 @@
 {
   "name": "chernobyl-z-launcher",
   "productName": "Chernobyl Z",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Launcher oficial de Chernobyl Z - Minecraft 1.20.1 Forge",
   "main": "src/main/main.js",
   "author": {

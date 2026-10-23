@@ -10,7 +10,7 @@
   "channels": {
     "COMPLETA": {
       "label": "COMPLETA",
-      "description": "Todos los mods · ~6 GB RAM",
+      "description": "PCs potentes · ~6 GB RAM",
       "memory": {
         "min": 2048,
         "max": 6144
@@ -18,18 +18,10 @@
     },
     "LITE": {
       "label": "LITE",
-      "description": "Mods esenciales · ~4 GB RAM",
+      "description": "Gama baja-media · ~4 GB RAM",
       "memory": {
         "min": 1536,
         "max": 4096
-      }
-    },
-    "FPS": {
-      "label": "FPS",
-      "description": "Optimizado para gama baja · ~3 GB RAM",
-      "memory": {
-        "min": 1024,
-        "max": 3072
       }
     }
   },

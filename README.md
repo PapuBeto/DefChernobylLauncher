@@ -13,7 +13,8 @@ lanzamiento automático al servidor.
 - **Instala todo solo**: Minecraft 1.20.1, Forge y los mods del modpack (con verificación SHA-1).
 - **Java automático**: detecta Java 17+ en el sistema; si no existe, descarga Eclipse Temurin.
 - **Perfiles offline**: varios nombres de jugador, sin cuenta premium.
-- **Canales de modpack**: `COMPLETA`, `LITE` y `FPS` con distinto conjunto de mods.
+- **Canales de modpack**: `COMPLETA` (PCs potentes, shaders y gráficos altos) y `LITE`
+  (gama baja-media, mismos mods compartidos y gráficos optimizados).
 - **Estado real del servidor**: ping al servidor (jugadores en línea, latencia, MOTD).
 - **Fondo reactivo**: halo verde que sigue al ratón, con esporas flotando. Se puede
   desactivar en **Ajustes → Fondo reactivo**.
