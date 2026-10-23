@@ -2,11 +2,13 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { EventEmitter } = require('node:events');
+const AdmZip = require('adm-zip');
 
 const { MinecraftFolder, launch, createMinecraftProcessWatcher } = require('@xmcl/core');
-const { getVersionList, installTask, installForgeTask } = require('@xmcl/installer');
+const { getVersionList, installTask } = require('@xmcl/installer');
 
 const { paths } = require('./paths');
 const configStore = require('./config');
@@ -89,28 +91,274 @@ async function ensureVanilla(folder, minecraftVersion, report, context = {}) {
   );
 }
 
+const FORGE_MAVEN = 'https://maven.minecraftforge.net/net/minecraftforge/forge';
+
+function sha1File(file) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha1');
+    const stream = fs.createReadStream(file);
+    stream.on('error', reject);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+}
+
+function removeFile(file) {
+  try {
+    fs.rmSync(file, { force: true });
+  } catch {
+    /* archivo bloqueado o ya eliminado */
+  }
+}
+
+function isForgeInstaller(file) {
+  try {
+    if (!fs.existsSync(file) || fs.statSync(file).size < 1_000_000) return false;
+    const zip = new AdmZip(file);
+    return Boolean(zip.getEntry('install_profile.json'));
+  } catch {
+    return false;
+  }
+}
+
+async function fetchText(url, timeoutMs, signal) {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  }
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal, redirect: 'follow' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.text()).trim();
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
+async function downloadForgeInstaller(url, destination, signal) {
+  let expected = null;
+  try {
+    const text = await fetchText(`${url}.sha1`, 15000, signal);
+    const value = text.split(/\s+/)[0].toLowerCase();
+    if (/^[a-f0-9]{40}$/.test(value)) expected = value;
+  } catch {
+    /* el .sha1 es opcional; el instalador se valida al abrirlo */
+  }
+
+  if (fs.existsSync(destination) && isForgeInstaller(destination)) {
+    if (!expected) return;
+    const local = await sha1File(destination);
+    if (local === expected) return;
+    removeFile(destination);
+  } else {
+    removeFile(destination);
+  }
+
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    if (signal?.aborted) throw new Error('Descarga cancelada.');
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => controller.abort(), 90000);
+    const temporary = `${destination}.part`;
+
+    try {
+      const response = await fetch(url, { signal: controller.signal, redirect: 'follow' });
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      const handle = fs.createWriteStream(temporary);
+      const hash = crypto.createHash('sha1');
+      let size = 0;
+
+      try {
+        for await (const chunk of response.body) {
+          hash.update(chunk);
+          size += chunk.length;
+          if (!handle.write(chunk)) {
+            await new Promise((resolve) => handle.once('drain', resolve));
+          }
+        }
+      } finally {
+        await new Promise((resolve) => handle.end(resolve));
+      }
+
+      const sha1 = hash.digest('hex');
+      if (expected && sha1 !== expected) throw new Error('SHA-1 del instalador no coincide.');
+      if (size < 1_000_000) throw new Error('El instalador llegó incompleto.');
+
+      fs.renameSync(temporary, destination);
+      return;
+    } catch (error) {
+      lastError = error;
+      removeFile(temporary);
+      if (signal?.aborted) throw new Error('Descarga cancelada.');
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+    }
+  }
+
+  throw new Error(`No se pudo descargar el instalador de Forge: ${lastError?.message || lastError}`);
+}
+
+function killTree(child) {
+  if (!child?.pid) return;
+  if (process.platform === 'win32') {
+    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+  } else {
+    child.kill('SIGTERM');
+  }
+}
+
+function runForgeInstaller({ installer, gameDir, signal, isCancelled, report, onTask }) {
+  return new Promise((resolve, reject) => {
+    const logPath = path.join(paths.logs, 'forge-install.log');
+    fs.mkdirSync(paths.logs, { recursive: true });
+    const log = fs.createWriteStream(logPath, { flags: 'w' });
+    log.on('error', () => {});
+    log.write(`[launcher] ${new Date().toISOString()} java -jar ${installer} --installClient ${gameDir}\n`);
+
+    const child = spawn('java', ['-Djava.awt.headless=true', '-jar', installer, '--installClient', gameDir], {
+      cwd: gameDir,
+      windowsHide: true,
+    });
+
+    let tail = '';
+    const onData = (chunk) => {
+      log.write(chunk);
+      tail = (tail + chunk.toString('utf8')).slice(-16000);
+    };
+    child.stdout?.on('data', onData);
+    child.stderr?.on('data', onData);
+
+    let cancelled = false;
+    let fake = 0.02;
+    report(fake);
+
+    const kill = () => {
+      cancelled = true;
+      killTree(child);
+    };
+
+    onTask?.({ cancel: async () => kill() });
+
+    const cancellationTimer = setInterval(() => {
+      if (isCancelled()) kill();
+    }, 500);
+
+    const progressTimer = setInterval(() => {
+      fake = Math.min(0.92, fake + 0.012);
+      report(fake);
+    }, 1200);
+
+    const cleanup = () => {
+      clearInterval(cancellationTimer);
+      clearInterval(progressTimer);
+      log.end();
+    };
+
+    child.once('error', (error) => {
+      cleanup();
+      reject(error);
+    });
+
+    child.once('close', (code) => {
+      cleanup();
+      if (cancelled || isCancelled() || signal?.aborted) {
+        reject(new Error('Instalación de Forge cancelada.'));
+        return;
+      }
+      if (code !== 0) {
+        reject(new Error(`El instalador de Forge falló (código ${code}).\n${tail.slice(-3000)}`));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function findForgeVersion(folder, minecraftVersion, forgeVersion) {
+  const versions = path.join(folder.root, 'versions');
+  const expected = `${minecraftVersion}-forge-${forgeVersion}`;
+  const names = fs.existsSync(versions) ? fs.readdirSync(versions) : [];
+  const candidates = [expected, ...names.filter((name) => name !== expected && name.includes(`forge-${forgeVersion}`))];
+
+  for (const name of candidates) {
+    const json = path.join(versions, name, `${name}.json`);
+    try {
+      const data = JSON.parse(fs.readFileSync(json, 'utf8'));
+      if (data?.id) return name;
+    } catch {
+      /* versión incompleta: se reinstala */
+    }
+  }
+  return null;
+}
+
 async function ensureForge(folder, minecraftVersion, forgeVersion, report, context = {}) {
   const isCancelled = context.isCancelled || (() => false);
+  const existing = findForgeVersion(folder, minecraftVersion, forgeVersion);
+  if (existing) {
+    report(1);
+    return existing;
+  }
+
+  const installer = path.join(
+    folder.root,
+    'libraries',
+    'net',
+    'minecraftforge',
+    'forge',
+    `${minecraftVersion}-${forgeVersion}`,
+    `forge-${minecraftVersion}-${forgeVersion}-installer.jar`,
+  );
+
+  const profiles = path.join(folder.root, 'launcher_profiles.json');
+  let profileData = null;
+  try {
+    if (fs.existsSync(profiles)) profileData = JSON.parse(fs.readFileSync(profiles, 'utf8'));
+  } catch {
+    profileData = null;
+  }
+
+  if (!profileData || typeof profileData !== 'object' || Array.isArray(profileData)) {
+    fs.writeFileSync(profiles, JSON.stringify({ profiles: {}, settings: {}, version: 3 }, null, 2), 'utf8');
+  }
 
   return withRetries(
     async () => {
-      const task = installForgeTask(
-        { mcversion: minecraftVersion, version: forgeVersion },
-        folder,
-        { side: 'client' },
+      if (isCancelled()) throw new Error('Instalación cancelada.');
+
+      await downloadForgeInstaller(
+        `${FORGE_MAVEN}/${minecraftVersion}-${forgeVersion}/forge-${minecraftVersion}-${forgeVersion}-installer.jar`,
+        installer,
+        context.signal,
       );
-      context.onTask?.(task);
-      const stop = trackProgress(task, report);
 
-      try {
-        await task.startAndWait();
-      } finally {
-        stop();
-      }
+      if (isCancelled()) throw new Error('Instalación cancelada.');
 
-      return task.get();
+      await runForgeInstaller({
+        installer,
+        gameDir: folder.root,
+        signal: context.signal,
+        isCancelled,
+        report,
+        onTask: context.onTask,
+      });
+
+      const versionId = findForgeVersion(folder, minecraftVersion, forgeVersion);
+      if (!versionId) throw new Error('Forge terminó pero no se encontró la versión instalada.');
+      report(1);
+      return versionId;
     },
-    3,
+    2,
     () => report(0),
     isCancelled,
   );
@@ -267,6 +515,7 @@ class LaunchManager extends EventEmitter {
             this.currentTask = task;
           },
           isCancelled,
+          signal: this.abortController.signal,
         },
       });
 

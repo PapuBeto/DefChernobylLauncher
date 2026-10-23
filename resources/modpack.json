@@ -1,11 +1,11 @@
 {
   "name": "Chernobyl Z",
   "minecraft": "1.20.1",
-  "forge": "47.3.0",
+  "forge": "47.4.28",
   "server": {
     "name": "Chernobyl Z",
-    "host": "play.chernobylz.net",
-    "port": 25565
+    "host": "ChernobylZ.refugenodes.com",
+    "port": 25836
   },
   "channels": {
     "COMPLETA": {

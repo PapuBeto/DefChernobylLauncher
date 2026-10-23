@@ -6,10 +6,10 @@ const { paths } = require('./paths');
 const FALLBACK_MODPACK = {
   name: 'Chernobyl Z',
   minecraft: '1.20.1',
-  forge: '47.3.0',
-  server: { name: 'Chernobyl Z', host: '', port: 25565 },
+  forge: '47.4.28',
+  server: { name: 'Chernobyl Z', host: 'ChernobylZ.refugenodes.com', port: 25836 },
   channels: {
-    COMPLETA: { label: 'COMPLETA', description: 'Todos los mods', memory: { min: 2048, max: 6144 } },
+    COMPLETA: { label: 'COMPLETA', description: 'PCs potentes · ~6 GB RAM', memory: { min: 2048, max: 6144 } },
   },
   files: [],
 };

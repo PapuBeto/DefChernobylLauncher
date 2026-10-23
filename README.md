@@ -93,10 +93,11 @@ Todo se define en **`resources/modpack.json`**:
 {
   "name": "Chernobyl Z",
   "minecraft": "1.20.1",
-  "forge": "47.3.0",
-  "server": { "name": "Chernobyl Z", "host": "play.chernobylz.net", "port": 25565 },
+  "forge": "47.4.28",
+  "server": { "name": "Chernobyl Z", "host": "ChernobylZ.refugenodes.com", "port": 25836 },
   "channels": {
-    "COMPLETA": { "label": "COMPLETA", "description": "Todos los mods", "memory": { "min": 2048, "max": 6144 } }
+    "COMPLETA": { "label": "COMPLETA", "description": "PCs potentes · ~6 GB RAM", "memory": { "min": 2048, "max": 6144 } },
+    "LITE": { "label": "LITE", "description": "Gama baja-media · ~4 GB RAM", "memory": { "min": 1536, "max": 4096 } }
   },
   "files": [
     {
@@ -105,6 +106,20 @@ Todo se define en **`resources/modpack.json`**:
       "sha1": "0123456789abcdef0123456789abcdef01234567",
       "size": 1234567,
       "channels": ["COMPLETA", "LITE"]
+    },
+    {
+      "path": "config/embeddium-options.json",
+      "url": "https://tu-cdn.com/completa/config/embeddium-options.json",
+      "sha1": "1111111111111111111111111111111111111111",
+      "size": 2345,
+      "channels": ["COMPLETA"]
+    },
+    {
+      "path": "config/embeddium-options.json",
+      "url": "https://tu-cdn.com/lite/config/embeddium-options.json",
+      "sha1": "2222222222222222222222222222222222222222",
+      "size": 2100,
+      "channels": ["LITE"]
     }
   ],
   "mods": [
@@ -126,6 +141,10 @@ Todo se define en **`resources/modpack.json`**:
 - `sha1` / `size`: opcionales pero muy recomendados (si el hash no coincide, se vuelve a descargar).
 - `channels`: si se omite, el archivo aplica a todos los canales.
 - Los archivos gestionados que dejan de aparecer en el manifiesto **se eliminan** en la siguiente sincronización.
+- Para tener **contenido distinto por canal** en la misma ruta (configs de gráficos, shaders,
+  resource packs), usa dos entradas con el mismo `path` y `channels` exclusivos. Nunca
+  pongas dos entradas con el mismo `path` y canales solapados: la última ganaría y el
+  resultado dependería del orden.
 
 ### Panel de mods
 
@@ -145,11 +164,79 @@ tocar código.
 
 ### Generar entradas del manifiesto
 
-```bash
-node scripts/generate-manifest.js "C:\ruta\a\mods" "https://tu-cdn.com/mods" COMPLETA
+El generador recorre un pack y calcula `sha1`/`size` de `mods/`, `config/`,
+`defaultconfigs/`, `kubejs/`, `tacz/`, `scripts/`, `resourcepacks/` y
+`shaderpacks/`. Puede combinar los dos canales en un solo `files[]`, aunque estén en
+carpetas distintas:
+
+```powershell
+node scripts/generate-manifest.js `
+  --channel COMPLETA "C:\packs\completa" "https://raw.githubusercontent.com/PapuBeto/chernobylz-pack/<commit>/completa" `
+  --channel LITE     "C:\packs\lite"     "https://raw.githubusercontent.com/PapuBeto/chernobylz-pack/<commit>/lite" `
+  --write resources/modpack.json
 ```
 
-Imprime los objetos JSON listos para pegar en `files`.
+- `--channel <CANAL> <carpeta> <urlBase>`: una carpeta por canal. Si un archivo está en
+  los dos y es idéntico, el cliente lo reutiliza (mismo `sha1`), no lo vuelve a descargar
+  al cambiar de canal.
+- `--write resources/modpack.json`: sustituye `files` y conserva el resto del manifiesto.
+- `--output files.json`: guarda el array sin tocar `modpack.json`.
+- `--options`: incluye `options.txt` (ver el aviso de más abajo).
+- `--exclude "config/foo/*"`: excluye rutas (se puede repetir).
+- Sin `--channel`, la forma antigua sigue valiendo:
+  `node scripts/generate-manifest.js <carpeta> <urlBase> [canal...]`.
+- Si la carpeta no tiene subcarpetas de pack, se trata como `mods/` (solo `.jar`).
+
+### Dónde alojar los archivos
+
+Para este proyecto lo más práctico es un **repo público aparte** (por ejemplo
+`PapuBeto/chernobylz-pack`) con una carpeta por canal:
+
+```
+chernobylz-pack/
+├── completa/
+│   ├── mods/
+│   ├── config/
+│   ├── kubejs/
+│   ├── tacz/
+│   ├── shaderpacks/
+│   └── resourcepacks/
+└── lite/
+    └── ...
+```
+
+- El generador funciona con cualquier host que **conserve la estructura de carpetas**
+  (raw de GitHub, Cloudflare R2, un VPS...).
+- En GitHub, usa el **SHA del commit** en la URL, no `main`: así una actualización no se
+  queda servida desde la caché de GitHub.
+- GitHub limita a **100 MB por archivo** en el repositorio. Si un shader o resource pack
+  supera ese tamaño, súbelo a **GitHub Releases** y pon esa URL en su entrada; el `path`
+  sigue siendo `resourcepacks/...`. El nombre del asset y la URL no tienen por qué
+  coincidir con la ruta.
+- **No uses Git LFS**: la cuota gratuita de descargas se agota con muy pocos jugadores.
+  Para un pack grande o con muchas descargas, Cloudflare R2 (10 GB gratis y sin coste de
+  salida) es la opción limpia; solo cambian las `url`.
+- Revisa las licencias de mods, shaders y resource packs antes de redistribuirlos.
+
+> `resources/modpack.json` va dentro del instalador (`app-resources`). Cada cambio en el
+> manifiesto (nuevo mod, config o hash) requiere publicar una versión del launcher. Los
+> archivos del pack en sí no necesitan release del launcher; solo el JSON que los apunta.
+
+### `options.txt` y los ajustes de gráficos
+
+No incluyas `options.txt` como archivo gestionado salvo que sepas lo que haces: el
+launcher lo verificaría en cada JUGAR y **resetearía teclas, FOV, idioma, sonido y
+gráficos** cada vez que el jugador los cambie.
+
+Para los ajustes de rendimiento, lo recomendable es:
+
+1. Gestionar las configs de los mods (`config/embeddium-options.json`,
+   `config/iris.properties`, etc.) por canal.
+2. Dejar `options.txt` fuera y, si hace falta un preset de gráficos, aplicarlo solo al
+   cambiar de canal (función pendiente de añadir cuando estén los packs).
+
+`--options` existe para casos concretos (por ejemplo, un perfil de pruebas), no para el
+manifiesto de producción.
 
 ---
 
@@ -337,9 +424,9 @@ El workflow compila con `--publish onTag` y sube al release
 | Problema | Solución |
 |---|---|
 | «No se encontró Minecraft 1.20.1» | Sin conexión o Mojang caído. Revisa la consola. |
-| Forge falla al instalar | Necesita Java 17 en el PATH; el launcher lo añade solo. |
+| Forge falla al instalar | Necesita Java 17 en el PATH; el launcher lo añade solo. Revisa `logs/forge-install.log` en la carpeta de datos del launcher. |
 | Crash al entrar | Abre **Consola** (menú de perfil) y revisa `game/crash-reports`. |
-| Servidor OFFLINE | Revisa `server.host` / `server.port` en `resources/modpack.json`. |
+| Servidor OFFLINE | Revisa `server.host` / `server.port` en `resources/modpack.json`. Si el host tiene un registro SRV (`_minecraft._tcp.<host>`), el puerto puede ser distinto del habitual; el servidor actual responde en **25836**. |
 | Mods no aparecen | Comprueba `channels`, `sha1` y que la URL sea accesible. |
 
 ---
