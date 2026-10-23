@@ -497,6 +497,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border: 1px solid var(--border);
 }
 
+.profile-list:empty {
+  display: none;
+}
+
 .profile-row {
   display: flex;
   align-items: center;
