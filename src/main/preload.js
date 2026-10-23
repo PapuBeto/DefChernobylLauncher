@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('launcher', {
   signInMicrosoft: () => ipcRenderer.invoke('auth:sign-in'),
   cancelSignIn: () => ipcRenderer.invoke('auth:cancel'),
   signOut: (id) => ipcRenderer.invoke('auth:sign-out', id),
+  profileSkin: (id) => ipcRenderer.invoke('auth:skin', id),
 
   // Actualizaciones
   updateState: () => ipcRenderer.invoke('update:state'),

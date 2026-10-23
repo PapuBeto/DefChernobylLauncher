@@ -224,6 +224,10 @@ class LaunchManager extends EventEmitter {
       const profile =
         config.profiles.find((item) => item.id === config.activeProfile) || config.profiles[0];
 
+      if (!profile) {
+        throw new Error('Elige una cuenta premium o no premium antes de jugar.');
+      }
+
       // 0. Cuenta (renueva el token de Microsoft antes de descargar nada)
       if (profile.type === 'microsoft') {
         this.status('Comprobando cuenta Microsoft...', 'idle', 0);

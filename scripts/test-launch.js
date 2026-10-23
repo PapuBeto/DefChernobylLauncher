@@ -33,6 +33,12 @@ app.whenReady().then(async () => {
   resources.loadModpack = () => ({ ...modpack, server: { ...modpack.server, host: '' } });
 
   const { LaunchManager } = require('../src/main/game');
+  const configStore = require('../src/main/config');
+
+  if (!configStore.load().profiles.length) {
+    configStore.addProfile('TestPlayer');
+  }
+
   const manager = new LaunchManager();
 
   manager.on('status', ({ phase, text }) => {

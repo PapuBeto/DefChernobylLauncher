@@ -162,6 +162,7 @@ src/
 │   ├── game.js           # instalación de Forge y lanzamiento
 │   ├── mods.js           # sincronización del modpack
 │   ├── updater.js        # auto-actualización (electron-updater)
+│   ├── skins.js          # descarga y caché de skins
 │   ├── auth/             # cuentas
 │   │   ├── index.js      # sesión por perfil + login Microsoft
 │   │   ├── microsoft.js  # device code → Xbox → Minecraft
@@ -198,6 +199,12 @@ node_modules\electron\dist\electron.exe scripts\test-launch.js
 El botón **CANCELAR** aborta de verdad: corta la descarga en curso, cancela la tarea de
 instalación y termina el proceso del juego si ya estaba abierto.
 
+Para probar el primer arranque (pantalla de elección de cuenta) sin tocar tus datos:
+
+```bash
+node_modules\electron\dist\electron.exe . --user-data %TEMP%\cz-perfil-limpio
+```
+
 ### Seguridad
 
 - `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
@@ -208,18 +215,22 @@ instalación y termina el proceso del juego si ya estaba abierto.
 
 ## Cuentas: premium y offline
 
-El launcher soporta las dos a la vez (estilo Prism / TLauncher):
+El launcher soporta las dos a la vez (estilo Prism / TLauncher). **No hay cuenta por
+defecto**: en el primer arranque se abre la pantalla de cuentas y cada jugador elige.
 
-| Perfil | Cómo entra | UUID |
-|---|---|---|
-| **Microsoft** | Inicia sesión con la cuenta; token real | El de tu cuenta (premium) |
-| **Offline** | Solo un nick | `MD5("OfflinePlayer:<nick>")` |
+| Cuenta | Cómo entra | UUID | Avatar |
+|---|---|---|---|
+| **Premium (Microsoft)** | Inicia sesión con la cuenta; token real | El de tu cuenta | Su skin real |
+| **No premium (offline)** | Solo un nick | `MD5("OfflinePlayer:<nick>")` | Avatar genérico |
 
 - **Perfiles → Iniciar sesión con Microsoft**: se abre `microsoft.com/link` con un código de
   8 caracteres. El refresh token se guarda cifrado con DPAPI (`safeStorage`) en
-  `%APPDATA%\Chernobyl Z\accounts.json`.
-- `online-mode=true` en el servidor **solo** acepta perfiles Microsoft.
-- `online-mode=false` acepta ambos.
+  `%APPDATA%\Chernobyl Z\accounts.json` y la textura de la skin en `cache/skins/`.
+- La cabeza de la skin se dibuja en la cabecera y en la lista de cuentas; las cuentas no
+  premium mantienen el avatar por defecto.
+- Se pueden tener varias cuentas (premium y no premium) y cambiar con un clic.
+- `online-mode=true` en el servidor **solo** acepta cuentas Microsoft.
+- `online-mode=false` acepta ambas.
 
 ### Servidor mixto (premium + no premium)
 

@@ -5,8 +5,8 @@ const crypto = require('node:crypto');
 const { paths } = require('./paths');
 
 const DEFAULT_CONFIG = {
-  activeProfile: 'default',
-  profiles: [{ id: 'default', type: 'offline', name: 'Superviviente' }],
+  activeProfile: null,
+  profiles: [],
   channel: 'COMPLETA',
   memory: 4096,
   javaPath: null,
@@ -41,9 +41,7 @@ function sanitizeProfileName(name) {
 function normalize(config) {
   const merged = { ...DEFAULT_CONFIG, ...(config || {}) };
 
-  if (!Array.isArray(merged.profiles) || merged.profiles.length === 0) {
-    merged.profiles = structuredClone(DEFAULT_CONFIG.profiles);
-  }
+  if (!Array.isArray(merged.profiles)) merged.profiles = [];
 
   merged.profiles = merged.profiles
     .filter((profile) => profile && sanitizeProfileName(profile.name))
@@ -58,10 +56,8 @@ function normalize(config) {
     });
 
   if (merged.profiles.length === 0) {
-    merged.profiles = structuredClone(DEFAULT_CONFIG.profiles);
-  }
-
-  if (!merged.profiles.some((profile) => profile.id === merged.activeProfile)) {
+    merged.activeProfile = null;
+  } else if (!merged.profiles.some((profile) => profile.id === merged.activeProfile)) {
     merged.activeProfile = merged.profiles[0].id;
   }
 
@@ -144,12 +140,9 @@ function addMicrosoftProfile({ name, uuid }) {
 
 function removeProfile(id) {
   const config = load();
-  if (config.profiles.length <= 1) {
-    throw new Error('Necesitas al menos un perfil.');
-  }
-
   const profiles = config.profiles.filter((profile) => profile.id !== id);
-  const activeProfile = id === config.activeProfile ? profiles[0].id : config.activeProfile;
+  const activeProfile =
+    profiles.length === 0 ? null : id === config.activeProfile ? profiles[0].id : config.activeProfile;
   return update({ profiles, activeProfile });
 }
 

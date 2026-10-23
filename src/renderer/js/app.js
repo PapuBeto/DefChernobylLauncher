@@ -19,6 +19,8 @@ const state = {
   serverOnline: false,
   logBuffer: [],
   auth: {},
+  skins: {},
+  skinPending: new Set(),
   update: null,
   signingIn: false,
   manualUpdateCheck: false,
@@ -86,6 +88,14 @@ const els = {
   newProfileName: $('newProfileName'),
   addProfileButton: $('addProfileButton'),
   profilesNote: $('profilesNote'),
+  profilesIntro: $('profilesIntro'),
+  listHead: $('listHead'),
+
+  avatarDefault: $('avatarDefault'),
+  avatarCanvas: $('avatarCanvas'),
+  accountUser: $('accountUser'),
+  accountSkin: $('accountSkin'),
+  accountName: $('accountName'),
 
   consoleOverlay: $('consoleOverlay'),
   consoleClose: $('consoleClose'),
@@ -342,26 +352,113 @@ async function refreshServerStatus() {
 function activeProfile() {
   return (
     state.config.profiles.find((profile) => profile.id === state.config.activeProfile) ||
-    state.config.profiles[0]
+    state.config.profiles[0] ||
+    null
   );
 }
 
+/* ---------- Skins ---------- */
+
+function drawHead(canvas, dataUrl) {
+  if (!canvas || !dataUrl) return;
+
+  const image = new Image();
+  image.onload = () => {
+    const context = canvas.getContext('2d');
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Cara en (8,8) de la textura.
+    context.drawImage(image, 8, 8, 8, 8, 0, 0, canvas.width, canvas.height);
+
+    // La capa de sombrero solo existe en skins modernas (64x64). En las
+    // antiguas (64x32) esa zona está vacía y suele venir pintada de negro.
+    if (image.naturalHeight >= 64) {
+      context.drawImage(image, 40, 8, 8, 8, 0, 0, canvas.width, canvas.height);
+    }
+  };
+  image.src = dataUrl;
+}
+
+function paintSkins() {
+  for (const canvas of document.querySelectorAll('canvas[data-skin-id]')) {
+    const dataUrl = state.skins[canvas.dataset.skinId];
+    if (dataUrl) drawHead(canvas, dataUrl);
+  }
+
+  const profile = activeProfile();
+  const skin = profile ? state.skins[profile.id] : null;
+
+  if (profile?.type === 'microsoft' && skin) {
+    drawHead(els.avatarCanvas, skin);
+    els.avatarCanvas.hidden = false;
+    els.avatarDefault.hidden = true;
+  } else {
+    els.avatarCanvas.hidden = true;
+    els.avatarDefault.hidden = false;
+  }
+}
+
+async function ensureSkin(profile) {
+  if (!profile || profile.type !== 'microsoft') return;
+  const id = profile.id;
+  if (state.skins[id] || state.skinPending.has(id)) return;
+
+  state.skinPending.add(id);
+  try {
+    const dataUrl = await api.profileSkin(id);
+    if (dataUrl) {
+      state.skins[id] = dataUrl;
+      paintSkins();
+      if (activeMicrosoft()?.id === id) drawHead(els.accountSkin, dataUrl);
+    }
+  } catch {
+    // Sin skin: se mantiene el avatar por defecto.
+  } finally {
+    state.skinPending.delete(id);
+  }
+}
+
+/* ---------- Perfiles ---------- */
+
 function renderProfile() {
   const profile = activeProfile();
-  els.profileName.textContent = profile?.name || 'Superviviente';
+  els.profileName.textContent = profile?.name || 'Sin cuenta';
 
   const label = els.profileButton.querySelector('.profile-label');
   if (label) {
-    label.textContent = profile?.type === 'microsoft' ? 'CUENTA MS ▾' : 'PERFIL ▾';
+    label.textContent = !profile
+      ? 'ELEGIR CUENTA ▾'
+      : profile.type === 'microsoft'
+        ? 'PREMIUM ▾'
+        : 'NO PREMIUM ▾';
   }
+
+  els.profileButton.classList.toggle('no-account', !profile);
+
+  if (profile) ensureSkin(profile);
+  paintSkins();
 }
 
 function renderProfileList() {
   els.profileList.innerHTML = '';
 
+  const empty = state.config.profiles.length === 0;
+  els.profilesIntro.hidden = !empty;
+  els.listHead.hidden = empty;
+
   for (const profile of state.config.profiles) {
     const row = document.createElement('div');
     row.className = `profile-row${profile.id === state.config.activeProfile ? ' active' : ''}`;
+
+    if (profile.type === 'microsoft') {
+      const skin = document.createElement('canvas');
+      skin.className = 'row-skin';
+      skin.width = 64;
+      skin.height = 64;
+      skin.dataset.skinId = profile.id;
+      row.appendChild(skin);
+    }
 
     const name = document.createElement('span');
     name.className = 'row-name';
@@ -372,10 +469,10 @@ function renderProfileList() {
 
     if (profile.type === 'microsoft') {
       const connected = state.auth[profile.id] !== false;
-      type.textContent = connected ? 'MICROSOFT' : 'MS · SIN SESIÓN';
+      type.textContent = connected ? 'PREMIUM' : 'PREMIUM · SIN SESIÓN';
       type.classList.toggle('ms', connected);
     } else {
-      type.textContent = 'OFFLINE';
+      type.textContent = 'NO PREMIUM';
     }
 
     const badge = document.createElement('span');
@@ -384,28 +481,27 @@ function renderProfileList() {
 
     row.append(name, type, badge);
 
-    if (state.config.profiles.length > 1) {
-      const remove = document.createElement('button');
-      remove.className = 'row-remove';
-      remove.textContent = '×';
-      remove.title =
-        profile.type === 'microsoft' ? 'Cerrar sesión de Microsoft' : 'Eliminar perfil';
-      remove.addEventListener('click', async (event) => {
-        event.stopPropagation();
-        try {
-          const result = await api.removeProfile(profile.id);
-          state.config = result.config;
-          state.auth = result.auth || {};
-          renderProfile();
-          renderProfileList();
-          renderAccount();
-          toast(`Perfil "${profile.name}" eliminado.`);
-        } catch (error) {
-          toast(cleanError(error), 'error');
-        }
-      });
-      row.appendChild(remove);
-    }
+    const remove = document.createElement('button');
+    remove.className = 'row-remove';
+    remove.textContent = '×';
+    remove.title =
+      profile.type === 'microsoft' ? 'Quitar cuenta Microsoft' : 'Eliminar cuenta no premium';
+    remove.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      try {
+        const result = await api.removeProfile(profile.id);
+        state.config = result.config;
+        state.auth = result.auth || {};
+        delete state.skins[profile.id];
+        renderProfile();
+        renderProfileList();
+        renderAccount();
+        toast(`Cuenta "${profile.name}" eliminada.`);
+      } catch (error) {
+        toast(cleanError(error), 'error');
+      }
+    });
+    row.appendChild(remove);
 
     row.addEventListener('click', async () => {
       try {
@@ -413,7 +509,7 @@ function renderProfileList() {
         renderProfile();
         renderProfileList();
         renderAccount();
-        els.profilesNote.textContent = `Perfil activo: ${profile.name}`;
+        els.profilesNote.textContent = `Cuenta activa: ${profile.name}`;
       } catch (error) {
         toast(cleanError(error), 'error');
       }
@@ -421,6 +517,9 @@ function renderProfileList() {
 
     els.profileList.appendChild(row);
   }
+
+  paintSkins();
+  for (const profile of state.config.profiles) ensureSkin(profile);
 }
 
 /* ---------- Cuenta Microsoft ---------- */
@@ -438,23 +537,28 @@ function renderAccount() {
 
   if (!profile) {
     els.accountFlag.textContent = 'SIN CONECTAR';
-    els.accountHint.textContent =
-      'Conecta tu cuenta para entrar a servidores premium. Los perfiles offline siguen disponibles.';
+    els.accountHint.textContent = 'Usa tu cuenta de Microsoft con Minecraft: Java Edition.';
     els.msLoginButton.textContent = 'Iniciar sesión con Microsoft';
     els.msLoginButton.hidden = false;
+    els.accountUser.hidden = true;
     return;
   }
 
   els.msLoginButton.hidden = false;
+  els.accountName.textContent = profile.name;
 
   if (connected) {
     els.accountFlag.textContent = 'CONECTADO';
-    els.accountHint.textContent = `Sesión activa como ${profile.name}. Este perfil entra sin contraseña a servidores mixtos.`;
+    els.accountHint.textContent = 'Esta cuenta entra sin contraseña a servidores mixtos.';
     els.msLoginButton.textContent = 'Iniciar sesión con otra cuenta';
+    els.accountUser.hidden = false;
+    ensureSkin(profile);
   } else {
     els.accountFlag.textContent = 'SESIÓN CADUCADA';
-    els.accountHint.textContent = 'La sesión de Microsoft caducó. Vuelve a conectar la cuenta para jugar.';
+    els.accountHint.textContent =
+      'La sesión de Microsoft caducó. Vuelve a conectar la cuenta para jugar.';
     els.msLoginButton.textContent = 'Reconectar Microsoft';
+    els.accountUser.hidden = true;
   }
 }
 
@@ -473,6 +577,7 @@ async function signInMicrosoft() {
     toast(`Sesión iniciada como ${result.profile.name}.`);
     renderProfile();
     renderProfileList();
+    renderAccount();
   } catch (error) {
     const message = cleanError(error);
     if (!/cancelad/i.test(message)) toast(message, 'error', 9000);
@@ -546,7 +651,8 @@ async function addProfile() {
     els.newProfileName.value = '';
     renderProfile();
     renderProfileList();
-    toast(`Perfil "${activeProfile().name}" activado.`);
+    renderAccount();
+    toast(`Cuenta no premium "${activeProfile()?.name}" activada.`);
   } catch (error) {
     toast(cleanError(error), 'error');
   }
@@ -703,6 +809,16 @@ async function startGame() {
     return;
   }
   if (state.running) return;
+
+  if (!state.launching) {
+    if (!activeProfile()) {
+      toast('Elige una cuenta premium o no premium para jugar.');
+      renderProfileList();
+      renderAccount();
+      openPanel(els.profilesOverlay);
+      return;
+    }
+  }
 
   setLaunchState('launching');
   setProgress(0, null);
@@ -924,6 +1040,7 @@ function bindEvents() {
   els.openProfiles.addEventListener('click', () => {
     closeAllMenu();
     renderProfileList();
+    renderAccount();
     els.profilesNote.textContent = '';
     openPanel(els.profilesOverlay);
   });
@@ -998,6 +1115,14 @@ async function init() {
   }
 
   bindEvents();
+
+  // Primer inicio sin cuentas: elegir premium o no premium directamente.
+  if (state.config && !activeProfile()) {
+    renderProfileList();
+    renderAccount();
+    openPanel(els.profilesOverlay);
+    setTimeout(() => els.newProfileName.focus(), 150);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

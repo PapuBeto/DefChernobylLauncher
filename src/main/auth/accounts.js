@@ -51,10 +51,13 @@ function decrypt(entry) {
 
 function save(id, account) {
   const data = readAll();
+  const previous = data.accounts[id];
+
   data.accounts[id] = {
     name: account.name,
     uuid: account.uuid,
     token: encrypt(account.refreshToken),
+    skin: account.skin || previous?.skin || null,
     updatedAt: Date.now(),
   };
   writeAll(data);
@@ -65,7 +68,13 @@ function get(id) {
   if (!raw) return null;
   const refreshToken = decrypt(raw.token);
   if (!refreshToken) return null;
-  return { name: raw.name, uuid: raw.uuid, refreshToken };
+  return { name: raw.name, uuid: raw.uuid, skin: raw.skin || null, refreshToken };
+}
+
+/** URL de la skin activa (sin descifrar el token). */
+function skinUrl(id) {
+  const raw = readAll().accounts[id];
+  return raw?.skin || null;
 }
 
 function has(id) {
@@ -86,4 +95,4 @@ function list() {
   return Object.keys(data.accounts).filter((id) => Boolean(get(id)));
 }
 
-module.exports = { save, get, has, remove, list };
+module.exports = { save, get, has, remove, list, skinUrl };

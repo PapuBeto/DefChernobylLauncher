@@ -254,11 +254,19 @@ async function loginMinecraft(msAccessToken, signal) {
   }
 
   const profile = await profileResponse.json();
+  const skins = Array.isArray(profile.skins) ? profile.skins : [];
+  const activeSkin =
+    skins.find((item) => String(item.state).toUpperCase() === 'ACTIVE') || skins[0] || null;
 
   return {
     accessToken: data.access_token,
     expiresIn: Number(data.expires_in) || 86400,
-    profile: { id: profile.id, name: profile.name, skins: profile.skins || [] },
+    profile: {
+      id: profile.id,
+      name: profile.name,
+      skins,
+      skin: activeSkin?.url || null,
+    },
   };
 }
 

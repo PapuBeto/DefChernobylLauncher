@@ -86,28 +86,32 @@
 
         <button class="profile-button" id="profileButton" title="Perfil">
 
-          <svg class="avatar" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">
-            <rect width="8" height="2" fill="#6b4226" />
-            <rect y="2" width="8" height="6" fill="#c4836d" />
-            <rect x="0" y="2" width="1" height="6" fill="#6b4226" />
-            <rect x="7" y="2" width="1" height="6" fill="#6b4226" />
-            <rect x="1" y="3" width="2" height="1" fill="#3c2b1f" />
-            <rect x="5" y="3" width="2" height="1" fill="#3c2b1f" />
-            <rect x="3" y="4" width="2" height="1" fill="#b07865" />
-            <rect x="2" y="6" width="1" height="1" fill="#8b3232" />
-            <rect x="3" y="6" width="2" height="1" fill="#3c2b1f" />
-            <rect x="5" y="6" width="1" height="1" fill="#8b3232" />
-          </svg>
+          <span class="avatar-frame">
+            <svg class="avatar" id="avatarDefault" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">
+              <rect width="8" height="2" fill="#6b4226" />
+              <rect y="2" width="8" height="6" fill="#c4836d" />
+              <rect x="0" y="2" width="1" height="6" fill="#6b4226" />
+              <rect x="7" y="2" width="1" height="6" fill="#6b4226" />
+              <rect x="1" y="3" width="2" height="1" fill="#3c2b1f" />
+              <rect x="5" y="3" width="2" height="1" fill="#3c2b1f" />
+              <rect x="3" y="4" width="2" height="1" fill="#b07865" />
+              <rect x="2" y="6" width="1" height="1" fill="#8b3232" />
+              <rect x="3" y="6" width="2" height="1" fill="#3c2b1f" />
+              <rect x="5" y="6" width="1" height="1" fill="#8b3232" />
+            </svg>
+
+            <canvas class="avatar avatar-canvas" id="avatarCanvas" width="64" height="64" hidden></canvas>
+          </span>
 
           <div class="profile-info">
-            <span class="profile-name" id="profileName">Superviviente</span>
-            <span class="profile-label">PERFIL ▾</span>
+            <span class="profile-name" id="profileName">Sin cuenta</span>
+            <span class="profile-label">ELEGIR CUENTA ▾</span>
           </div>
 
         </button>
 
         <div class="profile-menu" id="profileMenu">
-          <div class="profile-option" id="openProfiles">Gestionar perfiles</div>
+          <div class="profile-option" id="openProfiles">Gestionar cuentas</div>
           <div class="profile-option" id="openSettings">Ajustes</div>
           <div class="profile-option" id="openConsole">Consola</div>
           <div class="profile-option separator" id="quitLauncher">Salir del launcher</div>
@@ -360,18 +364,32 @@
         <button class="modal-close" id="profilesClose">×</button>
 
         <div class="panel-header">
-          <span class="panel-kicker">LAUNCHER / PERFILES</span>
-          <h2 class="panel-title">Perfiles</h2>
+          <span class="panel-kicker">LAUNCHER / CUENTAS</span>
+          <h2 class="panel-title">Cuentas</h2>
         </div>
 
         <div class="panel-body">
+          <p class="panel-intro" id="profilesIntro" hidden>
+            Elige cómo quieres jugar. Puedes tener cuenta premium y cuenta no premium a la vez,
+            y cambiar entre ellas cuando quieras.
+          </p>
+
           <div class="account-card">
             <div class="account-top">
-              <span class="panel-kicker">CUENTA MICROSOFT</span>
+              <span class="panel-kicker">CUENTA PREMIUM · MICROSOFT</span>
               <span class="account-flag" id="accountFlag">SIN CONECTAR</span>
             </div>
+
+            <div class="account-user" id="accountUser" hidden>
+              <canvas class="account-skin" id="accountSkin" width="64" height="64"></canvas>
+              <div class="account-user-info">
+                <strong id="accountName">—</strong>
+                <span>Entra sin contraseña en servidores mixtos</span>
+              </div>
+            </div>
+
             <p class="field-hint" id="accountHint">
-              Conecta tu cuenta para entrar a servidores premium. Los perfiles offline siguen disponibles.
+              Usa tu cuenta de Microsoft con Minecraft: Java Edition.
             </p>
             <button class="ghost-button" id="msLoginButton">Iniciar sesión con Microsoft</button>
 
@@ -388,16 +406,25 @@
             </div>
           </div>
 
-          <div class="profile-list" id="profileList"></div>
-
-          <div class="field">
-            <label for="newProfileName">Nuevo perfil offline</label>
+          <div class="account-card offline-card">
+            <div class="account-top">
+              <span class="panel-kicker">CUENTA NO PREMIUM</span>
+              <span class="account-flag">OFFLINE</span>
+            </div>
+            <p class="field-hint">
+              Solo necesitas un nombre. El servidor te pedirá <code>/register</code> y
+              <code>/login</code> dentro del juego.
+            </p>
             <div class="field-inline">
               <input type="text" id="newProfileName" maxlength="16" placeholder="Nombre en el juego">
               <button class="ghost-button" id="addProfileButton">Añadir</button>
             </div>
-            <p class="field-hint">Solo letras, números y guion bajo. En servidores mixtos entra sin contraseña con la cuenta Microsoft; el perfil offline usa /register.</p>
           </div>
+
+          <div class="list-head" id="listHead" hidden>
+            <span class="panel-kicker">TUS CUENTAS</span>
+          </div>
+          <div class="profile-list" id="profileList"></div>
         </div>
 
         <div class="panel-footer">

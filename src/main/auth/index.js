@@ -30,11 +30,13 @@ async function sessionForProfile(profile) {
   }
 
   const refreshed = await microsoft.refreshMicrosoft(account.refreshToken);
-  if (refreshed.refreshToken !== account.refreshToken) {
-    accounts.save(profile.id, { ...account, refreshToken: refreshed.refreshToken });
+  const minecraft = await microsoft.loginMinecraft(refreshed.accessToken);
+
+  const skin = minecraft.profile.skin || account.skin || null;
+  if (refreshed.refreshToken !== account.refreshToken || skin !== account.skin) {
+    accounts.save(profile.id, { ...account, refreshToken: refreshed.refreshToken, skin });
   }
 
-  const minecraft = await microsoft.loginMinecraft(refreshed.accessToken);
   const session = {
     name: minecraft.profile.name,
     id: minecraft.profile.id,
@@ -62,6 +64,7 @@ async function signInMicrosoft({ onDeviceCode, signal } = {}) {
     name: result.profile.name,
     uuid: result.profile.id,
     refreshToken: result.refreshToken,
+    skin: result.profile.skin,
   });
 
   sessions.set(id, {
@@ -86,6 +89,11 @@ function hasSession(id) {
   return sessions.has(id) || accounts.has(id);
 }
 
+/** URL de la textura de skin guardada para un perfil Microsoft. */
+function skinUrl(id) {
+  return accounts.skinUrl(id);
+}
+
 /** Estado de sesión por perfil, para pintar la UI. */
 function status(profiles = []) {
   const result = {};
@@ -101,6 +109,7 @@ module.exports = {
   signInMicrosoft,
   signOut,
   hasSession,
+  skinUrl,
   status,
   offlineProfile,
 };

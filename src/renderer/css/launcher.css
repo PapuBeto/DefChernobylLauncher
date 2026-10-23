@@ -621,6 +621,112 @@ body[data-state="running"] .footer-status {
   background: var(--surface);
 }
 
+.panel-intro {
+  margin-bottom: 20px;
+
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.panel-intro[hidden] {
+  display: none;
+}
+
+.avatar-frame {
+  display: inline-flex;
+  flex: 0 0 auto;
+
+  width: 27px;
+  height: 27px;
+}
+
+.avatar-frame svg[hidden] {
+  display: none;
+}
+
+.avatar-canvas {
+  display: block;
+
+  image-rendering: pixelated;
+}
+
+.avatar-canvas[hidden] {
+  display: none;
+}
+
+.account-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+
+  border-bottom: 1px dashed var(--border);
+}
+
+.account-user[hidden] {
+  display: none;
+}
+
+.account-skin {
+  width: 40px;
+  height: 40px;
+
+  image-rendering: pixelated;
+}
+
+.account-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.account-user-info strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.account-user-info span {
+  color: var(--muted);
+
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: .04em;
+}
+
+.account-card code {
+  padding: 1px 4px;
+
+  background: rgba(156, 255, 66, .07);
+  color: var(--green);
+
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin: 4px 0 10px;
+}
+
+.list-head[hidden] {
+  display: none;
+}
+
+.profile-row .row-skin {
+  flex: 0 0 auto;
+
+  width: 24px;
+  height: 24px;
+
+  image-rendering: pixelated;
+}
+
 .account-top {
   display: flex;
   align-items: center;

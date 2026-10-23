@@ -11,10 +11,17 @@ const { loadModpack, loadNews, loadLinks } = require('./resources');
 const { ping } = require('./server-status');
 const javaManager = require('./java');
 const authManager = require('./auth');
+const skins = require('./skins');
 const { UpdateService } = require('./updater');
 const { LaunchManager } = require('./game');
 
 const isDev = process.argv.includes('--dev');
+
+// Permite arrancar con un userData limpio (pruebas y capturas).
+const userDataArg = process.argv.indexOf('--user-data');
+if (userDataArg > 0 && process.argv[userDataArg + 1]) {
+  app.setPath('userData', path.resolve(process.argv[userDataArg + 1]));
+}
 
 let mainWindow = null;
 let statusCache = { at: 0, value: null };
@@ -64,6 +71,12 @@ function createWindow() {
 
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+
+  if (isDev || process.argv.includes('--screenshot')) {
+    mainWindow.webContents.on('console-message', (_event, _level, message) => {
+      console.log(`[renderer] ${message}`);
+    });
+  }
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -228,18 +241,29 @@ function registerIpc() {
     return true;
   });
 
+  ipcMain.handle('auth:skin', async (_event, id) => {
+    try {
+      return await skins.dataUrl(id);
+    } catch (error) {
+      launchManager.log(`[skin] ${error.message}`);
+      return null;
+    }
+  });
+
   ipcMain.handle('auth:sign-out', (_event, id) => {
     authManager.signOut(id);
 
     const config = configStore.load();
     const remaining = config.profiles.filter((profile) => profile.id !== id);
-    if (remaining.length === 0) {
-      remaining.push({ id: 'default', type: 'offline', name: 'Superviviente' });
-    }
 
     const next = configStore.update({
       profiles: remaining,
-      activeProfile: config.activeProfile === id ? remaining[0].id : config.activeProfile,
+      activeProfile:
+        remaining.length === 0
+          ? null
+          : config.activeProfile === id
+            ? remaining[0].id
+            : config.activeProfile,
     });
 
     return { config: next, auth: authManager.status(next.profiles) };
