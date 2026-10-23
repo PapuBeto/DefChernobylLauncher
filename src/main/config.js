@@ -6,7 +6,7 @@ const { paths } = require('./paths');
 
 const DEFAULT_CONFIG = {
   activeProfile: 'default',
-  profiles: [{ id: 'default', name: 'Superviviente' }],
+  profiles: [{ id: 'default', type: 'offline', name: 'Superviviente' }],
   channel: 'COMPLETA',
   memory: 4096,
   javaPath: null,
@@ -47,10 +47,15 @@ function normalize(config) {
 
   merged.profiles = merged.profiles
     .filter((profile) => profile && sanitizeProfileName(profile.name))
-    .map((profile) => ({
-      id: String(profile.id || crypto.randomUUID()),
-      name: sanitizeProfileName(profile.name),
-    }));
+    .map((profile) => {
+      const microsoft = profile.type === 'microsoft' && profile.uuid;
+      return {
+        id: String(profile.id || crypto.randomUUID()),
+        type: microsoft ? 'microsoft' : 'offline',
+        name: sanitizeProfileName(profile.name),
+        ...(microsoft ? { uuid: String(profile.uuid) } : {}),
+      };
+    });
 
   if (merged.profiles.length === 0) {
     merged.profiles = structuredClone(DEFAULT_CONFIG.profiles);
@@ -110,10 +115,31 @@ function addProfile(name) {
     throw new Error('Ya existe un perfil con ese nombre.');
   }
 
-  const profile = { id: crypto.randomUUID(), name: clean };
+  const profile = { id: crypto.randomUUID(), type: 'offline', name: clean };
   config.profiles.push(profile);
   config.activeProfile = profile.id;
   return update({ profiles: config.profiles, activeProfile: profile.id });
+}
+
+/** Crea (o actualiza) el perfil de una cuenta Microsoft y lo activa. */
+function addMicrosoftProfile({ name, uuid }) {
+  const config = load();
+  const clean = sanitizeProfileName(name) || 'Jugador';
+  const id = `ms:${uuid}`;
+  const existing = config.profiles.find((profile) => profile.id === id);
+
+  const profiles = existing
+    ? config.profiles.map((profile) =>
+        profile.id === id ? { ...profile, type: 'microsoft', name: clean, uuid: String(uuid) } : profile,
+      )
+    : [
+        ...config.profiles.filter(
+          (profile) => !(profile.type === 'microsoft' && profile.uuid === String(uuid)),
+        ),
+        { id, type: 'microsoft', name: clean, uuid: String(uuid) },
+      ];
+
+  return update({ profiles, activeProfile: id });
 }
 
 function removeProfile(id) {
@@ -139,6 +165,7 @@ module.exports = {
   load,
   update,
   addProfile,
+  addMicrosoftProfile,
   removeProfile,
   selectProfile,
   activeProfile,

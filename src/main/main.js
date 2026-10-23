@@ -10,6 +10,8 @@ const { paths } = require('./paths');
 const { loadModpack, loadNews, loadLinks } = require('./resources');
 const { ping } = require('./server-status');
 const javaManager = require('./java');
+const authManager = require('./auth');
+const { UpdateService } = require('./updater');
 const { LaunchManager } = require('./game');
 
 const isDev = process.argv.includes('--dev');
@@ -18,6 +20,7 @@ let mainWindow = null;
 let statusCache = { at: 0, value: null };
 
 const launchManager = new LaunchManager();
+const updateService = new UpdateService();
 
 function send(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -32,6 +35,12 @@ launchManager.on('ready', (payload) => send('launch:ready', payload));
 launchManager.on('exit', (payload) => send('launch:exit', payload));
 launchManager.on('error', (payload) => send('launch:error', payload));
 launchManager.on('cancelled', () => send('launch:cancelled', {}));
+
+updateService.on('state', (state) => send('update:state', state));
+updateService.on('log', (line) => {
+  launchManager.log(line);
+  console.log(line);
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -63,16 +72,22 @@ function createWindow() {
     if (process.argv.includes('--screenshot')) {
       const target = process.argv[process.argv.indexOf('--screenshot') + 1];
       const clickIndex = process.argv.indexOf('--shot-click');
-      const clickId = clickIndex > 0 ? process.argv[clickIndex + 1] : null;
+      const clickIds =
+        clickIndex > 0 && process.argv[clickIndex + 1]
+          ? process.argv[clickIndex + 1].split(',').filter(Boolean)
+          : [];
+      const waitIndex = process.argv.indexOf('--shot-wait');
+      const extraWait = waitIndex > 0 ? Number(process.argv[waitIndex + 1]) || 0 : 0;
 
       setTimeout(async () => {
         try {
-          if (clickId) {
+          for (const id of clickIds) {
             await mainWindow.webContents.executeJavaScript(
-              `document.getElementById(${JSON.stringify(clickId)})?.click()`,
+              `document.getElementById(${JSON.stringify(id)})?.click()`,
             );
-            await new Promise((resolve) => setTimeout(resolve, 1200));
+            await new Promise((resolve) => setTimeout(resolve, 900));
           }
+          await new Promise((resolve) => setTimeout(resolve, 3000));
           const image = await mainWindow.webContents.capturePage();
           fs.writeFileSync(target, image.toPNG());
           console.log(`[screenshot] ${target}`);
@@ -80,7 +95,7 @@ function createWindow() {
           console.error('[screenshot]', error);
         }
         app.quit();
-      }, 3500);
+      }, 3500 + extraWait);
     }
   });
 
@@ -138,6 +153,8 @@ function registerIpc() {
       },
       news: loadNews(),
       links: loadLinks(),
+      auth: authManager.status(config.profiles),
+      update: updateService.getState(),
       system: {
         platform: process.platform,
         arch: process.arch,
@@ -159,8 +176,81 @@ function registerIpc() {
   });
 
   ipcMain.handle('profiles:add', (_event, name) => configStore.addProfile(name));
-  ipcMain.handle('profiles:remove', (_event, id) => configStore.removeProfile(id));
+  ipcMain.handle('profiles:remove', (_event, id) => {
+    authManager.signOut(id);
+    const config = configStore.removeProfile(id);
+    return { config, auth: authManager.status(config.profiles) };
+  });
   ipcMain.handle('profiles:select', (_event, id) => configStore.selectProfile(id));
+
+  let authFlow = null;
+
+  ipcMain.handle('auth:sign-in', async () => {
+    if (authFlow) throw new Error('Ya hay un inicio de sesión en curso.');
+
+    const controller = new AbortController();
+    authFlow = controller;
+
+    try {
+      const result = await authManager.signInMicrosoft({
+        signal: controller.signal,
+        onDeviceCode: (code) =>
+          send('auth:device-code', {
+            userCode: code.userCode,
+            verificationUri: code.verificationUri,
+            expiresIn: code.expiresIn,
+          }),
+      });
+
+      const config = configStore.addMicrosoftProfile({
+        name: result.profile.name,
+        uuid: result.profile.id,
+      });
+
+      const payload = {
+        profile: { id: result.id, name: result.profile.name, uuid: result.profile.id },
+        config,
+        auth: authManager.status(config.profiles),
+      };
+
+      send('auth:signed-in', payload);
+      return payload;
+    } catch (error) {
+      send('auth:error', { message: error.message });
+      throw error;
+    } finally {
+      authFlow = null;
+    }
+  });
+
+  ipcMain.handle('auth:cancel', () => {
+    authFlow?.abort();
+    return true;
+  });
+
+  ipcMain.handle('auth:sign-out', (_event, id) => {
+    authManager.signOut(id);
+
+    const config = configStore.load();
+    const remaining = config.profiles.filter((profile) => profile.id !== id);
+    if (remaining.length === 0) {
+      remaining.push({ id: 'default', type: 'offline', name: 'Superviviente' });
+    }
+
+    const next = configStore.update({
+      profiles: remaining,
+      activeProfile: config.activeProfile === id ? remaining[0].id : config.activeProfile,
+    });
+
+    return { config: next, auth: authManager.status(next.profiles) };
+  });
+
+  ipcMain.handle('update:state', () => updateService.getState());
+  ipcMain.handle('update:check', () => {
+    updateService.check();
+    return updateService.getState();
+  });
+  ipcMain.handle('update:install', () => updateService.install());
 
   ipcMain.handle('java:detect', async (_event, explicitPath) => {
     const config = configStore.load();
@@ -247,6 +337,7 @@ if (!gotLock) {
     ensureDirectories();
     registerIpc();
     createWindow();
+    updateService.start();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

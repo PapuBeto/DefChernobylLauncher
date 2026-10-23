@@ -610,3 +610,187 @@ body[data-state="running"] .footer-status {
     align-items: flex-start;
   }
 }
+
+/* ---------- Cuenta Microsoft ---------- */
+
+.account-card {
+  padding: 16px;
+  margin-bottom: 22px;
+
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.account-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.account-flag {
+  padding: 3px 7px;
+
+  border: 1px solid var(--border);
+  color: var(--muted);
+
+  font-family: var(--mono);
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.account-flag.connected {
+  border-color: rgba(156, 255, 66, .35);
+  background: rgba(156, 255, 66, .06);
+  color: var(--green);
+}
+
+.account-card .field-hint {
+  margin-bottom: 12px;
+}
+
+.device-box {
+  margin-top: 14px;
+  padding-top: 14px;
+
+  border-top: 1px dashed var(--border);
+}
+
+.device-text {
+  margin-bottom: 10px;
+
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.device-text a {
+  border-bottom: 1px dotted rgba(156, 255, 66, .5);
+  color: var(--green);
+  text-decoration: none;
+}
+
+.device-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.device-code {
+  color: var(--green);
+
+  font-family: var(--mono);
+  font-size: 20px;
+  letter-spacing: .28em;
+}
+
+.device-box .field-hint {
+  margin-bottom: 10px;
+}
+
+.ghost-button.small {
+  height: 30px;
+  padding: 0 12px;
+
+  font-size: 10px;
+}
+
+.profile-row .row-type {
+  padding: 2px 6px;
+  margin-left: 8px;
+
+  border: 1px solid var(--border);
+  color: var(--muted);
+
+  font-family: var(--mono);
+  font-size: 7px;
+  letter-spacing: .08em;
+}
+
+.profile-row .row-type.ms {
+  border-color: rgba(156, 255, 66, .3);
+  color: var(--green);
+}
+
+/* ---------- Barra de actualización ---------- */
+
+.update-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 42px;
+  z-index: 30;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 10px 26px;
+
+  border-top: 1px solid var(--border-hover);
+  background: rgba(10, 13, 10, .97);
+}
+
+.update-bar[hidden] {
+  display: none;
+}
+
+.update-bar .server-dot {
+  flex: 0 0 auto;
+}
+
+.update-bar[data-state="error"] .server-dot {
+  background: #d96a4d;
+  box-shadow: 0 0 8px rgba(217, 106, 77, .5);
+}
+
+.update-text {
+  color: var(--text-soft);
+
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.update-track {
+  flex: 1;
+  height: 2px;
+
+  overflow: hidden;
+
+  background: rgba(255, 255, 255, .07);
+}
+
+.update-fill {
+  width: 0;
+  height: 100%;
+
+  background: var(--green);
+
+  transition: width .3s ease;
+}
+
+.update-action {
+  height: 30px;
+  padding: 0 14px;
+
+  background: var(--green);
+  color: #0d100c;
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+
+  cursor: pointer;
+}
+
+.update-action[hidden] {
+  display: none;
+}
+
+.update-action:hover {
+  background: #b1ff68;
+}

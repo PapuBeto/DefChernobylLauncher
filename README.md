@@ -161,7 +161,12 @@ src/
 │   ├── java.js           # detección y descarga de Java 17
 │   ├── game.js           # instalación de Forge y lanzamiento
 │   ├── mods.js           # sincronización del modpack
-│   ├── auth.js           # perfil offline (UUID v3)
+│   ├── updater.js        # auto-actualización (electron-updater)
+│   ├── auth/             # cuentas
+│   │   ├── index.js      # sesión por perfil + login Microsoft
+│   │   ├── microsoft.js  # device code → Xbox → Minecraft
+│   │   ├── accounts.js   # refresh tokens cifrados (DPAPI)
+│   │   └── offline.js    # perfil offline (UUID v3)
 │   └── server-status.js  # Server List Ping
 └── renderer/             # interfaz (HTML/CSS/JS sin frameworks)
     ├── index.html
@@ -171,7 +176,8 @@ src/
 resources/
 ├── modpack.json
 ├── news.json
-└── links.json
+├── links.json
+└── auth.json            # clientId de la app de Azure
 scripts/
 ├── generate-icon.js
 ├── generate-manifest.js
@@ -200,6 +206,67 @@ instalación y termina el proceso del juego si ya estaba abierto.
 
 ---
 
+## Cuentas: premium y offline
+
+El launcher soporta las dos a la vez (estilo Prism / TLauncher):
+
+| Perfil | Cómo entra | UUID |
+|---|---|---|
+| **Microsoft** | Inicia sesión con la cuenta; token real | El de tu cuenta (premium) |
+| **Offline** | Solo un nick | `MD5("OfflinePlayer:<nick>")` |
+
+- **Perfiles → Iniciar sesión con Microsoft**: se abre `microsoft.com/link` con un código de
+  8 caracteres. El refresh token se guarda cifrado con DPAPI (`safeStorage`) en
+  `%APPDATA%\Chernobyl Z\accounts.json`.
+- `online-mode=true` en el servidor **solo** acepta perfiles Microsoft.
+- `online-mode=false` acepta ambos.
+
+### Servidor mixto (premium + no premium)
+
+`server.properties`:
+
+```properties
+online-mode=false
+```
+
+más un plugin que detecte cuentas premium al entrar:
+
+- **nLogin**: detección premium integrada; los premium entran solos y el resto usa `/login`.
+- **AuthMe + FastLogin**: FastLogin comprueba si el nick es premium y AuthMe pide contraseña
+  a los demás.
+
+Resultado: los premium entran sin contraseña, los no premium con `/register` y `/login`.
+La comprobación premium la hace el plugin **por nombre** contra Mojang: es razonable, pero
+no equivale criptográficamente a `online-mode=true`.
+
+> El `clientId` de Azure vive en `resources/auth.json`. Es público y puede cambiarse sin
+> recompilar (basta editar el JSON).
+
+## Actualizaciones automáticas
+
+`electron-updater` + GitHub Releases, con descarga **diferencial** (blockmap): no se
+reinstala todo ni se pierden mods, mundos o ajustes.
+
+- En la versión instalada comprueba al arrancar (8 s) y cada 30 min.
+- Al haber versión nueva aparece una barra inferior con el progreso y el botón
+  **Reiniciar e instalar**; también se puede forzar desde **Ajustes → Launcher → Buscar**.
+- El auto-actualizador necesita que el repositorio (o el de releases) sea **público**:
+  GitHub no entrega assets privados sin token.
+
+Publicar una versión:
+
+```bash
+npm version 1.0.1 --no-git-tag-version
+git commit -am "chore: version 1.0.1"
+git tag v1.0.1
+git push origin main --tags
+```
+
+El workflow compila con `--publish onTag` y sube al release
+`ChernobylZ-Setup-<version>.exe`, su `.blockmap` y `latest.yml`.
+
+---
+
 ## Solución de problemas
 
 | Problema | Solución |
@@ -214,8 +281,8 @@ instalación y termina el proceso del juego si ya estaba abierto.
 
 ## Próximos pasos
 
-- [ ] Autenticación Microsoft (cuentas premium) además de offline.
-- [ ] Auto-actualización del launcher (electron-updater + GitHub Releases).
+- [x] Autenticación Microsoft (cuentas premium) además de offline.
+- [x] Auto-actualización del launcher (electron-updater + GitHub Releases).
 - [ ] Barra de progreso con velocidad y tamaño descargado.
 - [ ] Selector de idioma.
 - [ ] Firma de código del ejecutable.

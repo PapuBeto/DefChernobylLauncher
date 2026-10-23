@@ -317,6 +317,18 @@
           </div>
 
           <div class="field">
+            <div class="field-head">
+              <label>Launcher</label>
+              <span class="field-value" id="updateVersion">1.0.0</span>
+            </div>
+            <div class="field-inline">
+              <input type="text" id="updateState" readonly>
+              <button class="ghost-button" id="updateCheckButton">Buscar</button>
+            </div>
+            <p class="field-hint">Se actualiza solo desde GitHub. Tus mods, mundos y ajustes se conservan.</p>
+          </div>
+
+          <div class="field">
             <label class="switch-line">
               <span>Cerrar el launcher al entrar al juego</span>
               <label class="switch">
@@ -353,15 +365,38 @@
         </div>
 
         <div class="panel-body">
+          <div class="account-card">
+            <div class="account-top">
+              <span class="panel-kicker">CUENTA MICROSOFT</span>
+              <span class="account-flag" id="accountFlag">SIN CONECTAR</span>
+            </div>
+            <p class="field-hint" id="accountHint">
+              Conecta tu cuenta para entrar a servidores premium. Los perfiles offline siguen disponibles.
+            </p>
+            <button class="ghost-button" id="msLoginButton">Iniciar sesión con Microsoft</button>
+
+            <div class="device-box" id="deviceBox" hidden>
+              <p class="device-text">
+                Abre <a href="#" id="deviceLink">microsoft.com/link</a> e introduce este código:
+              </p>
+              <div class="device-row">
+                <strong class="device-code" id="deviceCode">--------</strong>
+                <button class="ghost-button small" id="deviceCopy">Copiar</button>
+              </div>
+              <p class="field-hint">Esperando confirmación en el navegador…</p>
+              <button class="ghost-button small" id="deviceCancel">Cancelar</button>
+            </div>
+          </div>
+
           <div class="profile-list" id="profileList"></div>
 
           <div class="field">
-            <label for="newProfileName">Nuevo perfil</label>
+            <label for="newProfileName">Nuevo perfil offline</label>
             <div class="field-inline">
               <input type="text" id="newProfileName" maxlength="16" placeholder="Nombre en el juego">
               <button class="ghost-button" id="addProfileButton">Añadir</button>
             </div>
-            <p class="field-hint">Solo letras, números y guion bajo. Sin cuentas premium: el servidor usa autenticación offline.</p>
+            <p class="field-hint">Solo letras, números y guion bajo. En servidores mixtos entra sin contraseña con la cuenta Microsoft; el perfil offline usa /register.</p>
           </div>
         </div>
 
@@ -405,6 +440,13 @@
 
 
     <!-- FOOTER -->
+
+    <div class="update-bar" id="updateBar" hidden>
+      <span class="server-dot" id="updateDot"></span>
+      <span class="update-text" id="updateText">Buscando actualizaciones…</span>
+      <div class="update-track"><div class="update-fill" id="updateFill"></div></div>
+      <button class="update-action" id="updateAction" hidden>Reiniciar e instalar</button>
+    </div>
 
     <footer>
 

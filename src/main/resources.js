@@ -16,6 +16,13 @@ const FALLBACK_MODPACK = {
 
 let modpackCache = null;
 let newsCache = null;
+let authCache = null;
+
+const FALLBACK_AUTH = {
+  clientId: '',
+  tenant: 'consumers',
+  scope: 'XboxLive.signin offline_access',
+};
 
 function readJson(file, fallback) {
   try {
@@ -72,4 +79,13 @@ function loadLinks() {
   });
 }
 
-module.exports = { loadModpack, getChannel, filesForChannel, loadNews, loadLinks };
+/** Configuración de la app de Azure usada para el login Microsoft. */
+function loadAuth() {
+  if (!authCache) {
+    const raw = readJson(paths.resource('auth.json'), null) || {};
+    authCache = { ...FALLBACK_AUTH, ...raw };
+  }
+  return authCache;
+}
+
+module.exports = { loadModpack, getChannel, filesForChannel, loadNews, loadLinks, loadAuth };

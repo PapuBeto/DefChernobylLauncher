@@ -18,6 +18,10 @@ const state = {
   java: null,
   serverOnline: false,
   logBuffer: [],
+  auth: {},
+  update: null,
+  signingIn: false,
+  manualUpdateCheck: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -99,6 +103,23 @@ const els = {
   openSettings: $('openSettings'),
   openConsole: $('openConsole'),
   quitLauncher: $('quitLauncher'),
+
+  accountFlag: $('accountFlag'),
+  accountHint: $('accountHint'),
+  msLoginButton: $('msLoginButton'),
+  deviceBox: $('deviceBox'),
+  deviceCode: $('deviceCode'),
+  deviceLink: $('deviceLink'),
+  deviceCopy: $('deviceCopy'),
+  deviceCancel: $('deviceCancel'),
+
+  updateBar: $('updateBar'),
+  updateText: $('updateText'),
+  updateFill: $('updateFill'),
+  updateAction: $('updateAction'),
+  updateVersion: $('updateVersion'),
+  updateState: $('updateState'),
+  updateCheckButton: $('updateCheckButton'),
 };
 
 /* =========================================================
@@ -117,10 +138,14 @@ function toast(message, type = 'info', timeout = 4200) {
   }, timeout);
 }
 
+const cleanError = (error) =>
+  String(error?.message || error || '')
+    .replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, '')
+    .trim();
+
 function openPanel(overlay) {
   overlay.classList.add('open');
 }
-
 function closePanel(overlay) {
   overlay.classList.remove('open');
 }
@@ -324,6 +349,11 @@ function activeProfile() {
 function renderProfile() {
   const profile = activeProfile();
   els.profileName.textContent = profile?.name || 'Superviviente';
+
+  const label = els.profileButton.querySelector('.profile-label');
+  if (label) {
+    label.textContent = profile?.type === 'microsoft' ? 'CUENTA MS ▾' : 'PERFIL ▾';
+  }
 }
 
 function renderProfileList() {
@@ -337,26 +367,41 @@ function renderProfileList() {
     name.className = 'row-name';
     name.textContent = profile.name;
 
+    const type = document.createElement('span');
+    type.className = 'row-type';
+
+    if (profile.type === 'microsoft') {
+      const connected = state.auth[profile.id] !== false;
+      type.textContent = connected ? 'MICROSOFT' : 'MS · SIN SESIÓN';
+      type.classList.toggle('ms', connected);
+    } else {
+      type.textContent = 'OFFLINE';
+    }
+
     const badge = document.createElement('span');
     badge.className = 'row-badge';
     badge.textContent = profile.id === state.config.activeProfile ? 'ACTIVO' : '';
 
-    row.append(name, badge);
+    row.append(name, type, badge);
 
     if (state.config.profiles.length > 1) {
       const remove = document.createElement('button');
       remove.className = 'row-remove';
       remove.textContent = '×';
-      remove.title = 'Eliminar perfil';
+      remove.title =
+        profile.type === 'microsoft' ? 'Cerrar sesión de Microsoft' : 'Eliminar perfil';
       remove.addEventListener('click', async (event) => {
         event.stopPropagation();
         try {
-          state.config = await api.removeProfile(profile.id);
+          const result = await api.removeProfile(profile.id);
+          state.config = result.config;
+          state.auth = result.auth || {};
           renderProfile();
           renderProfileList();
+          renderAccount();
           toast(`Perfil "${profile.name}" eliminado.`);
         } catch (error) {
-          toast(error.message, 'error');
+          toast(cleanError(error), 'error');
         }
       });
       row.appendChild(remove);
@@ -367,13 +412,125 @@ function renderProfileList() {
         state.config = await api.selectProfile(profile.id);
         renderProfile();
         renderProfileList();
+        renderAccount();
         els.profilesNote.textContent = `Perfil activo: ${profile.name}`;
       } catch (error) {
-        toast(error.message, 'error');
+        toast(cleanError(error), 'error');
       }
     });
 
     els.profileList.appendChild(row);
+  }
+}
+
+/* ---------- Cuenta Microsoft ---------- */
+
+function activeMicrosoft() {
+  const profile = activeProfile();
+  return profile && profile.type === 'microsoft' ? profile : null;
+}
+
+function renderAccount() {
+  const profile = activeMicrosoft();
+  const connected = profile ? state.auth[profile.id] !== false : false;
+
+  els.accountFlag.classList.toggle('connected', Boolean(profile) && connected);
+
+  if (!profile) {
+    els.accountFlag.textContent = 'SIN CONECTAR';
+    els.accountHint.textContent =
+      'Conecta tu cuenta para entrar a servidores premium. Los perfiles offline siguen disponibles.';
+    els.msLoginButton.textContent = 'Iniciar sesión con Microsoft';
+    els.msLoginButton.hidden = false;
+    return;
+  }
+
+  els.msLoginButton.hidden = false;
+
+  if (connected) {
+    els.accountFlag.textContent = 'CONECTADO';
+    els.accountHint.textContent = `Sesión activa como ${profile.name}. Este perfil entra sin contraseña a servidores mixtos.`;
+    els.msLoginButton.textContent = 'Iniciar sesión con otra cuenta';
+  } else {
+    els.accountFlag.textContent = 'SESIÓN CADUCADA';
+    els.accountHint.textContent = 'La sesión de Microsoft caducó. Vuelve a conectar la cuenta para jugar.';
+    els.msLoginButton.textContent = 'Reconectar Microsoft';
+  }
+}
+
+async function signInMicrosoft() {
+  if (state.signingIn) return;
+
+  state.signingIn = true;
+  els.msLoginButton.disabled = true;
+  els.msLoginButton.textContent = 'Conectando…';
+  els.deviceBox.hidden = true;
+
+  try {
+    const result = await api.signInMicrosoft();
+    state.config = result.config;
+    state.auth = result.auth || {};
+    toast(`Sesión iniciada como ${result.profile.name}.`);
+    renderProfile();
+    renderProfileList();
+  } catch (error) {
+    const message = cleanError(error);
+    if (!/cancelad/i.test(message)) toast(message, 'error', 9000);
+  } finally {
+    state.signingIn = false;
+    els.msLoginButton.disabled = false;
+    els.deviceBox.hidden = true;
+    renderAccount();
+  }
+}
+
+/* ---------- Actualizaciones ---------- */
+
+const UPDATE_TEXT = {
+  idle: 'Sin comprobar',
+  checking: 'Buscando actualizaciones…',
+  available: 'Actualización disponible',
+  downloading: 'Descargando actualización',
+  ready: 'Actualización lista para instalar',
+  current: 'Launcher actualizado',
+  error: 'No se pudo comprobar la actualización',
+  disabled: 'Solo en la versión instalada',
+};
+
+function renderUpdate(update) {
+  if (!update) return;
+  state.update = update;
+
+  els.updateVersion.textContent = update.currentVersion || '';
+  els.updateState.value = UPDATE_TEXT[update.status] || update.status;
+
+  const visible = ['available', 'downloading', 'ready'].includes(update.status);
+  els.updateBar.hidden = !visible;
+  els.updateBar.dataset.state = update.status;
+
+  if (update.status === 'downloading') {
+    const percent = Math.max(0, Math.min(100, Number(update.percent) || 0));
+    els.updateText.textContent = `Descargando ${update.version || 'actualización'} … ${percent}%`;
+    els.updateFill.style.width = `${percent}%`;
+  } else if (update.status === 'ready') {
+    els.updateText.textContent = `Actualización ${update.version || ''} lista. Se aplicará al reiniciar.`;
+    els.updateFill.style.width = '100%';
+  } else if (update.status === 'available') {
+    els.updateText.textContent = `Actualización ${update.version || ''} encontrada, preparando descarga…`;
+    els.updateFill.style.width = '6%';
+  }
+
+  els.updateAction.hidden = update.status !== 'ready';
+
+  if (state.manualUpdateCheck && ['current', 'error', 'disabled'].includes(update.status)) {
+    state.manualUpdateCheck = false;
+    if (update.status === 'current') {
+      toast(`Estás al día (v${update.currentVersion}).`);
+    } else if (update.status === 'disabled') {
+      toast('Las actualizaciones automáticas solo funcionan con el launcher instalado.');
+    } else {
+      toast(`No se pudo comprobar: ${update.error || 'error de red'}`, 'error', 7000);
+    }
   }
 }
 
@@ -391,7 +548,7 @@ async function addProfile() {
     renderProfileList();
     toast(`Perfil "${activeProfile().name}" activado.`);
   } catch (error) {
-    toast(error.message, 'error');
+    toast(cleanError(error), 'error');
   }
 }
 
@@ -611,6 +768,31 @@ function bindEvents() {
     toast('Inicio cancelado.');
   });
 
+  // Cuenta Microsoft
+  api.onDeviceCode(({ userCode, verificationUri }) => {
+    els.deviceBox.hidden = false;
+    els.deviceCode.textContent = userCode;
+    els.deviceLink.textContent = 'microsoft.com/link';
+    els.deviceLink.dataset.url = verificationUri || 'https://www.microsoft.com/link';
+    if (verificationUri) api.open(verificationUri);
+  });
+
+  api.onSignedIn((payload) => {
+    state.config = payload.config;
+    state.auth = payload.auth || {};
+    renderProfile();
+    renderProfileList();
+    renderAccount();
+  });
+
+  api.onAuthError(({ message }) => {
+    els.deviceBox.hidden = true;
+    if (message) toast(message, 'error', 9000);
+  });
+
+  // Actualizaciones
+  api.onUpdateState((update) => renderUpdate(update));
+
   // Ventana
   els.minimizeButton.addEventListener('click', () => api.minimize());
   els.maximizeButton.addEventListener('click', () => api.toggleMaximize());
@@ -666,6 +848,36 @@ function bindEvents() {
 
   // Jugar
   els.playButton.addEventListener('click', startGame);
+
+  // Cuenta Microsoft
+  els.msLoginButton.addEventListener('click', signInMicrosoft);
+
+  els.deviceLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    api.open(els.deviceLink.dataset.url || 'https://www.microsoft.com/link');
+  });
+
+  els.deviceCopy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(els.deviceCode.textContent.trim());
+      toast('Código copiado.');
+    } catch {
+      toast('No se pudo copiar el código.', 'error');
+    }
+  });
+
+  els.deviceCancel.addEventListener('click', () => {
+    api.cancelSignIn();
+    els.deviceBox.hidden = true;
+  });
+
+  // Actualizaciones
+  els.updateCheckButton.addEventListener('click', async () => {
+    state.manualUpdateCheck = true;
+    renderUpdate(await api.checkUpdates());
+  });
+
+  els.updateAction.addEventListener('click', () => api.installUpdate());
 
   // Ajustes
   els.openSettings.addEventListener('click', () => {
@@ -757,6 +969,8 @@ async function init() {
     state.modpack = boot.modpack;
     state.news = boot.news || [];
     state.links = boot.links || {};
+    state.auth = boot.auth || {};
+    state.update = boot.update || null;
 
     els.brandVersion.textContent = boot.launcherVersion;
     els.launcherVersion.textContent = `LAUNCHER ${boot.launcherVersion}`;
@@ -769,6 +983,8 @@ async function init() {
     renderNews();
     renderChannels();
     renderSettings();
+    renderAccount();
+    renderUpdate(boot.update);
 
     setLaunchState('idle');
     setProgress(0, null);

@@ -11,7 +11,7 @@ const { getVersionList, installTask, installForgeTask } = require('@xmcl/install
 const { paths } = require('./paths');
 const configStore = require('./config');
 const javaManager = require('./java');
-const { offlineProfile } = require('./auth');
+const authManager = require('./auth');
 const { loadModpack, getChannel, filesForChannel } = require('./resources');
 const { syncFiles, readState, writeState } = require('./mods');
 
@@ -224,6 +224,19 @@ class LaunchManager extends EventEmitter {
       const profile =
         config.profiles.find((item) => item.id === config.activeProfile) || config.profiles[0];
 
+      // 0. Cuenta (renueva el token de Microsoft antes de descargar nada)
+      if (profile.type === 'microsoft') {
+        this.status('Comprobando cuenta Microsoft...', 'idle', 0);
+        this.progress(0.005, 'Cuenta');
+      }
+
+      const auth = await authManager.sessionForProfile(profile);
+      this.log(
+        `[launcher] Cuenta ${profile.type === 'microsoft' ? 'Microsoft' : 'offline'}: ${auth.name} (${auth.id})`,
+      );
+
+      if (this.cancelled) return this.finishCancelled();
+
       // 1. Java
       this.status('Verificando Java 17...', 'java', 0);
       this.progress(0.01, 'Java');
@@ -282,7 +295,6 @@ class LaunchManager extends EventEmitter {
       this.status('Iniciando el juego...', 'launching', 0.97);
       this.progress(0.97, 'Launch');
 
-      const auth = offlineProfile(profile.name);
       const server = modpack.server || {};
 
       this.child = await launch({
