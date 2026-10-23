@@ -226,22 +226,9 @@ async function xsts(xbl, signal) {
 }
 
 /** Devuelve token de Minecraft + perfil (nombre y UUID reales). */
-async function loginMinecraft(msAccessToken, signal) {
-  const xbl = await xboxLive(msAccessToken, signal);
-  const secure = await xsts(xbl, signal);
-
-  const { response, data } = await postJson(
-    MC_LOGIN_URL,
-    { identityToken: `XBL3.0 x=${secure.uhs};${secure.token}` },
-    signal,
-  );
-
-  if (!response.ok || !data.access_token) {
-    throw new Error('Minecraft rechazó la sesión. Comprueba que la cuenta tenga el juego.');
-  }
-
+async function fetchProfile(accessToken, signal) {
   const profileResponse = await fetch(MC_PROFILE_URL, {
-    headers: { authorization: `Bearer ${data.access_token}`, accept: 'application/json' },
+    headers: { authorization: `Bearer ${accessToken}`, accept: 'application/json' },
     signal: timeoutSignal(30000, signal),
   });
 
@@ -259,14 +246,35 @@ async function loginMinecraft(msAccessToken, signal) {
     skins.find((item) => String(item.state).toUpperCase() === 'ACTIVE') || skins[0] || null;
 
   return {
+    id: profile.id,
+    name: profile.name,
+    skins,
+    skin: activeSkin?.url || null,
+    variant: String(activeSkin?.variant || 'CLASSIC').toLowerCase() === 'slim' ? 'slim' : 'classic',
+  };
+}
+
+/** Devuelve token de Minecraft + perfil (nombre y UUID reales). */
+async function loginMinecraft(msAccessToken, signal) {
+  const xbl = await xboxLive(msAccessToken, signal);
+  const secure = await xsts(xbl, signal);
+
+  const { response, data } = await postJson(
+    MC_LOGIN_URL,
+    { identityToken: `XBL3.0 x=${secure.uhs};${secure.token}` },
+    signal,
+  );
+
+  if (!response.ok || !data.access_token) {
+    throw new Error('Minecraft rechazó la sesión. Comprueba que la cuenta tenga el juego.');
+  }
+
+  const profile = await fetchProfile(data.access_token, signal);
+
+  return {
     accessToken: data.access_token,
     expiresIn: Number(data.expires_in) || 86400,
-    profile: {
-      id: profile.id,
-      name: profile.name,
-      skins,
-      skin: activeSkin?.url || null,
-    },
+    profile,
   };
 }
 
@@ -292,5 +300,6 @@ module.exports = {
   pollForToken,
   refreshMicrosoft,
   loginMinecraft,
+  fetchProfile,
   authConfig,
 };

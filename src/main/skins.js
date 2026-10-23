@@ -87,6 +87,14 @@ async function resolveUrl(profileId) {
   return url;
 }
 
+/** Olvida la URL cacheada de un perfil (tras cambiar o restaurar su skin). */
+function forget(profileId) {
+  const urls = readUrls();
+  if (!Object.prototype.hasOwnProperty.call(urls, profileId)) return;
+  delete urls[profileId];
+  writeUrls(urls);
+}
+
 async function dataUrl(profileId) {
   const url = await resolveUrl(profileId);
   if (!url) return null;
@@ -122,4 +130,4 @@ async function dataUrl(profileId) {
   return value;
 }
 
-module.exports = { dataUrl };
+module.exports = { dataUrl, forget };

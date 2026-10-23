@@ -17,6 +17,10 @@ lanzamiento automático al servidor.
 - **Estado real del servidor**: ping al servidor (jugadores en línea, latencia, MOTD).
 - **Fondo reactivo**: halo verde que sigue al ratón, con esporas flotando. Se puede
   desactivar en **Ajustes → Fondo reactivo**.
+- **Panel de skins** (solo premium): sube un PNG y cámbiala al instante en tu cuenta de
+  Minecraft, con vista previa del cuerpo y modelo clásico o slim.
+- **Panel de mods**: lista los mods del canal activo con su descripción, versión, autor y
+  estado de descarga.
 - **Noticias dinámicas** desde `resources/news.json`. Si está vacío, el panel de noticias
   se oculta y la portada ocupa todo el ancho.
 - **Consola integrada** para diagnosticar problemas y reportes de crash.
@@ -101,6 +105,17 @@ Todo se define en **`resources/modpack.json`**:
       "size": 1234567,
       "channels": ["COMPLETA", "LITE"]
     }
+  ],
+  "mods": [
+    {
+      "id": "example-mod",
+      "name": "Example Mod",
+      "version": "1.2.0",
+      "author": "Autor",
+      "description": "Qué hace este mod, en una o dos frases.",
+      "channels": ["COMPLETA", "LITE"],
+      "file": "mods/example-mod.jar"
+    }
   ]
 }
 ```
@@ -110,6 +125,22 @@ Todo se define en **`resources/modpack.json`**:
 - `sha1` / `size`: opcionales pero muy recomendados (si el hash no coincide, se vuelve a descargar).
 - `channels`: si se omite, el archivo aplica a todos los canales.
 - Los archivos gestionados que dejan de aparecer en el manifiesto **se eliminan** en la siguiente sincronización.
+
+### Panel de mods
+
+`mods` es la información que se muestra en el panel **Mods del modpack** (menú de perfil):
+
+| Campo | Descripción |
+|---|---|
+| `name` | Nombre visible del mod. |
+| `version` / `author` | Opcionales; se muestran junto al nombre. |
+| `description` | Explicación breve de qué añade el mod. |
+| `channels` | Canales donde aparece. Si se omite, aparece en todos. |
+| `file` | Ruta del `.jar` dentro de `files` (misma cadena que `path`). Sirve para mostrar el tamaño y el estado «INSTALADO» / «SE DESCARGA». |
+
+Si `mods` no existe (o está vacío), el panel deriva los mods de los `.jar` de `files`.
+En cuanto añadas las entradas con descripción, se verán tal cual en el launcher sin
+tocar código.
 
 ### Generar entradas del manifiesto
 
@@ -169,6 +200,8 @@ src/
 │   ├── mods.js           # sincronización del modpack
 │   ├── updater.js        # auto-actualización (electron-updater)
 │   ├── skins.js          # descarga y caché de skins
+│   ├── skin-service.js   # subida/restauración de skin en Mojang
+│   ├── mods-info.js      # metadatos de mods para el panel
 │   ├── auth/             # cuentas
 │   │   ├── index.js      # sesión por perfil + login Microsoft
 │   │   ├── microsoft.js  # device code → Xbox → Minecraft
@@ -237,6 +270,20 @@ defecto**: en el primer arranque se abre la pantalla de cuentas y cada jugador e
 - Se pueden tener varias cuentas (premium y no premium) y cambiar con un clic.
 - `online-mode=true` en el servidor **solo** acepta cuentas Microsoft.
 - `online-mode=false` acepta ambas.
+
+### Cambiar de skin (solo premium)
+
+**Menú de perfil → Cambiar skin** abre el panel de skins:
+
+1. **Elegir PNG…** valida que sea un PNG de 64×64 (o 64×32) y muestra una vista previa
+   del cuerpo antes de subirlo.
+2. Selecciona el modelo: **Clásica** (Steve) o **Slim** (Alex).
+3. **Aplicar skin** la sube a Mojang con el token de Minecraft de la cuenta. El cambio se
+   ve al instante en el juego y en el launcher.
+4. **Restaurar** vuelve a la skin predeterminada de la cuenta.
+
+Las cuentas no premium ven un aviso de «solo premium» y un acceso directo a **Cuentas**,
+porque Mojang solo permite cambiar la skin de cuentas con licencia.
 
 ### Servidor mixto (premium + no premium)
 

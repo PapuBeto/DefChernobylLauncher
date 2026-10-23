@@ -24,6 +24,15 @@ contextBridge.exposeInMainWorld('launcher', {
   signOut: (id) => ipcRenderer.invoke('auth:sign-out', id),
   profileSkin: (id) => ipcRenderer.invoke('auth:skin', id),
 
+  // Skins (solo premium)
+  skinInfo: (id) => ipcRenderer.invoke('skin:info', id),
+  pickSkin: () => ipcRenderer.invoke('skin:pick'),
+  applySkin: (id, variant) => ipcRenderer.invoke('skin:apply', id, variant),
+  resetSkin: (id) => ipcRenderer.invoke('skin:reset', id),
+
+  // Mods del modpack
+  modsInfo: (channel) => ipcRenderer.invoke('mods:info', channel),
+
   // Actualizaciones
   updateState: () => ipcRenderer.invoke('update:state'),
   checkUpdates: () => ipcRenderer.invoke('update:check'),

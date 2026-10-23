@@ -120,6 +120,8 @@
 
         <div class="profile-menu" id="profileMenu">
           <div class="profile-option" id="openProfiles">Gestionar cuentas</div>
+          <div class="profile-option" id="openSkins">Cambiar skin</div>
+          <div class="profile-option" id="openMods">Mods del modpack</div>
           <div class="profile-option" id="openSettings">Ajustes</div>
           <div class="profile-option" id="openConsole">Consola</div>
           <div class="profile-option separator" id="quitLauncher">Salir del launcher</div>
@@ -457,10 +459,117 @@
     </div>
 
 
+    <!-- SKINS MODAL -->
+
+    <div class="panel-overlay" id="skinsOverlay">
+      <div class="panel panel-narrow">
+
+        <button class="modal-close" id="skinsClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / SKINS</span>
+          <h2 class="panel-title">Tu skin</h2>
+        </div>
+
+        <div class="panel-body">
+          <div class="skin-layout" id="skinLayout">
+            <div class="skin-preview">
+              <canvas id="skinPreview" width="128" height="256"></canvas>
+              <span class="skin-preview-label" id="skinPreviewLabel">SKIN ACTUAL</span>
+            </div>
+
+            <div class="skin-side">
+              <div class="field">
+                <div class="field-head">
+                  <label>Cuenta premium</label>
+                  <span class="field-value" id="skinAccount">—</span>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Modelo</label>
+                <div class="skin-variants">
+                  <label class="skin-variant">
+                    <input type="radio" name="skinVariant" value="classic" checked>
+                    <span>Clásica <em>Steve</em></span>
+                  </label>
+                  <label class="skin-variant">
+                    <input type="radio" name="skinVariant" value="slim">
+                    <span>Slim <em>Alex</em></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field-inline">
+                <button class="ghost-button" id="skinPickButton">Elegir PNG…</button>
+                <button class="ghost-button" id="skinResetButton">Restaurar</button>
+              </div>
+              <p class="field-hint" id="skinFile">
+                Ningún archivo elegido. PNG de 64×64 (o 64×32).
+              </p>
+
+              <button class="primary-button skin-apply" id="skinApplyButton" disabled>
+                Aplicar skin
+              </button>
+              <p class="field-hint" id="skinNote">Se aplica al instante en tu cuenta de Minecraft.</p>
+            </div>
+          </div>
+
+          <div class="skin-offline" id="skinOffline" hidden>
+            <span class="panel-kicker">SOLO PREMIUM</span>
+            <p>
+              Cambiar la skin requiere una cuenta premium de Microsoft activa.
+              Las cuentas no premium usan la skin por defecto del servidor.
+            </p>
+            <button class="ghost-button" id="skinGoAccounts">Ir a cuentas</button>
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note">La skin se sube a Mojang, no solo a este launcher.</span>
+          <div class="panel-actions">
+            <button class="primary-button" id="skinsDone">Listo</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- MODS MODAL -->
+
+    <div class="panel-overlay" id="modsOverlay">
+      <div class="panel panel-wide">
+
+        <button class="modal-close" id="modsClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / MODPACK</span>
+          <h2 class="panel-title">Mods</h2>
+        </div>
+
+        <div class="panel-body">
+          <div class="mods-toolbar">
+            <input type="search" id="modsSearch" placeholder="Buscar mod…" autocomplete="off" spellcheck="false">
+            <span class="mods-summary" id="modsSummary">—</span>
+          </div>
+          <div class="mods-list" id="modsList"></div>
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note" id="modsNote">Los mods se descargan solos al pulsar JUGAR.</span>
+          <div class="panel-actions">
+            <button class="primary-button" id="modsDone">Listo</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
     <!-- CONSOLE MODAL -->
 
-    <div class="panel-overlay" id="consoleOverlay">
-      <div class="panel panel-wide">
+    <div class="panel-overlay" id="consoleOverlay">      <div class="panel panel-wide">
 
         <button class="modal-close" id="consoleClose">×</button>
 

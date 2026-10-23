@@ -58,6 +58,7 @@ function save(id, account) {
     uuid: account.uuid,
     token: encrypt(account.refreshToken),
     skin: account.skin || previous?.skin || null,
+    variant: account.skinVariant || previous?.variant || null,
     updatedAt: Date.now(),
   };
   writeAll(data);
@@ -68,13 +69,25 @@ function get(id) {
   if (!raw) return null;
   const refreshToken = decrypt(raw.token);
   if (!refreshToken) return null;
-  return { name: raw.name, uuid: raw.uuid, skin: raw.skin || null, refreshToken };
+  return {
+    name: raw.name,
+    uuid: raw.uuid,
+    skin: raw.skin || null,
+    skinVariant: raw.variant || null,
+    refreshToken,
+  };
 }
 
 /** URL de la skin activa (sin descifrar el token). */
 function skinUrl(id) {
   const raw = readAll().accounts[id];
   return raw?.skin || null;
+}
+
+/** Modelo de la skin activa: 'classic' o 'slim'. */
+function skinVariant(id) {
+  const raw = readAll().accounts[id];
+  return raw?.variant || null;
 }
 
 function has(id) {
@@ -95,4 +108,4 @@ function list() {
   return Object.keys(data.accounts).filter((id) => Boolean(get(id)));
 }
 
-module.exports = { save, get, has, remove, list, skinUrl };
+module.exports = { save, get, has, remove, list, skinUrl, skinVariant };

@@ -33,8 +33,18 @@ async function sessionForProfile(profile) {
   const minecraft = await microsoft.loginMinecraft(refreshed.accessToken);
 
   const skin = minecraft.profile.skin || account.skin || null;
-  if (refreshed.refreshToken !== account.refreshToken || skin !== account.skin) {
-    accounts.save(profile.id, { ...account, refreshToken: refreshed.refreshToken, skin });
+  const skinVariant = minecraft.profile.variant || account.skinVariant || null;
+  if (
+    refreshed.refreshToken !== account.refreshToken ||
+    skin !== account.skin ||
+    skinVariant !== account.skinVariant
+  ) {
+    accounts.save(profile.id, {
+      ...account,
+      refreshToken: refreshed.refreshToken,
+      skin,
+      skinVariant,
+    });
   }
 
   const session = {
@@ -65,6 +75,7 @@ async function signInMicrosoft({ onDeviceCode, signal } = {}) {
     uuid: result.profile.id,
     refreshToken: result.refreshToken,
     skin: result.profile.skin,
+    skinVariant: result.profile.variant,
   });
 
   sessions.set(id, {
@@ -94,6 +105,11 @@ function skinUrl(id) {
   return accounts.skinUrl(id);
 }
 
+/** Modelo de skin guardado ('classic' / 'slim'). */
+function skinVariant(id) {
+  return accounts.skinVariant(id);
+}
+
 /** Estado de sesión por perfil, para pintar la UI. */
 function status(profiles = []) {
   const result = {};
@@ -110,6 +126,7 @@ module.exports = {
   signOut,
   hasSession,
   skinUrl,
+  skinVariant,
   status,
   offlineProfile,
 };

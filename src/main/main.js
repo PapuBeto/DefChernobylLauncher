@@ -12,6 +12,8 @@ const { ping } = require('./server-status');
 const javaManager = require('./java');
 const authManager = require('./auth');
 const skins = require('./skins');
+const skinService = require('./skin-service');
+const modsInfo = require('./mods-info');
 const { UpdateService } = require('./updater');
 const { LaunchManager } = require('./game');
 
@@ -24,6 +26,7 @@ if (userDataArg > 0 && process.argv[userDataArg + 1]) {
 }
 
 let mainWindow = null;
+let pickedSkinPath = null;
 let statusCache = { at: 0, value: null };
 
 const launchManager = new LaunchManager();
@@ -269,6 +272,66 @@ function registerIpc() {
       return null;
     }
   });
+
+  ipcMain.handle('skin:info', async (_event, id) => {
+    const profile = configStore.load().profiles.find((item) => item.id === id);
+    if (!profile || profile.type !== 'microsoft') return { variant: null };
+
+    let variant = authManager.skinVariant(id);
+
+    // Las cuentas antiguas no guardaban el modelo: se resuelve al abrir el panel.
+    if (!variant) {
+      try {
+        await authManager.sessionForProfile(profile);
+        variant = authManager.skinVariant(id);
+      } catch {
+        // Sin sesión válida se mantiene el modelo clásico por defecto.
+      }
+    }
+
+    return { variant };
+  });
+
+  ipcMain.handle('skin:pick', async () => {
+    if (!mainWindow) throw new Error('La ventana no está lista.');
+
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Elegir skin',
+      buttonLabel: 'Usar esta skin',
+      properties: ['openFile'],
+      filters: [{ name: 'Imagen PNG', extensions: ['png'] }],
+    });
+
+    if (result.canceled || !result.filePaths[0]) return null;
+
+    const file = result.filePaths[0];
+    const info = skinService.inspect(file);
+    pickedSkinPath = file;
+
+    return { name: path.basename(file), ...info };
+  });
+
+  ipcMain.handle('skin:apply', async (_event, id, variant) => {
+    if (!pickedSkinPath) throw new Error('Elige primero un archivo PNG.');
+
+    const profile = configStore.load().profiles.find((item) => item.id === id);
+    if (!profile) throw new Error('Cuenta no encontrada.');
+
+    const result = await skinService.apply(profile, pickedSkinPath, variant);
+    pickedSkinPath = null;
+    return result;
+  });
+
+  ipcMain.handle('skin:reset', async (_event, id) => {
+    const profile = configStore.load().profiles.find((item) => item.id === id);
+    if (!profile) throw new Error('Cuenta no encontrada.');
+    return skinService.reset(profile);
+  });
+
+  ipcMain.handle(
+    'mods:info',
+    (_event, channel) => modsInfo.list(channel || configStore.load().channel),
+  );
 
   ipcMain.handle('auth:sign-out', (_event, id) => {
     authManager.signOut(id);

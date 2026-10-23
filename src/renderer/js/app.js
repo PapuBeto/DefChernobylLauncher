@@ -21,6 +21,9 @@ const state = {
   auth: {},
   skins: {},
   skinPending: new Set(),
+  skinDraft: null,
+  skinBusy: false,
+  mods: null,
   effects: true,
   update: null,
   signingIn: false,
@@ -108,6 +111,30 @@ const els = {
   consoleOutput: $('consoleOutput'),
   openLogsFolder: $('openLogsFolder'),
 
+  skinsOverlay: $('skinsOverlay'),
+  skinsClose: $('skinsClose'),
+  skinsDone: $('skinsDone'),
+  skinLayout: $('skinLayout'),
+  skinOffline: $('skinOffline'),
+  skinPreview: $('skinPreview'),
+  skinPreviewLabel: $('skinPreviewLabel'),
+  skinAccount: $('skinAccount'),
+  skinPickButton: $('skinPickButton'),
+  skinApplyButton: $('skinApplyButton'),
+  skinResetButton: $('skinResetButton'),
+  skinFile: $('skinFile'),
+  skinNote: $('skinNote'),
+  skinGoAccounts: $('skinGoAccounts'),
+  skinVariants: document.querySelectorAll('input[name="skinVariant"]'),
+
+  modsOverlay: $('modsOverlay'),
+  modsClose: $('modsClose'),
+  modsDone: $('modsDone'),
+  modsSearch: $('modsSearch'),
+  modsSummary: $('modsSummary'),
+  modsList: $('modsList'),
+  modsNote: $('modsNote'),
+
   toastStack: $('toastStack'),
 
   minimizeButton: $('minimizeButton'),
@@ -115,6 +142,8 @@ const els = {
   closeButton: $('closeButton'),
 
   openProfiles: $('openProfiles'),
+  openSkins: $('openSkins'),
+  openMods: $('openMods'),
   openSettings: $('openSettings'),
   openConsole: $('openConsole'),
   quitLauncher: $('quitLauncher'),
@@ -173,6 +202,13 @@ function closeAllMenu() {
 
 function formatPercent(value) {
   return `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%`;
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value <= 0) return '';
+  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function selectChannel(channelId) {
@@ -515,6 +551,309 @@ async function ensureSkin(profile) {
   } finally {
     state.skinPending.delete(id);
   }
+}
+
+/* ---------- Panel de skins ---------- */
+
+function drawSkinBody(canvas, dataUrl) {
+  if (!canvas) return;
+
+  const context = canvas.getContext('2d');
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  if (!dataUrl) return;
+
+  const image = new Image();
+  image.onload = () => {
+    const scale = canvas.width / 16;
+    const modern = image.naturalHeight >= 64;
+
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dibuja una región de la textura en la rejilla de 16 x 32 texeles.
+    const part = (sx, sy, sw, sh, x, y, flip = false) => {
+      context.save();
+      if (flip) {
+        context.translate((x + sw) * scale, y * scale);
+        context.scale(-1, 1);
+        context.drawImage(image, sx, sy, sw, sh, 0, 0, sw * scale, sh * scale);
+      } else {
+        context.drawImage(image, sx, sy, sw, sh, x * scale, y * scale, sw * scale, sh * scale);
+      }
+      context.restore();
+    };
+
+    part(8, 8, 8, 8, 4, 0); // cabeza
+    part(20, 20, 8, 12, 4, 8); // torso
+    part(44, 20, 4, 12, 0, 8); // brazo derecho
+
+    if (modern) {
+      part(36, 52, 4, 12, 12, 8); // brazo izquierdo
+      part(20, 52, 4, 12, 8, 20); // pierna izquierda
+    } else {
+      // En skins antiguas (64x32) brazos y piernas se reflejan.
+      part(44, 20, 4, 12, 12, 8, true);
+      part(4, 20, 4, 12, 8, 20, true);
+    }
+
+    part(4, 20, 4, 12, 4, 20); // pierna derecha
+
+    if (modern) {
+      part(40, 8, 8, 8, 4, 0); // sombrero
+      part(20, 36, 8, 12, 4, 8); // chaqueta
+      part(44, 36, 4, 12, 0, 8); // manga derecha
+      part(52, 52, 4, 12, 12, 8); // manga izquierda
+      part(0, 36, 4, 12, 4, 20); // pantalón derecho
+      part(4, 52, 4, 12, 8, 20); // pantalón izquierdo
+    }
+  };
+  image.src = dataUrl;
+}
+
+function paintSkinPreview(dataUrl, label) {
+  drawSkinBody(els.skinPreview, dataUrl);
+  if (label) els.skinPreviewLabel.textContent = label;
+}
+
+function setSkinBusy(busy, message) {
+  state.skinBusy = Boolean(busy);
+  els.skinPickButton.disabled = state.skinBusy;
+  els.skinResetButton.disabled = state.skinBusy;
+  els.skinApplyButton.disabled = state.skinBusy || !state.skinDraft;
+  els.skinApplyButton.textContent = state.skinBusy ? 'Procesando…' : 'Aplicar skin';
+  for (const radio of els.skinVariants) radio.disabled = state.skinBusy;
+  if (message) els.skinNote.textContent = message;
+}
+
+async function openSkinsPanel() {
+  state.skinDraft = null;
+  els.skinFile.textContent = 'Ningún archivo elegido. PNG de 64×64 (o 64×32).';
+  els.skinNote.textContent = 'Se aplica al instante en tu cuenta de Minecraft.';
+  els.skinApplyButton.disabled = true;
+  setSkinBusy(false);
+
+  const profile = activeMicrosoft();
+  els.skinLayout.hidden = !profile;
+  els.skinOffline.hidden = Boolean(profile);
+  openPanel(els.skinsOverlay);
+
+  if (!profile) {
+    paintSkinPreview(null, 'SKIN ACTUAL');
+    return;
+  }
+
+  els.skinAccount.textContent = profile.name;
+
+  try {
+    const info = await api.skinInfo(profile.id);
+    const variant = info?.variant === 'slim' ? 'slim' : 'classic';
+    for (const radio of els.skinVariants) radio.checked = radio.value === variant;
+  } catch {
+    // Si falla, se queda el modelo clásico.
+  }
+
+  let dataUrl = state.skins[profile.id] || null;
+
+  if (!dataUrl) {
+    try {
+      dataUrl = await api.profileSkin(profile.id);
+      if (dataUrl) {
+        state.skins[profile.id] = dataUrl;
+        paintSkins();
+      }
+    } catch {
+      dataUrl = null;
+    }
+  }
+
+  paintSkinPreview(dataUrl, 'SKIN ACTUAL');
+}
+
+async function pickSkinFile() {
+  if (state.skinBusy) return;
+
+  try {
+    const picked = await api.pickSkin();
+    if (!picked) return;
+
+    state.skinDraft = picked;
+    els.skinFile.textContent = `${picked.name} · ${picked.width}×${picked.height}`;
+    els.skinNote.textContent = 'Vista previa del archivo. Pulsa «Aplicar skin» para subirla.';
+    els.skinApplyButton.disabled = false;
+    paintSkinPreview(picked.dataUrl, 'VISTA PREVIA');
+  } catch (error) {
+    toast(cleanError(error), 'error', 7000);
+  }
+}
+
+async function applySkinChanges() {
+  const profile = activeMicrosoft();
+  if (!profile || !state.skinDraft || state.skinBusy) return;
+
+  const variant = [...els.skinVariants].find((radio) => radio.checked)?.value || 'classic';
+
+  setSkinBusy(true, 'Subiendo la skin a Mojang…');
+
+  try {
+    const result = await api.applySkin(profile.id, variant);
+
+    if (result.skin) state.skins[profile.id] = result.skin;
+    else delete state.skins[profile.id];
+
+    state.skinDraft = null;
+    paintSkins();
+    if (activeMicrosoft()?.id === profile.id) drawHead(els.accountSkin, state.skins[profile.id]);
+    paintSkinPreview(state.skins[profile.id] || null, 'SKIN ACTUAL');
+
+    els.skinFile.textContent = 'Ningún archivo elegido. PNG de 64×64 (o 64×32).';
+    els.skinNote.textContent = 'Skin actualizada. Ya se ve en tu cuenta de Minecraft.';
+    toast('Skin actualizada.');
+  } catch (error) {
+    els.skinNote.textContent = 'No se pudo aplicar la skin.';
+    toast(cleanError(error), 'error', 8000);
+  } finally {
+    setSkinBusy(false);
+  }
+}
+
+async function resetActiveSkin() {
+  const profile = activeMicrosoft();
+  if (!profile || state.skinBusy) return;
+
+  if (!window.confirm('¿Restaurar la skin predeterminada de tu cuenta de Minecraft?')) return;
+
+  setSkinBusy(true, 'Restaurando la skin predeterminada…');
+
+  try {
+    const result = await api.resetSkin(profile.id);
+
+    if (result.skin) state.skins[profile.id] = result.skin;
+    else delete state.skins[profile.id];
+
+    state.skinDraft = null;
+    paintSkins();
+    if (activeMicrosoft()?.id === profile.id) drawHead(els.accountSkin, state.skins[profile.id]);
+    paintSkinPreview(state.skins[profile.id] || null, 'SKIN ACTUAL');
+
+    els.skinFile.textContent = 'Ningún archivo elegido. PNG de 64×64 (o 64×32).';
+    els.skinNote.textContent = 'Skin predeterminada restaurada.';
+    toast('Skin predeterminada restaurada.');
+  } catch (error) {
+    els.skinNote.textContent = 'No se pudo restaurar la skin.';
+    toast(cleanError(error), 'error', 8000);
+  } finally {
+    setSkinBusy(false);
+  }
+}
+
+/* ---------- Panel de mods ---------- */
+
+function renderMods() {
+  const data = state.mods;
+  if (!data) return;
+
+  const query = els.modsSearch.value.trim().toLowerCase();
+  const visible = data.mods.filter((mod) => {
+    if (!query) return true;
+    return `${mod.name} ${mod.author} ${mod.version} ${mod.description}`
+      .toLowerCase()
+      .includes(query);
+  });
+
+  const size = formatBytes(data.size);
+  els.modsSummary.textContent = `${data.count} MODS${size ? ` · ${size}` : ''} · ${data.channelLabel}`;
+  els.modsList.innerHTML = '';
+
+  if (visible.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'mods-empty';
+
+    const title = document.createElement('strong');
+    title.textContent = data.count === 0
+      ? 'Todavía no hay mods publicados.'
+      : 'Ningún mod coincide con la búsqueda.';
+
+    const hint = document.createElement('p');
+    hint.textContent = data.count === 0
+      ? `Cuando el canal ${data.channelLabel} tenga mods, aparecerán aquí con su descripción.`
+      : 'Prueba con otro nombre.';
+
+    empty.append(title, hint);
+    els.modsList.appendChild(empty);
+    return;
+  }
+
+  for (const mod of visible) {
+    const row = document.createElement('article');
+    row.className = 'mod-row';
+
+    const head = document.createElement('div');
+    head.className = 'mod-head';
+
+    const name = document.createElement('strong');
+    name.className = 'mod-name';
+    name.textContent = mod.name;
+    head.appendChild(name);
+
+    if (mod.version) {
+      const version = document.createElement('span');
+      version.className = 'mod-version';
+      version.textContent = mod.version;
+      head.appendChild(version);
+    }
+
+    const modSize = formatBytes(mod.size);
+    if (modSize) {
+      const sizeNode = document.createElement('span');
+      sizeNode.className = 'mod-size';
+      sizeNode.textContent = modSize;
+      head.appendChild(sizeNode);
+    }
+
+    if (mod.file) {
+      const status = document.createElement('span');
+      status.className = `mod-status${mod.installed ? ' installed' : ''}`;
+      status.textContent = mod.installed ? 'INSTALADO' : 'SE DESCARGA';
+      head.appendChild(status);
+    }
+
+    row.appendChild(head);
+
+    if (mod.author) {
+      const author = document.createElement('span');
+      author.className = 'mod-author';
+      author.textContent = `por ${mod.author}`;
+      row.appendChild(author);
+    }
+
+    const description = document.createElement('p');
+    description.className = 'mod-desc';
+    description.textContent = mod.description || 'Sin descripción todavía.';
+    row.appendChild(description);
+
+    els.modsList.appendChild(row);
+  }
+}
+
+async function openModsPanel() {
+  els.modsSearch.value = '';
+  els.modsSummary.textContent = 'Cargando…';
+  els.modsList.innerHTML = '';
+  openPanel(els.modsOverlay);
+
+  try {
+    state.mods = await api.modsInfo(state.config.channel);
+  } catch (error) {
+    state.mods = null;
+    els.modsSummary.textContent = '—';
+    const node = document.createElement('div');
+    node.className = 'mods-empty';
+    node.textContent = cleanError(error) || 'No se pudo leer el modpack.';
+    els.modsList.appendChild(node);
+    return;
+  }
+
+  renderMods();
 }
 
 /* ---------- Perfiles ---------- */
@@ -1059,6 +1398,8 @@ function bindEvents() {
     if (els.overlay.classList.contains('open')) els.overlay.classList.remove('open');
     else if (els.settingsOverlay.classList.contains('open')) closePanel(els.settingsOverlay);
     else if (els.profilesOverlay.classList.contains('open')) closePanel(els.profilesOverlay);
+    else if (els.skinsOverlay.classList.contains('open')) closePanel(els.skinsOverlay);
+    else if (els.modsOverlay.classList.contains('open')) closePanel(els.modsOverlay);
     else if (els.consoleOverlay.classList.contains('open')) closePanel(els.consoleOverlay);
     else closeAllMenu();
   });
@@ -1178,6 +1519,45 @@ function bindEvents() {
 
   els.consoleOverlay.addEventListener('click', (event) => {
     if (event.target === els.consoleOverlay) closePanel(els.consoleOverlay);
+  });
+
+  // Skins
+  els.openSkins.addEventListener('click', () => {
+    closeAllMenu();
+    openSkinsPanel();
+  });
+
+  els.skinsClose.addEventListener('click', () => closePanel(els.skinsOverlay));
+  els.skinsDone.addEventListener('click', () => closePanel(els.skinsOverlay));
+
+  els.skinPickButton.addEventListener('click', pickSkinFile);
+  els.skinApplyButton.addEventListener('click', applySkinChanges);
+  els.skinResetButton.addEventListener('click', resetActiveSkin);
+
+  els.skinGoAccounts.addEventListener('click', () => {
+    closePanel(els.skinsOverlay);
+    renderProfileList();
+    renderAccount();
+    els.profilesNote.textContent = '';
+    openPanel(els.profilesOverlay);
+  });
+
+  els.skinsOverlay.addEventListener('click', (event) => {
+    if (event.target === els.skinsOverlay) closePanel(els.skinsOverlay);
+  });
+
+  // Mods
+  els.openMods.addEventListener('click', () => {
+    closeAllMenu();
+    openModsPanel();
+  });
+
+  els.modsClose.addEventListener('click', () => closePanel(els.modsOverlay));
+  els.modsDone.addEventListener('click', () => closePanel(els.modsOverlay));
+  els.modsSearch.addEventListener('input', renderMods);
+
+  els.modsOverlay.addEventListener('click', (event) => {
+    if (event.target === els.modsOverlay) closePanel(els.modsOverlay);
   });
 
   // Salir
