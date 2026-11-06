@@ -176,13 +176,15 @@ async function refreshModpack(urlOverride = '', options = {}) {
     if (!remote) throw new Error('manifiesto inválido');
 
     fs.mkdirSync(paths.cache, { recursive: true });
-    fs.writeFileSync(paths.remoteModpackMeta, JSON.stringify({ url, fetchedAt: now }, null, 2), 'utf8');
+    const metaFile = JSON.stringify({ url, fetchedAt: now }, null, 2);
 
     if (remote.revision <= current.revision) {
+      fs.writeFileSync(paths.remoteModpackMeta, metaFile, 'utf8');
       return { updated: false, reason: 'sin-cambios', revision: current.revision };
     }
 
     fs.writeFileSync(paths.remoteModpack, JSON.stringify(remote, null, 2), 'utf8');
+    fs.writeFileSync(paths.remoteModpackMeta, metaFile, 'utf8');
     modpackCache = {
       ...normalizeModpack(remote),
       manifestUrl: bundled.manifestUrl || '',
