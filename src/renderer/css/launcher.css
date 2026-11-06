@@ -299,6 +299,12 @@ body[data-state="launching"] .version-button {
   color: #d96a4d;
 }
 
+.field-hint code {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--green);
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

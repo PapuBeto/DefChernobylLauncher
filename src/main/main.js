@@ -227,7 +227,7 @@ function registerIpc() {
 
   ipcMain.handle('settings:save', (_event, patch) => {
     if (!patch || typeof patch !== 'object') throw new Error('Ajustes inválidos.');
-    const allowed = ['memory', 'javaPath', 'resolution', 'closeOnLaunch', 'channel', 'effects'];
+    const allowed = ['memory', 'javaPath', 'resolution', 'closeOnLaunch', 'channel', 'effects', 'music'];
     const safe = {};
     for (const key of allowed) {
       if (key in patch) safe[key] = patch[key];

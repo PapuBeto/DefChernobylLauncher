@@ -14,6 +14,7 @@ const DEFAULT_CONFIG = {
   closeOnLaunch: false,
   showSnapshots: false,
   effects: true,
+  music: false,
 };
 
 let cache = null;
@@ -74,6 +75,7 @@ function normalize(config) {
   merged.resolution.fullscreen = Boolean(merged.resolution.fullscreen);
 
   merged.effects = merged.effects !== false;
+  merged.music = Boolean(merged.music);
 
   return merged;
 }

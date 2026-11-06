@@ -25,6 +25,7 @@ const state = {
   skinBusy: false,
   mods: null,
   effects: true,
+  music: false,
   update: null,
   signingIn: false,
   manualUpdateCheck: false,
@@ -85,9 +86,11 @@ const els = {
   javaDetectButton: $('javaDetectButton'),
   javaBrowseButton: $('javaBrowseButton'),
   gameDirPath: $('gameDirPath'),
+  musicAudio: $('musicAudio'),
   openGameFolder: $('openGameFolder'),
   closeOnLaunchToggle: $('closeOnLaunchToggle'),
   effectsToggle: $('effectsToggle'),
+  musicToggle: $('musicToggle'),
   settingsNote: $('settingsNote'),
 
   profilesOverlay: $('profilesOverlay'),
@@ -410,6 +413,29 @@ function applyEffects(enabled) {
   initGlow();
   glow.active = true;
   startGlow();
+}
+
+function applyMusic(enabled) {
+  state.music = Boolean(enabled);
+  const audio = els.musicAudio;
+  if (!audio) return;
+
+  if (state.music) {
+    audio.volume = 0.35;
+    audio.play().catch(() => {});
+  } else {
+    audio.pause();
+  }
+}
+
+function unlockMusic() {
+  if (!state.music) return;
+  els.musicAudio?.play().catch(() => {});
+}
+
+function armMusicUnlock() {
+  window.addEventListener('pointerdown', unlockMusic, { passive: true });
+  window.addEventListener('keydown', unlockMusic);
 }
 
 /* =========================================================
@@ -1148,6 +1174,7 @@ function renderSettings() {
   els.fullscreenToggle.checked = config.resolution.fullscreen;
   els.closeOnLaunchToggle.checked = config.closeOnLaunch;
   els.effectsToggle.checked = config.effects !== false;
+  els.musicToggle.checked = config.music === true;
   els.javaPath.value = config.javaPath || '';
   els.gameDirPath.value = state.boot.system.gameDir;
 
@@ -1217,10 +1244,12 @@ async function saveSettings() {
       },
       closeOnLaunch: els.closeOnLaunchToggle.checked,
       effects: els.effectsToggle.checked,
+      music: els.musicToggle.checked,
       javaPath: els.javaPath.value.trim() || null,
     });
 
     applyEffects(state.config.effects !== false);
+    applyMusic(state.config.music === true);
     renderProfile();
     closePanel(els.settingsOverlay);
     toast('Ajustes guardados.');
@@ -1533,6 +1562,7 @@ function bindEvents() {
   const closeSettings = () => {
     closePanel(els.settingsOverlay);
     applyEffects(state.config.effects !== false);
+    applyMusic(state.config.music === true);
   };
 
   els.settingsClose.addEventListener('click', closeSettings);
@@ -1541,6 +1571,10 @@ function bindEvents() {
 
   els.effectsToggle.addEventListener('change', () => {
     applyEffects(els.effectsToggle.checked);
+  });
+
+  els.musicToggle.addEventListener('change', () => {
+    applyMusic(els.musicToggle.checked);
   });
 
   els.settingsOverlay.addEventListener('click', (event) => {
@@ -1679,6 +1713,8 @@ async function init() {
     renderAccount();
     renderUpdate(boot.update);
     applyEffects(boot.config.effects !== false);
+    applyMusic(boot.config.music === true);
+    armMusicUnlock();
 
     setLaunchState('idle');
     setProgress(0, null);

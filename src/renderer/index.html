@@ -376,6 +376,17 @@
             <p class="field-hint">Iluminación verde que sigue al ratón. Desactívala si prefieres un fondo estático.</p>
           </div>
 
+          <div class="field">
+            <label class="switch-line">
+              <span>Música</span>
+              <label class="switch">
+                <input type="checkbox" id="musicToggle">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </label>
+            <p class="field-hint">Reproduce <code>src/renderer/assets/music.mp3</code> en bucle. Si no existe el archivo, no suena.</p>
+          </div>
+
         </div>
 
         <div class="panel-footer">
@@ -639,6 +650,10 @@
   </div>
 
   <div class="toast-stack" id="toastStack"></div>
+
+  <audio id="musicAudio" loop preload="auto" hidden>
+    <source src="assets/music.mp3" type="audio/mpeg">
+  </audio>
 
   <script src="js/app.js"></script>
 

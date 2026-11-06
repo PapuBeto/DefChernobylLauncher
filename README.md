@@ -19,6 +19,8 @@ lanzamiento automático al servidor.
 - **Estado real del servidor**: ping al servidor (jugadores en línea, latencia, MOTD).
 - **Fondo reactivo**: halo verde que sigue al ratón, con esporas flotando. Se puede
   desactivar en **Ajustes → Fondo reactivo**.
+- **Música opcional**: si colocas `music.mp3` en `src/renderer/assets/`, suena en bucle
+  con volumen bajo y se puede activar o quitar en **Ajustes → Música**.
 - **Panel de skins** (solo premium): sube un PNG y cámbiala al instante en tu cuenta de
   Minecraft, con vista previa del cuerpo y modelo clásico o slim.
 - **Panel de mods**: lista los mods del canal activo con su descripción, versión, autor y
