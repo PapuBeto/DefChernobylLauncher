@@ -169,7 +169,7 @@ async function refreshModpack(urlOverride = '', options = {}) {
     const declared = Number(response.headers.get('content-length')) || 0;
     if (declared > MAX_MANIFEST_BYTES) throw new Error('manifiesto demasiado grande');
 
-    const text = await response.text();
+    const text = (await response.text()).replace(/^\uFEFF/, '');
     if (text.length > MAX_MANIFEST_BYTES) throw new Error('manifiesto demasiado grande');
 
     const remote = validateManifest(JSON.parse(text));

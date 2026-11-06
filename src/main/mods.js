@@ -219,11 +219,15 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
       for (const value of completed.values()) sum += value;
       return Math.min(1, sum / pendingBytes);
     }
-    return pending.length === 0 ? 1 : completed.size / pending.length;
+    return pending.length === 0 ? 1 : finished.size / pending.length;
   };
 
-  const emit = (file, extra = {}) => {
-    const elapsed = Math.max(0.001, (Date.now() - startedAt) / 1000);
+  let lastEmit = 0;
+  const emit = (file, force = false) => {
+    const now = Date.now();
+    if (!force && now - lastEmit < 100) return;
+    lastEmit = now;
+    const elapsed = Math.max(0.001, (now - startedAt) / 1000);
     report({
       percent: totalProgress(),
       file: file ? file.path : null,
@@ -232,11 +236,10 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
       bytes: pendingBytes,
       downloadedBytes,
       speed: downloadedBytes / elapsed,
-      ...extra,
     });
   };
 
-  emit(null);
+  emit(null, true);
 
   let cursor = 0;
   const worker = async () => {
@@ -271,7 +274,7 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
 
           completed.set(item.destination, expected > 0 ? expected : 1);
           finished.add(item.destination);
-          emit(item.file);
+          emit(item.file, true);
           lastError = null;
           break;
         } catch (error) {
