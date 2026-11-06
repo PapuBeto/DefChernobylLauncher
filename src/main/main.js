@@ -7,7 +7,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 
 const configStore = require('./config');
 const { paths } = require('./paths');
-const { loadModpack, loadNews, loadLinks } = require('./resources');
+const { loadModpack, refreshModpack, loadNews, loadLinks } = require('./resources');
 const { ping } = require('./server-status');
 const javaManager = require('./java');
 const authManager = require('./auth');
@@ -440,8 +440,13 @@ if (!gotLock) {
     }
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     ensureDirectories();
+    // Si hay manifiesto remoto configurado, se intenta antes de pintar la UI.
+    // refreshModpack nunca lanza: si falla, se usa el manifiesto incluido.
+    await refreshModpack().catch((error) => {
+      console.warn('[manifest] Error inesperado:', error);
+    });
     registerIpc();
     createWindow();
     updateService.start();

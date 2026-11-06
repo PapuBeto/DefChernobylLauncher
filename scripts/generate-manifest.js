@@ -19,6 +19,7 @@
  *
  * Opciones:
  *   --write <archivo>   Sustituye `files` en ese modpack.json.
+ *   --revision <n>      Ajusta `revision` al escribir (súbelo en cada cambio remoto).
  *   --output <archivo>  Guarda el array JSON en un archivo.
  *   --options           Incluye también options.txt (ver README).
  *   --exclude <glob>    Excluye rutas que coincidan (repetible).
@@ -86,6 +87,7 @@ function parseArgs(argv) {
   let positionalChannels = [];
   let writeFile = null;
   let outputFile = null;
+  let revision = null;
   let includeOptions = false;
   const excludes = [];
 
@@ -101,6 +103,9 @@ function parseArgs(argv) {
     } else if (arg === '--write') {
       writeFile = argv[++i];
       if (!writeFile) fail('--write necesita un archivo');
+    } else if (arg === '--revision') {
+      revision = Number(argv[++i]);
+      if (!Number.isInteger(revision) || revision < 1) fail('--revision necesita un entero positivo');
     } else if (arg === '--output') {
       outputFile = argv[++i];
       if (!outputFile) fail('--output necesita un archivo');
@@ -133,7 +138,11 @@ function parseArgs(argv) {
       '  o: node scripts/generate-manifest.js --channel COMPLETA <carpeta> <urlBase> ...');
   }
 
-  return { channels, writeFile, outputFile, includeOptions, excludes };
+  if (revision !== null && !writeFile) {
+    fail('--revision solo tiene sentido junto con --write');
+  }
+
+  return { channels, writeFile, outputFile, revision, includeOptions, excludes };
 }
 
 function normalizeChannel(value) {
@@ -246,7 +255,7 @@ function collectRoot(root, includeOptions, excludes) {
 }
 
 async function main() {
-  const { channels, writeFile, outputFile, includeOptions, excludes } = parseArgs(process.argv.slice(2));
+  const { channels, writeFile, outputFile, revision, includeOptions, excludes } = parseArgs(process.argv.slice(2));
   const excludeRegexes = excludes.map(globToRegExp);
   const roots = [...new Set(channels.map((channel) => path.resolve(channel.root)))];
   const rootCache = new Map();
@@ -328,9 +337,15 @@ async function main() {
     } catch (error) {
       fail(`No se pudo leer ${destination}: ${error.message}`);
     }
+    if (revision !== null) modpack.revision = revision;
     modpack.files = entries;
     fs.writeFileSync(destination, `${JSON.stringify(modpack, null, 2)}\n`, 'utf8');
     console.error(`Actualizado: ${destination} (${entries.length} entradas)`);
+    if (Number.isInteger(modpack.revision)) {
+      console.error(`Revisión del manifiesto: ${modpack.revision}`);
+    } else {
+      console.error('Aviso: el manifiesto no tiene "revision"; usa --revision <n> para el manifiesto remoto.');
+    }
 
     const paths = new Set(entries.map((entry) => entry.path));
     for (const mod of Array.isArray(modpack.mods) ? modpack.mods : []) {

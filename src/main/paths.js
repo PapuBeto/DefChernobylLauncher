@@ -20,6 +20,12 @@ const paths = {
   get cache() {
     return path.join(this.data, 'cache');
   },
+  get remoteModpack() {
+    return path.join(this.cache, 'modpack.json');
+  },
+  get remoteModpackMeta() {
+    return path.join(this.cache, 'modpack-fetch.json');
+  },
   get logs() {
     return path.join(this.data, 'logs');
   },

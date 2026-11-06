@@ -10,7 +10,7 @@ lanzamiento automático al servidor.
 
 ## ¿Qué hace?
 
-- **Instala todo solo**: Minecraft 1.20.1, Forge y los mods del modpack (con verificación SHA-1).
+- **Instala todo solo**: Minecraft 1.20.1, Forge y los mods del modpack (verificación SHA-1, reanudación por `Range`, reintentos y velocidad visible).
 - **Java automático**: detecta Java 17+ en el sistema; si no existe, descarga Eclipse Temurin.
 - **Perfiles offline**: varios nombres de jugador, sin cuenta premium.
 - **Canales de modpack**: `COMPLETA` (PCs potentes, shaders y gráficos altos) y `LITE`
@@ -180,6 +180,7 @@ node scripts/generate-manifest.js `
   los dos y es idéntico, el cliente lo reutiliza (mismo `sha1`), no lo vuelve a descargar
   al cambiar de canal.
 - `--write resources/modpack.json`: sustituye `files` y conserva el resto del manifiesto.
+- `--revision <n>`: fija `revision` al escribir; súbelo en cada publicación remota.
 - `--output files.json`: guarda el array sin tocar `modpack.json`.
 - `--options`: incluye `options.txt` (ver el aviso de más abajo).
 - `--exclude "config/foo/*"`: excluye rutas (se puede repetir).
@@ -218,9 +219,44 @@ chernobylz-pack/
   salida) es la opción limpia; solo cambian las `url`.
 - Revisa las licencias de mods, shaders y resource packs antes de redistribuirlos.
 
-> `resources/modpack.json` va dentro del instalador (`app-resources`). Cada cambio en el
-> manifiesto (nuevo mod, config o hash) requiere publicar una versión del launcher. Los
-> archivos del pack en sí no necesitan release del launcher; solo el JSON que los apunta.
+### Actualizar el pack sin publicar el launcher
+
+`resources/modpack.json` admite dos campos opcionales para desacoplar el pack del
+instalador:
+
+| Campo | Descripción |
+|---|---|
+| `revision` | Entero que identifica la versión del manifiesto. Súbelo en cada cambio. |
+| `manifestUrl` | URL HTTPS del `modpack.json` remoto. Vacío = solo se usa el manifiesto incluido. |
+
+Flujo recomendado:
+
+1. Sube los archivos del pack al repo/CDN y genera el manifiesto con una revisión nueva:
+
+   ```bash
+   node scripts/generate-manifest.js ^
+     --channel COMPLETA "C:\packs\completa" "https://raw.githubusercontent.com/PapuBeto/chernobylz-pack/<commit>/completa" ^
+     --channel LITE "C:\packs\lite" "https://raw.githubusercontent.com/PapuBeto/chernobylz-pack/<commit>/lite" ^
+     --write resources/modpack.json --revision 7
+   ```
+
+2. Sube ese `resources/modpack.json` a la URL de `manifestUrl` (por ejemplo, la raíz
+   del repo del pack). El JSON remoto debe conservar `revision`, `channels` y `files`.
+3. El launcher consulta el manifiesto al arrancar, como máximo cada 15 minutos. Si la
+   revisión remota es mayor y el JSON es válido, lo guarda en
+   `userData/cache/modpack.json` y lo usa; si falla la red o el JSON, sigue con el
+   manifiesto incluido o con la última copia buena.
+4. Los jugadores reciben el cambio sin actualizar el launcher. Solo hace falta una
+   release nueva para cambios de código, de Forge o del manifiesto incluido.
+
+Seguridad y límites:
+
+- El manifiesto remoto solo puede apuntar a **HTTPS** (se permite `localhost` para
+  pruebas). Las rutas deben ser relativas y no pueden salir de la carpeta del juego.
+- La URL de refresco se toma siempre del manifiesto incluido: un manifiesto remoto no
+  puede cambiar el host desde el que se actualiza.
+- El repo del pack es de confianza: sus `files[]` se descargan y se ejecutan como mods.
+- Si `manifestUrl` está vacío no se hace ninguna petición de red.
 
 ### `options.txt` y los ajustes de gráficos
 
@@ -282,7 +318,7 @@ src/
 │   ├── preload.js        # API segura expuesta al renderer
 │   ├── config.js         # ajustes y perfiles
 │   ├── paths.js          # rutas de userData
-│   ├── resources.js      # lectura de modpack/noticias/enlaces
+│   ├── resources.js      # manifiesto local/remoto, noticias y enlaces
 │   ├── java.js           # detección y descarga de Java 17
 │   ├── game.js           # instalación de Forge y lanzamiento
 │   ├── mods.js           # sincronización del modpack
@@ -310,7 +346,9 @@ scripts/
 ├── generate-icon.js
 ├── generate-manifest.js
 ├── test-install.js
-└── test-launch.js
+├── test-launch.js
+├── test-download.js
+└── test-manifest.js
 ```
 
 ### Pruebas
@@ -318,10 +356,14 @@ scripts/
 ```bash
 node_modules\electron\dist\electron.exe scripts\test-install.js
 node_modules\electron\dist\electron.exe scripts\test-launch.js
+node_modules\electron\dist\electron.exe scripts\test-download.js
+node_modules\electron\dist\electron.exe scripts\test-manifest.js
 ```
 
 - `test-install.js` instala Minecraft + Forge en `%TEMP%\cz-install-test` y sincroniza el modpack.
 - `test-launch.js` abre el juego, espera 15 s y lo cierra para comprobar que arranca.
+- `test-download.js` corta una descarga local, comprueba que se reanuda con `Range`, el SHA-1 y la velocidad.
+- `test-manifest.js` valida actualizaciones por `revision`, la caché y el rechazo de manifiestos inválidos.
 
 El botón **CANCELAR** aborta de verdad: corta la descarga en curso, cancela la tarea de
 instalación y termina el proceso del juego si ya estaba abierto.
@@ -435,6 +477,7 @@ El workflow compila con `--publish onTag` y sube al release
 
 - [x] Autenticación Microsoft (cuentas premium) además de offline.
 - [x] Auto-actualización del launcher (electron-updater + GitHub Releases).
-- [ ] Barra de progreso con velocidad y tamaño descargado.
+- [x] Velocidad de descarga visible, reintentos y reanudación por `Range`.
+- [ ] Mostrar tamaño descargado/total y tiempo restante.
 - [ ] Selector de idioma.
 - [ ] Firma de código del ejecutable.

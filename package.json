@@ -16,6 +16,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win",
     "test:install": "electron scripts/test-install.js",
+    "test:download": "electron scripts/test-download.js",
+    "test:manifest": "electron scripts/test-manifest.js",
     "manifest": "node scripts/generate-manifest.js",
     "icon": "node scripts/generate-icon.js"
   },

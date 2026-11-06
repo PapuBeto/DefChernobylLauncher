@@ -31,6 +31,15 @@ const PHASES = {
 const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
 const within = ([from, to], fraction) => from + (to - from) * clamp01(fraction);
 
+function formatRate(bytesPerSecond) {
+  const value = Number(bytesPerSecond);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const mb = value / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB/s`;
+  const kb = value / 1024;
+  return `${Math.max(1, Math.round(kb))} KB/s`;
+}
+
 function trackProgress(task, onFraction) {
   const timer = setInterval(() => {
     const total = task.total;
@@ -530,8 +539,11 @@ class LaunchManager extends EventEmitter {
       this.progress(0.82, channel.label);
 
       const files = filesForChannel(channel.id);
-      const sync = await syncFiles(paths.game, files, channel.id, ({ percent, file, completed, total }) => {
-        const detail = total > 0 ? `${completed}/${total}` : channel.label;
+      const sync = await syncFiles(paths.game, files, channel.id, ({ percent, file, completed, total, speed }) => {
+        const rate = formatRate(speed);
+        const detail = total > 0
+          ? `${completed}/${total}${rate ? ` · ${rate}` : ''}`
+          : channel.label;
         this.status(
           file ? `Descargando ${path.basename(file)} (${detail})` : 'Verificando archivos del modpack...',
           'mods',
