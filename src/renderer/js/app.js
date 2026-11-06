@@ -434,10 +434,20 @@ function renderChannels() {
 function updateMemoryHint() {
   const channel = state.modpack.channels[state.config.channel] || {};
   const max = channel.memory?.max;
+  const current = Number(els.memoryRange.value) || state.config.memory;
 
-  els.memoryHint.textContent = max
-    ? `Recomendado para el canal ${channel.label}: ${Math.round(max / 1024)} GB (${max} MB).`
-    : 'Cada canal del modpack puede recomendar una cantidad distinta.';
+  if (!max) {
+    els.memoryHint.textContent = 'Cada canal del modpack puede recomendar una cantidad distinta.';
+    els.memoryHint.classList.remove('warning');
+    return;
+  }
+
+  const recommended = `${Math.round(max / 1024)} GB (${max} MB)`;
+  const over = current > max;
+  els.memoryHint.textContent = over
+    ? `Canal ${channel.label}: máximo recomendado ${recommended}. Tienes ${current} MB.`
+    : `Recomendado para el canal ${channel.label}: ${recommended}.`;
+  els.memoryHint.classList.toggle('warning', over);
 }
 
 /* =========================================================
@@ -1465,6 +1475,7 @@ function bindEvents() {
 
   els.memoryRange.addEventListener('input', () => {
     els.memoryValue.textContent = `${els.memoryRange.value} MB`;
+    updateMemoryHint();
   });
 
   els.javaDetectButton.addEventListener('click', async () => {

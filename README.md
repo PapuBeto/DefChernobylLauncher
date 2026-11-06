@@ -14,7 +14,8 @@ lanzamiento automático al servidor.
 - **Java automático**: detecta Java 17+ en el sistema; si no existe, descarga Eclipse Temurin.
 - **Perfiles offline**: varios nombres de jugador, sin cuenta premium.
 - **Canales de modpack**: `COMPLETA` (PCs potentes, shaders y gráficos altos) y `LITE`
-  (gama baja-media, mismos mods compartidos y gráficos optimizados).
+  (gama baja-media, mismos mods compartidos y gráficos optimizados), con aviso si la
+  memoria configurada supera el máximo recomendado del canal.
 - **Estado real del servidor**: ping al servidor (jugadores en línea, latencia, MOTD).
 - **Fondo reactivo**: halo verde que sigue al ratón, con esporas flotando. Se puede
   desactivar en **Ajustes → Fondo reactivo**.

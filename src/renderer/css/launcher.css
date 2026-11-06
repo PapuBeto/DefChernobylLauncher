@@ -295,6 +295,10 @@ body[data-state="launching"] .version-button {
   line-height: 1.55;
 }
 
+.field-hint.warning {
+  color: #d96a4d;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
