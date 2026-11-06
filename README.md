@@ -21,6 +21,8 @@ lanzamiento automático al servidor.
   desactivar en **Ajustes → Fondo reactivo**.
 - **Música opcional**: si colocas `music.mp3` en `src/renderer/assets/`, suena en bucle
   con volumen bajo y se puede activar o quitar en **Ajustes → Música**.
+- **Sincronizar sin entrar**: botón **Sincronizar archivos** para descargar y verificar
+  el canal activo sin abrir Minecraft; sirve para dejar el pack listo antes de jugar.
 - **Panel de skins** (solo premium): sube un PNG y cámbiala al instante en tu cuenta de
   Minecraft, con vista previa del cuerpo y modelo clásico o slim.
 - **Panel de mods**: lista los mods del canal activo con su descripción, versión, autor y

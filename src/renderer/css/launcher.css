@@ -89,7 +89,14 @@ header .window-controls {
   color: #0d100c;
 }
 
-body[data-state="launching"] .version-button {
+body[data-state="launching"] .version-button,
+body[data-state="syncing"] .version-button {
+  opacity: .5;
+  pointer-events: none;
+}
+
+body[data-state="launching"] .sync-button,
+body[data-state="syncing"] .sync-button {
   opacity: .5;
   pointer-events: none;
 }

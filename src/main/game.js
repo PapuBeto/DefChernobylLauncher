@@ -693,6 +693,76 @@ class LaunchManager extends EventEmitter {
     }
   }
 
+  async syncNow() {
+    if (this.running) {
+      throw new Error('Ya hay una operación en curso.');
+    }
+
+    this.running = true;
+    this.cancelled = false;
+    this.logs = [];
+    this.currentTask = null;
+    this.abortController = new AbortController();
+    this.progressFloor = 0;
+
+    try {
+      const config = configStore.load();
+      const channel = getChannel(config.channel);
+
+      this.status('Sincronizando archivos del modpack...', 'mods', 0);
+      this.progress(0, channel.label);
+
+      const sync = await syncFiles(paths.game, filesForChannel(channel.id), channel.id, ({
+        percent,
+        file,
+        completed,
+        total,
+        speed,
+        bytes,
+        transferred,
+      }) => {
+        const rate = formatRate(speed);
+        const remaining = Math.max(0, (Number(bytes) || 0) - (Number(transferred) || 0));
+        const eta = rate && remaining > 0 ? formatEta(remaining / speed) : '';
+        const parts = [];
+        if (total > 0) parts.push(`${completed}/${total}`);
+        if (bytes > 0) parts.push(`${formatSize(transferred)}/${formatSize(bytes)}`);
+        if (rate) parts.push(rate);
+        if (eta) parts.push(`~${eta}`);
+        const detail = parts.length > 0 ? parts.join(' · ') : channel.label;
+
+        this.status(
+          file ? `Descargando ${path.basename(file)} (${detail})` : 'Verificando archivos del modpack...',
+          'mods',
+          percent,
+        );
+        this.progress(percent, detail);
+      }, this.abortController.signal);
+
+      this.log(`[launcher] Sincronización manual ${channel.id}: ${sync.files} archivos verificados, ${sync.downloaded} descargados.`);
+      this.status(`Archivos sincronizados: ${sync.files} verificados, ${sync.downloaded} descargados.`, 'mods', 1);
+      this.progress(1, channel.label);
+
+      if (this.cancelled) return this.finishCancelled();
+
+      this.running = false;
+      this.resetProgress();
+      this.emit('synced', { channel: channel.id, files: sync.files, downloaded: sync.downloaded });
+      return { channel: channel.id, files: sync.files, downloaded: sync.downloaded };
+    } catch (error) {
+      this.running = false;
+      this.resetProgress();
+
+      if (this.cancelled) return this.finishCancelled();
+
+      const message = error?.message || String(error);
+      this.status(`Error al sincronizar: ${message}`, 'error', 0);
+      this.log(`[launcher] ERROR (sync): ${message}`);
+      this.emit('error', { message, operation: 'sync' });
+      throw error;
+    }
+  }
+
   finishCancelled() {
     this.running = false;
     this.currentTask = null;

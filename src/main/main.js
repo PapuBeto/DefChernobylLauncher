@@ -42,6 +42,7 @@ launchManager.on('status', (payload) => send('launch:status', payload));
 launchManager.on('progress', (payload) => send('launch:progress', payload));
 launchManager.on('log', (payload) => send('launch:log', payload));
 launchManager.on('ready', (payload) => send('launch:ready', payload));
+launchManager.on('synced', (payload) => send('launch:synced', payload));
 launchManager.on('exit', (payload) => send('launch:exit', payload));
 launchManager.on('error', (payload) => send('launch:error', payload));
 launchManager.on('cancelled', () => send('launch:cancelled', {}));
@@ -400,6 +401,15 @@ function registerIpc() {
   });
 
   ipcMain.handle('launch:cancel', () => launchManager.cancel());
+
+  ipcMain.handle('mods:sync', async () => {
+    if (launchManager.running) throw new Error('Ya hay una operación en curso.');
+    // No esperamos: el resultado llega por eventos (launch:synced / launch:error).
+    launchManager.syncNow().catch(() => {
+      /* el error ya se emitió por eventos */
+    });
+    return { started: true };
+  });
 
   ipcMain.handle('logs:get', () => launchManager.logs.slice(-400));
 

@@ -14,6 +14,7 @@ const state = {
   news: [],
   links: {},
   launching: false,
+  syncing: false,
   running: false,
   java: null,
   serverOnline: false,
@@ -39,6 +40,7 @@ const els = {
   bgFx: $('bgFx'),
   bgSpores: $('bgSpores'),
   playButton: $('playButton'),
+  syncButton: $('syncButton'),
   progress: $('progress'),
   percentage: $('percentage'),
   status: $('status'),
@@ -1297,9 +1299,11 @@ function setLaunchState(mode) {
   const button = els.playButton;
 
   state.launching = mode === 'launching';
+  state.syncing = mode === 'syncing';
   state.running = mode === 'running';
 
   els.body.dataset.state = mode;
+  els.syncButton.disabled = mode !== 'idle';
 
   button.classList.remove('is-busy', 'is-running');
   button.disabled = false;
@@ -1308,6 +1312,10 @@ function setLaunchState(mode) {
     button.textContent = 'CANCELAR';
     button.classList.add('is-busy');
     els.status.textContent = 'Preparando el juego...';
+  } else if (mode === 'syncing') {
+    button.textContent = 'CANCELAR';
+    button.classList.add('is-busy');
+    els.status.textContent = 'Sincronizando archivos...';
   } else if (mode === 'running') {
     button.textContent = 'JUGANDO';
     button.classList.add('is-running');
@@ -1328,7 +1336,7 @@ function setProgress(percent, detail) {
 }
 
 async function startGame() {
-  if (state.launching) {
+  if (state.launching || state.syncing) {
     await api.cancel();
     return;
   }
@@ -1352,6 +1360,24 @@ async function startGame() {
   } catch (error) {
     setLaunchState('idle');
     toast(error.message || 'No se pudo iniciar el juego.', 'error');
+  }
+}
+
+async function startSync() {
+  if (state.syncing || state.launching) {
+    await api.cancel();
+    return;
+  }
+  if (state.running) return;
+
+  setLaunchState('syncing');
+  setProgress(0, null);
+
+  try {
+    await api.syncFiles();
+  } catch (error) {
+    setLaunchState('idle');
+    toast(error.message || 'No se pudieron sincronizar los archivos.', 'error');
   }
 }
 
@@ -1381,6 +1407,12 @@ function bindEvents() {
     }
   });
 
+  api.onSynced(({ files, downloaded }) => {
+    setLaunchState('idle');
+    setProgress(0, null);
+    toast(`Archivos sincronizados: ${files} verificados, ${downloaded} descargados.`, 'success');
+  });
+
   api.onExit(({ code, crashed, crashReportLocation }) => {
     setLaunchState('idle');
 
@@ -1397,16 +1429,18 @@ function bindEvents() {
     }
   });
 
-  api.onError(({ message }) => {
+  api.onError(({ message, operation }) => {
+    const syncing = operation === 'sync' || state.syncing;
     setLaunchState('idle');
     els.body.dataset.state = 'error';
-    els.status.textContent = 'Error al iniciar el juego';
-    toast(message || 'Error desconocido al iniciar el juego.', 'error', 9000);
+    els.status.textContent = syncing ? 'Error al sincronizar' : 'Error al iniciar el juego';
+    toast(message || (syncing ? 'Error desconocido al sincronizar.' : 'Error desconocido al iniciar el juego.'), 'error', 9000);
   });
 
   api.onCancelled(() => {
+    const syncing = state.syncing;
     setLaunchState('idle');
-    toast('Inicio cancelado.');
+    toast(syncing ? 'Sincronización cancelada.' : 'Inicio cancelado.');
   });
 
   // Cuenta Microsoft
@@ -1491,6 +1525,7 @@ function bindEvents() {
 
   // Jugar
   els.playButton.addEventListener('click', startGame);
+  els.syncButton.addEventListener('click', startSync);
 
   // Cuenta Microsoft
   els.msLoginButton.addEventListener('click', signInMicrosoft);

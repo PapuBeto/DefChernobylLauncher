@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('launcher', {
 
   // Juego
   launch: () => ipcRenderer.invoke('launch:start'),
+  syncFiles: () => ipcRenderer.invoke('mods:sync'),
   cancel: () => ipcRenderer.invoke('launch:cancel'),
   logs: () => ipcRenderer.invoke('logs:get'),
 
@@ -64,6 +65,7 @@ contextBridge.exposeInMainWorld('launcher', {
   onProgress: (callback) => subscribe('launch:progress', callback),
   onLog: (callback) => subscribe('launch:log', callback),
   onReady: (callback) => subscribe('launch:ready', callback),
+  onSynced: (callback) => subscribe('launch:synced', callback),
   onExit: (callback) => subscribe('launch:exit', callback),
   onError: (callback) => subscribe('launch:error', callback),
   onCancelled: (callback) => subscribe('launch:cancelled', callback),

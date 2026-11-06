@@ -826,6 +826,36 @@ main.no-news .news {
   border-left: 1px solid var(--border);
 }
 
+.sync-button {
+  margin-top: 12px;
+
+  padding: 7px 12px;
+
+  background: transparent;
+  border: 1px solid var(--border);
+
+  color: var(--muted);
+
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+
+.sync-button:hover:not(:disabled) {
+  color: var(--green);
+  border-color: rgba(156, 255, 66, .35);
+  background: rgba(156, 255, 66, .06);
+}
+
+.sync-button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
 /* =========================================================
        FOOTER
     ========================================================= */
