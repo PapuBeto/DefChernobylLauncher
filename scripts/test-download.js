@@ -97,6 +97,24 @@ async function main() {
     }], 'COMPLETA', () => {});
     checks.sinredescarga = second.downloaded === 0 && requests === before;
 
+    // Con el disco casi lleno, debe fallar antes de descargar.
+    const realStatfs = fs.statfsSync;
+    let diskError = '';
+    try {
+      fs.statfsSync = () => ({ bavail: 1, bsize: 4096 });
+      await syncFiles(root, [{
+        path: 'mods/test2.bin',
+        url: `http://127.0.0.1:${port}/test.bin`,
+        sha1: SHA1,
+        size: BODY.length,
+      }], 'COMPLETA', () => {});
+    } catch (error) {
+      diskError = error.message;
+    } finally {
+      fs.statfsSync = realStatfs;
+    }
+    checks.espacio = /espacio suficiente/.test(diskError);
+
     const failed = Object.entries(checks).filter(([, ok]) => !ok);
     for (const [name, ok] of Object.entries(checks)) {
       console.log(`${ok ? 'OK ' : 'FALLO'} ${name}`);

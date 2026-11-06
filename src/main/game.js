@@ -148,7 +148,7 @@ async function fetchText(url, timeoutMs, signal) {
   }
 }
 
-async function downloadForgeInstaller(url, destination, signal) {
+async function downloadForgeInstaller(url, destination, signal, onProgress = () => {}) {
   let expected = null;
   try {
     const text = await fetchText(`${url}.sha1`, 15000, signal);
@@ -159,9 +159,15 @@ async function downloadForgeInstaller(url, destination, signal) {
   }
 
   if (fs.existsSync(destination) && isForgeInstaller(destination)) {
-    if (!expected) return;
+    if (!expected) {
+      onProgress(1);
+      return;
+    }
     const local = await sha1File(destination);
-    if (local === expected) return;
+    if (local === expected) {
+      onProgress(1);
+      return;
+    }
     removeFile(destination);
   } else {
     removeFile(destination);
@@ -175,11 +181,13 @@ async function downloadForgeInstaller(url, destination, signal) {
     signal?.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), 90000);
     const temporary = `${destination}.part`;
+    onProgress(0);
 
     try {
       const response = await fetch(url, { signal: controller.signal, redirect: 'follow' });
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
 
+      const total = Number(response.headers.get('content-length')) || 0;
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       const handle = fs.createWriteStream(temporary);
       const hash = crypto.createHash('sha1');
@@ -189,6 +197,7 @@ async function downloadForgeInstaller(url, destination, signal) {
         for await (const chunk of response.body) {
           hash.update(chunk);
           size += chunk.length;
+          if (total > 0) onProgress(Math.min(0.99, size / total));
           if (!handle.write(chunk)) {
             await new Promise((resolve) => handle.once('drain', resolve));
           }
@@ -202,6 +211,7 @@ async function downloadForgeInstaller(url, destination, signal) {
       if (size < 1_000_000) throw new Error('El instalador llegó incompleto.');
 
       fs.renameSync(temporary, destination);
+      onProgress(1);
       return;
     } catch (error) {
       lastError = error;
@@ -341,6 +351,9 @@ async function ensureForge(folder, minecraftVersion, forgeVersion, report, conte
     fs.writeFileSync(profiles, JSON.stringify({ profiles: {}, settings: {}, version: 3 }, null, 2), 'utf8');
   }
 
+  const reportDownload = (fraction) => report(clamp01(fraction) * 0.8);
+  const reportInstaller = (fraction) => report(0.8 + clamp01(fraction) * 0.2);
+
   return withRetries(
     async () => {
       if (isCancelled()) throw new Error('Instalación cancelada.');
@@ -349,6 +362,7 @@ async function ensureForge(folder, minecraftVersion, forgeVersion, report, conte
         `${FORGE_MAVEN}/${minecraftVersion}-${forgeVersion}/forge-${minecraftVersion}-${forgeVersion}-installer.jar`,
         installer,
         context.signal,
+        reportDownload,
       );
 
       if (isCancelled()) throw new Error('Instalación cancelada.');
@@ -358,7 +372,7 @@ async function ensureForge(folder, minecraftVersion, forgeVersion, report, conte
         gameDir: folder.root,
         signal: context.signal,
         isCancelled,
-        report,
+        report: reportInstaller,
         onTask: context.onTask,
       });
 

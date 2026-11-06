@@ -8,9 +8,25 @@ const { paths } = require('./paths');
 const CONCURRENCY = 4;
 const DOWNLOAD_ATTEMPTS = 3;
 const STALL_TIMEOUT_MS = 45000;
+const DISK_RESERVE_BYTES = 256 * 1024 * 1024;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatSize(bytes) {
+  const value = Number(bytes) || 0;
+  if (value >= 1024 * 1024 * 1024) return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
+  return `${Math.max(1, Math.round(value / 1024 / 1024))} MB`;
+}
+
+function freeSpace(root) {
+  try {
+    const stats = fs.statfsSync(root);
+    return Number(stats.bavail) * Number(stats.bsize);
+  } catch {
+    return null;
+  }
 }
 
 function readState() {
@@ -208,6 +224,24 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
   }
 
   const pendingBytes = pending.reduce((total, item) => total + (Number(item.file.size) || 0), 0);
+  const partialBytes = pending.reduce((total, item) => {
+    const expected = Number(item.file.size) || 0;
+    if (!expected) return total;
+    try {
+      return total + Math.min(fs.statSync(`${item.destination}.part`).size, expected);
+    } catch {
+      return total;
+    }
+  }, 0);
+  const neededBytes = Math.max(0, pendingBytes - partialBytes);
+  const freeBytes = freeSpace(root);
+  if (freeBytes !== null && neededBytes > 0 && neededBytes + DISK_RESERVE_BYTES > freeBytes) {
+    throw new Error(
+      `No hay espacio suficiente para el modpack: se necesitan ${formatSize(neededBytes + DISK_RESERVE_BYTES)} ` +
+      `libres y solo quedan ${formatSize(freeBytes)} en el disco.`,
+    );
+  }
+
   const completed = new Map();
   const finished = new Set();
   const startedAt = Date.now();

@@ -10,7 +10,7 @@ lanzamiento automático al servidor.
 
 ## ¿Qué hace?
 
-- **Instala todo solo**: Minecraft 1.20.1, Forge y los mods del modpack (verificación SHA-1, reanudación por `Range`, reintentos y velocidad visible).
+- **Instala todo solo**: Minecraft 1.20.1, Forge y los mods del modpack (verificación SHA-1, reanudación por `Range`, reintentos, velocidad visible y comprobación de espacio libre).
 - **Java automático**: detecta Java 17+ en el sistema; si no existe, descarga Eclipse Temurin.
 - **Perfiles offline**: varios nombres de jugador, sin cuenta premium.
 - **Canales de modpack**: `COMPLETA` (PCs potentes, shaders y gráficos altos) y `LITE`
@@ -362,7 +362,7 @@ node_modules\electron\dist\electron.exe scripts\test-manifest.js
 
 - `test-install.js` instala Minecraft + Forge en `%TEMP%\cz-install-test` y sincroniza el modpack.
 - `test-launch.js` abre el juego, espera 15 s y lo cierra para comprobar que arranca.
-- `test-download.js` corta una descarga local, comprueba que se reanuda con `Range`, el SHA-1 y la velocidad.
+- `test-download.js` corta una descarga local, comprueba que se reanuda con `Range`, el SHA-1, la velocidad y el aviso de disco lleno.
 - `test-manifest.js` valida actualizaciones por `revision`, la caché y el rechazo de manifiestos inválidos.
 
 El botón **CANCELAR** aborta de verdad: corta la descarga en curso, cancela la tarea de
