@@ -209,7 +209,20 @@ function formatBytes(bytes) {
   const value = Number(bytes) || 0;
   if (value <= 0) return '';
   if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  const mb = value / (1024 * 1024);
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${mb.toFixed(1)} MB`;
+}
+
+function channelSize(id) {
+  const known = state.modpack.channelSizes?.[id];
+  if (Number.isFinite(Number(known))) return Number(known);
+  let total = 0;
+  for (const file of state.modpack.files || []) {
+    if (Array.isArray(file.channels) && !file.channels.includes(id)) continue;
+    total += Number(file.size) || 0;
+  }
+  return total;
 }
 
 function selectChannel(channelId) {
@@ -412,7 +425,8 @@ function renderChannels() {
 
     const description = document.createElement('span');
     description.className = 'option-description';
-    description.textContent = channel.description || '';
+    const size = formatBytes(channelSize(id));
+    description.textContent = [channel.description || '', size ? `~${size}` : ''].filter(Boolean).join(' · ');
 
     option.append(name, description);
     option.addEventListener('click', () => {

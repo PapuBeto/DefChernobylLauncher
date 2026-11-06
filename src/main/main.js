@@ -175,6 +175,15 @@ function registerIpc() {
   ipcMain.handle('app:bootstrap', () => {
     const config = configStore.load();
     const modpack = loadModpack();
+    const files = Array.isArray(modpack.files) ? modpack.files : [];
+    const channelSizes = {};
+
+    for (const id of Object.keys(modpack.channels || {})) {
+      channelSizes[id] = files.reduce((total, file) => {
+        if (Array.isArray(file.channels) && !file.channels.includes(id)) return total;
+        return total + (Number(file.size) || 0);
+      }, 0);
+    }
 
     return {
       launcherVersion: app.getVersion(),
@@ -183,9 +192,12 @@ function registerIpc() {
         name: modpack.name,
         minecraft: modpack.minecraft,
         forge: modpack.forge,
+        revision: modpack.revision || 1,
+        source: modpack.source || 'bundled',
         server: modpack.server,
         channels: modpack.channels,
-        fileCount: modpack.files.length,
+        fileCount: files.length,
+        channelSizes,
       },
       news: loadNews(),
       links: loadLinks(),
