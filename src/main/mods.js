@@ -228,7 +228,10 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
     const expected = Number(item.file.size) || 0;
     if (!expected) return total;
     try {
-      return total + Math.min(fs.statSync(`${item.destination}.part`).size, expected);
+      const size = fs.statSync(`${item.destination}.part`).size;
+      // Solo se reanuda un .part más pequeño que el archivo final; si ya es
+      // igual o mayor, download() lo borra y vuelve a empezar.
+      return total + (size > 0 && size < expected ? size : 0);
     } catch {
       return total;
     }

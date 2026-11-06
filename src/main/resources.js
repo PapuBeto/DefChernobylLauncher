@@ -40,6 +40,13 @@ function readJson(file, fallback) {
   }
 }
 
+function writeJsonAtomic(file, data) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(data, null, 2), 'utf8');
+  fs.renameSync(temporary, file);
+}
+
 function isAllowedUrl(value) {
   try {
     const url = new URL(String(value));
@@ -181,15 +188,14 @@ async function refreshModpack(urlOverride = '', options = {}) {
     if (!remote) throw new Error('manifiesto inválido');
 
     fs.mkdirSync(paths.cache, { recursive: true });
-    const metaFile = JSON.stringify({ url, fetchedAt: now }, null, 2);
 
     if (remote.revision <= current.revision) {
-      fs.writeFileSync(paths.remoteModpackMeta, metaFile, 'utf8');
+      writeJsonAtomic(paths.remoteModpackMeta, { url, fetchedAt: now });
       return { updated: false, reason: 'sin-cambios', revision: current.revision };
     }
 
-    fs.writeFileSync(paths.remoteModpack, JSON.stringify(remote, null, 2), 'utf8');
-    fs.writeFileSync(paths.remoteModpackMeta, metaFile, 'utf8');
+    writeJsonAtomic(paths.remoteModpack, remote);
+    writeJsonAtomic(paths.remoteModpackMeta, { url, fetchedAt: now });
     modpackCache = {
       ...normalizeModpack(remote),
       manifestUrl: bundled.manifestUrl || '',
