@@ -165,6 +165,11 @@ const els = {
   updateVersion: $('updateVersion'),
   updateState: $('updateState'),
   updateCheckButton: $('updateCheckButton'),
+
+  packField: $('packField'),
+  packRevision: $('packRevision'),
+  packState: $('packState'),
+  packCheckButton: $('packCheckButton'),
 };
 
 /* =========================================================
@@ -1148,6 +1153,31 @@ function renderSettings() {
 
   updateMemoryHint();
   paintJava();
+  renderPack();
+}
+
+function renderPack() {
+  const hasRemote = Boolean(state.modpack.manifestUrl);
+  els.packField.hidden = !hasRemote;
+  if (!hasRemote) return;
+
+  els.packRevision.textContent = `rev. ${state.modpack.revision || 1}`;
+  els.packState.value = state.modpack.source === 'remote'
+    ? 'Manifiesto remoto'
+    : 'Manifiesto incluido';
+}
+
+function renderBuildPack(modpack) {
+  els.buildPack.textContent = `Pack rev. ${modpack.revision || 1}`;
+  els.buildPack.title = modpack.source === 'remote'
+    ? 'Manifiesto remoto'
+    : 'Manifiesto incluido en el launcher';
+}
+
+function renderModpackInfo(modpack) {
+  els.buildForge.textContent = `Forge ${modpack.forge}`;
+  els.buildMinecraft.textContent = `MC ${modpack.minecraft}`;
+  renderBuildPack(modpack);
 }
 
 function paintJava() {
@@ -1463,6 +1493,36 @@ function bindEvents() {
 
   els.updateAction.addEventListener('click', () => api.installUpdate());
 
+  els.packCheckButton.addEventListener('click', async () => {
+    els.packCheckButton.disabled = true;
+    els.packState.value = 'Comprobando...';
+
+    try {
+      const result = await api.checkPack();
+
+      if (result.updated) {
+        state.modpack = result.modpack;
+        renderModpackInfo(state.modpack);
+        renderChannels();
+        renderPack();
+        toast(`Pack actualizado a la revisión ${result.revision}. Se descargará al jugar.`, 'success');
+        return;
+      }
+      if (result.reason === 'sin-cambios') {
+        toast(`El pack ya está al día (revisión ${result.revision || state.modpack.revision || 1}).`);
+      } else if (result.reason === 'sin-url') {
+        toast('No hay manifiesto remoto configurado.', 'error');
+      } else {
+        toast(`No se pudo comprobar el pack: ${result.error || result.reason || 'error'}.`, 'error');
+      }
+    } catch (error) {
+      toast(`No se pudo comprobar el pack: ${error?.message || error}.`, 'error');
+    } finally {
+      els.packCheckButton.disabled = false;
+      renderPack();
+    }
+  });
+
   // Ajustes
   els.openSettings.addEventListener('click', () => {
     closeAllMenu();
@@ -1609,12 +1669,7 @@ async function init() {
     els.brandVersion.textContent = boot.launcherVersion;
     els.launcherVersion.textContent = `LAUNCHER ${boot.launcherVersion}`;
     els.buildLauncher.textContent = `v${boot.launcherVersion}`;
-    els.buildForge.textContent = `Forge ${boot.modpack.forge}`;
-    els.buildMinecraft.textContent = `MC ${boot.modpack.minecraft}`;
-    els.buildPack.textContent = `Pack rev. ${boot.modpack.revision || 1}`;
-    els.buildPack.title = boot.modpack.source === 'remote'
-      ? 'Manifiesto remoto'
-      : 'Manifiesto incluido en el launcher';
+    renderModpackInfo(boot.modpack);
     els.gameDirPath.value = boot.system.gameDir;
 
     renderProfile();

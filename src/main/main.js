@@ -171,34 +171,40 @@ async function serverStatus() {
   return value;
 }
 
+function modpackSummary(modpack) {
+  const files = Array.isArray(modpack.files) ? modpack.files : [];
+  const channelSizes = {};
+
+  for (const id of Object.keys(modpack.channels || {})) {
+    channelSizes[id] = files.reduce((total, file) => {
+      if (Array.isArray(file.channels) && !file.channels.includes(id)) return total;
+      return total + (Number(file.size) || 0);
+    }, 0);
+  }
+
+  return {
+    name: modpack.name,
+    minecraft: modpack.minecraft,
+    forge: modpack.forge,
+    revision: modpack.revision || 1,
+    source: modpack.source || 'bundled',
+    manifestUrl: modpack.manifestUrl || '',
+    server: modpack.server,
+    channels: modpack.channels,
+    fileCount: files.length,
+    channelSizes,
+  };
+}
+
 function registerIpc() {
   ipcMain.handle('app:bootstrap', () => {
     const config = configStore.load();
     const modpack = loadModpack();
-    const files = Array.isArray(modpack.files) ? modpack.files : [];
-    const channelSizes = {};
-
-    for (const id of Object.keys(modpack.channels || {})) {
-      channelSizes[id] = files.reduce((total, file) => {
-        if (Array.isArray(file.channels) && !file.channels.includes(id)) return total;
-        return total + (Number(file.size) || 0);
-      }, 0);
-    }
 
     return {
       launcherVersion: app.getVersion(),
       config,
-      modpack: {
-        name: modpack.name,
-        minecraft: modpack.minecraft,
-        forge: modpack.forge,
-        revision: modpack.revision || 1,
-        source: modpack.source || 'bundled',
-        server: modpack.server,
-        channels: modpack.channels,
-        fileCount: files.length,
-        channelSizes,
-      },
+      modpack: modpackSummary(modpack),
       news: loadNews(),
       links: loadLinks(),
       auth: authManager.status(config.profiles),
@@ -211,6 +217,12 @@ function registerIpc() {
         gameDir: paths.game,
       },
     };
+  });
+
+  ipcMain.handle('pack:check', async () => {
+    // refreshModpack nunca lanza: siempre devuelve un resultado.
+    const result = await refreshModpack('', { force: true });
+    return { ...result, modpack: modpackSummary(loadModpack()) };
   });
 
   ipcMain.handle('settings:save', (_event, patch) => {

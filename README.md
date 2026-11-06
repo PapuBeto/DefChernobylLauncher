@@ -249,6 +249,8 @@ Flujo recomendado:
    manifiesto incluido o con la última copia buena.
 4. Los jugadores reciben el cambio sin actualizar el launcher. Solo hace falta una
    release nueva para cambios de código, de Forge o del manifiesto incluido.
+5. Si quieres forzar la comprobación sin reiniciar, usa
+   **Ajustes → Modpack → Buscar** (el bloque solo aparece si `manifestUrl` no está vacío).
 
 Seguridad y límites:
 

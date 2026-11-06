@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('launcher', {
   // Mods del modpack
   modsInfo: (channel) => ipcRenderer.invoke('mods:info', channel),
 
+  // Manifiesto del pack
+  checkPack: () => ipcRenderer.invoke('pack:check'),
+
   // Actualizaciones
   updateState: () => ipcRenderer.invoke('update:state'),
   checkUpdates: () => ipcRenderer.invoke('update:check'),

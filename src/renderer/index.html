@@ -343,6 +343,18 @@
             <p class="field-hint">Se actualiza solo desde GitHub. Tus mods, mundos y ajustes se conservan.</p>
           </div>
 
+          <div class="field" id="packField" hidden>
+            <div class="field-head">
+              <label>Modpack</label>
+              <span class="field-value" id="packRevision">rev. 1</span>
+            </div>
+            <div class="field-inline">
+              <input type="text" id="packState" readonly>
+              <button class="ghost-button" id="packCheckButton">Buscar</button>
+            </div>
+            <p class="field-hint">El pack se actualiza desde su manifiesto remoto; los archivos nuevos se descargan al jugar.</p>
+          </div>
+
           <div class="field">
             <label class="switch-line">
               <span>Cerrar el launcher al entrar al juego</span>
