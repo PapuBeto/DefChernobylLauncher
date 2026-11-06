@@ -10,7 +10,7 @@ lanzamiento automático al servidor.
 
 ## ¿Qué hace?
 
-- **Instala todo solo**: Minecraft 1.20.1, Forge y los mods del modpack (verificación SHA-1, reanudación por `Range`, reintentos, velocidad visible y comprobación de espacio libre).
+- **Instala todo solo**: Minecraft 1.20.1, Forge y los mods del modpack (verificación SHA-1, reanudación por `Range`, reintentos, velocidad, tamaño, tiempo restante y comprobación de espacio libre).
 - **Java automático**: detecta Java 17+ en el sistema; si no existe, descarga Eclipse Temurin.
 - **Perfiles offline**: varios nombres de jugador, sin cuenta premium.
 - **Canales de modpack**: `COMPLETA` (PCs potentes, shaders y gráficos altos) y `LITE`
@@ -477,7 +477,6 @@ El workflow compila con `--publish onTag` y sube al release
 
 - [x] Autenticación Microsoft (cuentas premium) además de offline.
 - [x] Auto-actualización del launcher (electron-updater + GitHub Releases).
-- [x] Velocidad de descarga visible, reintentos y reanudación por `Range`.
-- [ ] Mostrar tamaño descargado/total y tiempo restante.
+- [x] Velocidad de descarga visible, tamaño/tiempo restante, reintentos y reanudación por `Range`.
 - [ ] Selector de idioma.
 - [ ] Firma de código del ejecutable.

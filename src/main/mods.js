@@ -247,12 +247,14 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
   const startedAt = Date.now();
   let downloadedBytes = 0;
 
+  const transferredBytes = () => {
+    let sum = 0;
+    for (const value of completed.values()) sum += value;
+    return sum;
+  };
+
   const totalProgress = () => {
-    if (pendingBytes > 0) {
-      let sum = 0;
-      for (const value of completed.values()) sum += value;
-      return Math.min(1, sum / pendingBytes);
-    }
+    if (pendingBytes > 0) return Math.min(1, transferredBytes() / pendingBytes);
     return pending.length === 0 ? 1 : finished.size / pending.length;
   };
 
@@ -268,6 +270,7 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
       completed: finished.size,
       total: pending.length,
       bytes: pendingBytes,
+      transferred: transferredBytes(),
       downloadedBytes,
       speed: downloadedBytes / elapsed,
     });
@@ -343,6 +346,7 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
     completed: pending.length,
     total: pending.length,
     bytes: pendingBytes,
+    transferred: transferredBytes(),
     downloadedBytes,
     speed: downloadedBytes / elapsed,
   });

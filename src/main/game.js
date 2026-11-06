@@ -40,6 +40,22 @@ function formatRate(bytesPerSecond) {
   return `${Math.max(1, Math.round(kb))} KB/s`;
 }
 
+function formatSize(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return '0 MB';
+  const mb = value / (1024 * 1024);
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${mb >= 100 ? mb.toFixed(0) : mb.toFixed(1)} MB`;
+}
+
+function formatEta(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  if (value < 60) return `${Math.max(1, Math.ceil(value))}s`;
+  if (value < 3600) return `${Math.floor(value / 60)}m ${Math.round(value % 60)}s`;
+  return `${Math.floor(value / 3600)}h ${Math.round((value % 3600) / 60)}m`;
+}
+
 function trackProgress(task, onFraction) {
   const timer = setInterval(() => {
     const total = task.total;
@@ -553,11 +569,16 @@ class LaunchManager extends EventEmitter {
       this.progress(0.82, channel.label);
 
       const files = filesForChannel(channel.id);
-      const sync = await syncFiles(paths.game, files, channel.id, ({ percent, file, completed, total, speed }) => {
+      const sync = await syncFiles(paths.game, files, channel.id, ({ percent, file, completed, total, speed, bytes, transferred }) => {
         const rate = formatRate(speed);
-        const detail = total > 0
-          ? `${completed}/${total}${rate ? ` · ${rate}` : ''}`
-          : channel.label;
+        const remaining = Math.max(0, (Number(bytes) || 0) - (Number(transferred) || 0));
+        const eta = rate && remaining > 0 ? formatEta(remaining / speed) : '';
+        const parts = [];
+        if (total > 0) parts.push(`${completed}/${total}`);
+        if (bytes > 0) parts.push(`${formatSize(transferred)}/${formatSize(bytes)}`);
+        if (rate) parts.push(rate);
+        if (eta) parts.push(`~${eta}`);
+        const detail = parts.length > 0 ? parts.join(' · ') : channel.label;
         this.status(
           file ? `Descargando ${path.basename(file)} (${detail})` : 'Verificando archivos del modpack...',
           'mods',

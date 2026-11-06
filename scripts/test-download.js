@@ -81,6 +81,7 @@ async function main() {
       tamano: data.length === BODY.length,
       reanudacion: sawRange && requests >= 2,
       velocidad: reports.some((report) => report.speed > 0),
+      transferido: reports.some((report) => report.transferred > 0 && report.bytes === BODY.length),
       progreso: reports.some((report) => report.completed === 1 && report.total === 1),
       estado: state.managedFiles?.includes('mods/test.bin') === true,
       descargados: result.downloaded === 1,

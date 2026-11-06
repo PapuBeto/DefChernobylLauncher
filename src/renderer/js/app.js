@@ -1278,6 +1278,7 @@ async function startGame() {
 function bindEvents() {
   api.onStatus(({ text, phase }) => {
     els.status.textContent = text;
+    els.status.title = text;
     if (phase) els.body.dataset.state = phase;
   });
 
