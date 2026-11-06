@@ -120,10 +120,15 @@ function loadModpack() {
     const cached = bundled.manifestUrl && meta?.url === bundled.manifestUrl
       ? normalizeModpack(validateManifest(readJson(paths.remoteModpack, null)))
       : null;
-    const chosen = cached && cached.revision > bundled.revision ? cached : bundled;
+    const useRemote = Boolean(cached && cached.revision > bundled.revision);
+    const chosen = useRemote ? cached : bundled;
     // La URL de refresco siempre sale del manifiesto incluido en el launcher:
     // un manifiesto remoto no puede cambiar de dónde se descargan los suyos.
-    modpackCache = { ...chosen, manifestUrl: bundled.manifestUrl || '' };
+    modpackCache = {
+      ...chosen,
+      manifestUrl: bundled.manifestUrl || '',
+      source: useRemote ? 'remote' : 'bundled',
+    };
   }
   return modpackCache;
 }
@@ -188,6 +193,7 @@ async function refreshModpack(urlOverride = '', options = {}) {
     modpackCache = {
       ...normalizeModpack(remote),
       manifestUrl: bundled.manifestUrl || '',
+      source: 'remote',
     };
     console.log(`[manifest] Actualizado a la revisión ${remote.revision}.`);
     return { updated: true, revision: remote.revision };

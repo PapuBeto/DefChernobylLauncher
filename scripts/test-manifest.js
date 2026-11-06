@@ -74,8 +74,9 @@ async function main() {
     const afterHigher = loadModpack();
 
     const checks = {
-      inicial: initial.revision === BASE,
+      inicial: initial.revision === BASE && initial.source === 'bundled',
       actualiza: first.updated === true && first.revision === BASE + 1,
+      fuente: afterFirst.source === 'remote',
       canales: Boolean(afterFirst.channels.LITE),
       archivos: afterFirst.files.length === 1,
       cache: cached.revision === BASE + 1,

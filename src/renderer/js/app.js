@@ -69,6 +69,7 @@ const els = {
   buildLauncher: $('buildLauncher'),
   buildForge: $('buildForge'),
   buildMinecraft: $('buildMinecraft'),
+  buildPack: $('buildPack'),
 
   settingsOverlay: $('settingsOverlay'),
   settingsClose: $('settingsClose'),
@@ -1585,6 +1586,10 @@ async function init() {
     els.buildLauncher.textContent = `v${boot.launcherVersion}`;
     els.buildForge.textContent = `Forge ${boot.modpack.forge}`;
     els.buildMinecraft.textContent = `MC ${boot.modpack.minecraft}`;
+    els.buildPack.textContent = `Pack rev. ${boot.modpack.revision || 1}`;
+    els.buildPack.title = boot.modpack.source === 'remote'
+      ? 'Manifiesto remoto'
+      : 'Manifiesto incluido en el launcher';
     els.gameDirPath.value = boot.system.gameDir;
 
     renderProfile();
