@@ -320,6 +320,52 @@ async function main() {
     })
     .sort((a, b) => a.path.localeCompare(b.path) || a.url.localeCompare(b.url));
 
+  const duplicateErrors = [];
+  const duplicateWarnings = [];
+  const grouped = new Map();
+
+  for (const entry of entries) {
+    const group = grouped.get(entry.path) || [];
+    group.push(entry);
+    grouped.set(entry.path, group);
+  }
+
+  for (const [relative, group] of grouped) {
+    if (group.length < 2) continue;
+
+    const overlaps = [];
+    for (let i = 0; i < group.length; i += 1) {
+      for (let j = i + 1; j < group.length; j += 1) {
+        const a = group[i];
+        const b = group[j];
+        const aAll = !Array.isArray(a.channels) || a.channels.length === 0;
+        const bAll = !Array.isArray(b.channels) || b.channels.length === 0;
+        const shared = aAll || bAll
+          || (Array.isArray(a.channels) && Array.isArray(b.channels) && a.channels.some((channel) => b.channels.includes(channel)));
+        if (shared) overlaps.push({ a, b });
+      }
+    }
+
+    if (overlaps.length === 0) continue;
+
+    const uniqueHashes = new Set(group.map((entry) => entry.sha1)).size;
+    const labels = group
+      .map((entry) => `(${entry.channels?.length ? entry.channels.join('+') : 'todos los canales'})`)
+      .join(' vs ');
+
+    if (uniqueHashes > 1) {
+      duplicateErrors.push(`${relative}: contenido distinto para ${labels}. Los dos se descargarían con la misma ruta; separa los canales.`);
+    } else {
+      duplicateWarnings.push(`${relative}: ${overlaps.length > 1 ? 'varias entradas' : 'dos entradas'} idénticas para ${labels}; elimina la duplicada.`);
+    }
+  }
+
+  for (const warning of duplicateWarnings) console.error(`Aviso: ${warning}`);
+  for (const message of duplicateErrors) console.error(`ERROR: ${message}`);
+  if (duplicateErrors.length > 0) {
+    fail('Manifiesto no generado: hay rutas duplicadas con contenido distinto para canales solapados.');
+  }
+
   const json = JSON.stringify(entries, null, 2);
 
   if (outputFile) {

@@ -145,7 +145,8 @@ Todo se define en **`resources/modpack.json`**:
 - Para tener **contenido distinto por canal** en la misma ruta (configs de gráficos, shaders,
   resource packs), usa dos entradas con el mismo `path` y `channels` exclusivos. Nunca
   pongas dos entradas con el mismo `path` y canales solapados: la última ganaría y el
-  resultado dependería del orden.
+  resultado dependería del orden. El generador detecta esa colisión y aborta sin escribir
+  manifiesto; si el contenido es idéntico solo avisa de la duplicación.
 
 ### Panel de mods
 
