@@ -16,13 +16,23 @@ lanzamiento automático al servidor.
 
 ## ¿Qué hace?
 
-- **Instala todo solo**: Minecraft 1.20.1, Forge y los mods del modpack (verificación SHA-1, reanudación por `Range`, reintentos, velocidad, tamaño, tiempo restante y comprobación de espacio libre).
-- **Java automático**: detecta Java 17+ en el sistema; si no existe, descarga Eclipse Temurin.
-- **Perfiles offline**: varios nombres de jugador, sin cuenta premium.
-- **Canales de modpack**: `COMPLETA` (PCs potentes, shaders y gráficos altos) y `LITE`
-  (gama baja-media, mismos mods compartidos y gráficos optimizados), con aviso si la
-  memoria configurada supera el máximo recomendado del canal.
-- **Estado real del servidor**: ping al servidor (jugadores en línea, latencia, MOTD).
+- **Cuentas premium y no premium**: el servidor está configurado para ambas. Las premium se
+  autentican con Microsoft mediante el flujo oficial (sin que el launcher pida la contraseña);
+  las no premium usan un perfil offline con nombre local.
+- **Prepara el cliente solo**: al pulsar **JUGAR** comprueba la cuenta, detecta o instala
+  Java 17, instala Minecraft 1.20.1 + Forge si falta y sincroniza los archivos del modpack.
+- **Verifica lo que descarga**: comprueba SHA-1, tamaño y espacio libre; puede reanudar con
+  `Range`, reintentar, mostrar velocidad, tamaño descargado/total y tiempo restante.
+- **Dos canales**: `COMPLETA` (PCs potentes, shaders y gráficos altos) y `LITE` (gama baja-media,
+  mismos mods compartidos base y gráficos optimizados), con aviso si la memoria configurada
+  supera el máximo recomendado del canal.
+- **Estado del servidor**: ping a `ChernobylZ.refugenodes.com:25836` con jugadores en línea,
+  latencia y MOTD.
+- **Solo toca su carpeta de juego**: los archivos gestionados viven en
+  `%APPDATA%\Chernobyl Z\game\`; no gestiona `options.txt` por defecto y no cambia
+  configuraciones del servidor.
+- **Actualizaciones**: el launcher puede auto-actualizarse desde su release; los cambios del
+  pack pueden salir por manifiesto remoto sin nuevo instalador.
 - **Fondo reactivo**: halo verde que sigue al ratón, con esporas flotando. Se puede
   desactivar en **Ajustes → Fondo reactivo**.
 - **Música opcional**: si colocas `music.mp3` en `src/renderer/assets/`, suena en bucle
@@ -36,7 +46,25 @@ lanzamiento automático al servidor.
 - **Noticias dinámicas** desde `resources/news.json`. Si está vacío, el panel de noticias
   se oculta y la portada ocupa todo el ancho.
 - **Consola integrada** para diagnosticar problemas y reportes de crash.
-- Conexión directa al servidor al pulsar **JUGAR**.
+- **No altera el servidor**: solo prepara el cliente y lanza Minecraft conectado al servidor
+  indicado.
+
+---
+
+## Cómo funciona
+
+1. **Abrir**: el launcher carga tu configuración local (perfiles, canal, memoria y resolución)
+   desde `%APPDATA%\Chernobyl Z\config.json`.
+2. **Elegir cuenta**: puedes jugar con una cuenta premium de Microsoft o con un perfil no premium
+   (offline). En premium, el acceso se hace con el flujo oficial de Microsoft; en offline, solo
+   se usa un nombre de jugador local.
+3. **Pulsar JUGAR**: el launcher valida la sesión, detecta Java 17 o lo descarga si hace falta,
+   instala Minecraft 1.20.1 + Forge 47.4.28 y sincroniza los archivos del canal elegido.
+4. **Verificar**: cada archivo se compara por SHA-1 y tamaño. Si falta o no coincide, se
+   descarga o se reanuda; los archivos que dejan de pertenecer al pack se eliminan.
+5. **Entrar**: Minecraft se abre ya listo y conectado a `ChernobylZ.refugenodes.com:25836`.
+6. **Los ajustes de gráficos y teclas quedan en tu cliente**; por defecto el launcher no
+   gestiona `options.txt`.
 
 ---
 
