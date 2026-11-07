@@ -1,548 +1,83 @@
-# ☢ Chernobyl Z — Launcher
+<div align="center">
 
-Launcher de escritorio para el servidor de zombies **Chernobyl Z** (Minecraft **1.20.1 + Forge**).
-Interfaz oscura con estética post-apocalíptica, cuentas premium y no premium, sincronización de mods y
-lanzamiento automático al servidor.
+# ☢ Chernobyl Z Launcher
 
-> **Repositorio de código visible, no de descarga.** Este repo sirve para explicar qué hace el
-> launcher y permitir consultar el código. El código NO está publicado para copiarlo, usarlo,
-> modificarlo o redistribuirlo: consulta `LICENSE` — todos los derechos están reservados y no se
-> concede ningún permiso de uso salvo que lo autorice por escrito el titular. Tampoco es un canal
-> oficial de descarga del instalador.
+**Launcher oficial de Chernobyl Z**
 
-![Estado](https://img.shields.io/badge/estado-desarrollo-9cff42) ![Electron](https://img.shields.io/badge/Electron-33-9cff42) ![MC](https://img.shields.io/badge/Minecraft-1.20.1-9cff42)
+![Electron](https://img.shields.io/badge/Electron-33-9cff42)
+![Minecraft 1.20.1](https://img.shields.io/badge/Minecraft-1.20.1-9cff42)
+![Forge 47.4.28](https://img.shields.io/badge/Forge-47.4.28-9cff42)
+
+</div>
 
 ---
 
-## ¿Qué hace?
+## Presentación de Chernobyl Z
 
-- **Cuentas premium y no premium**: el servidor está configurado para ambas. Las premium se
-  autentican con Microsoft mediante el flujo oficial (sin que el launcher pida la contraseña);
-  las no premium usan un perfil offline con nombre local.
-- **Prepara el cliente solo**: al pulsar **JUGAR** comprueba la cuenta, detecta o instala
-  Java 17, instala Minecraft 1.20.1 + Forge si falta y sincroniza los archivos del modpack.
-- **Verifica lo que descarga**: comprueba SHA-1, tamaño y espacio libre; puede reanudar con
-  `Range`, reintentar, mostrar velocidad, tamaño descargado/total y tiempo restante.
-- **Dos canales**: `COMPLETA` (PCs potentes, shaders y gráficos altos) y `LITE` (gama baja-media,
-  mismos mods compartidos base y gráficos optimizados), con aviso si la memoria configurada
-  supera el máximo recomendado del canal.
-- **Estado del servidor**: ping a `ChernobylZ.refugenodes.com:25836` con jugadores en línea,
-  latencia y MOTD.
-- **Solo toca su carpeta de juego**: los archivos gestionados viven en
-  `%APPDATA%\Chernobyl Z\game\`; no gestiona `options.txt` por defecto y no cambia
-  configuraciones del servidor.
-- **Actualizaciones**: el launcher puede auto-actualizarse desde su release; los cambios del
-  pack pueden salir por manifiesto remoto sin nuevo instalador.
-- **Fondo reactivo**: halo verde que sigue al ratón, con esporas flotando. Se puede
-  desactivar en **Ajustes → Fondo reactivo**.
-- **Música opcional**: si colocas `music.mp3` en `src/renderer/assets/`, suena en bucle
-  con volumen bajo y se puede activar o quitar en **Ajustes → Música**.
-- **Sincronizar sin entrar**: botón **Sincronizar archivos** para descargar y verificar
-  el canal activo sin abrir Minecraft; sirve para dejar el pack listo antes de jugar.
-- **Panel de skins** (solo premium): sube un PNG y cámbiala al instante en tu cuenta de
-  Minecraft, con vista previa del cuerpo y modelo clásico o slim.
-- **Panel de mods**: lista los mods del canal activo con su descripción, versión, autor y
-  estado de descarga.
-- **Noticias dinámicas** desde `resources/news.json`. Si está vacío, el panel de noticias
-  se oculta y la portada ocupa todo el ancho.
-- **Consola integrada** para diagnosticar problemas y reportes de crash.
-- **No altera el servidor**: solo prepara el cliente y lanza Minecraft conectado al servidor
-  indicado.
+**Chernobyl Z** es un servidor de Minecraft 1.20.1 con Minecraft Forge 47.4.28. Para que un jugador pueda entrar con la versión y los archivos correctos del servidor, Chernobyl Z ofrece su propio launcher.
+
+Chernobyl Z Launcher es la aplicación oficial pensada para que entrar al servidor sea tan simple como abrir el programa, iniciar sesión y pulsar **JUGAR**.
 
 ---
 
-## Cómo funciona
+## ¿Qué es Chernobyl Z Launcher?
 
-1. **Abrir**: el launcher carga tu configuración local (perfiles, canal, memoria y resolución)
-   desde `%APPDATA%\Chernobyl Z\config.json`.
-2. **Elegir cuenta**: puedes jugar con una cuenta premium de Microsoft o con un perfil no premium
-   (offline). En premium, el acceso se hace con el flujo oficial de Microsoft; en offline, solo
-   se usa un nombre de jugador local.
-3. **Pulsar JUGAR**: el launcher valida la sesión, detecta Java 17 o lo descarga si hace falta,
-   instala Minecraft 1.20.1 + Forge 47.4.28 y sincroniza los archivos del canal elegido.
-4. **Verificar**: cada archivo se compara por SHA-1 y tamaño. Si falta o no coincide, se
-   descarga o se reanuda; los archivos que dejan de pertenecer al pack se eliminan.
-5. **Entrar**: Minecraft se abre ya listo y conectado a `ChernobylZ.refugenodes.com:25836`.
-6. **Los ajustes de gráficos y teclas quedan en tu cliente**; por defecto el launcher no
-   gestiona `options.txt`.
+Es una aplicación de escritorio desarrollada específicamente para facilitar el acceso a Chernobyl Z. Centraliza la preparación del cliente y el inicio del juego en un solo programa.
+
+No sustituye a Minecraft: lo prepara con la versión, el modloader y los archivos que necesita Chernobyl Z, y luego inicia el juego ya listo para conectar.
 
 ---
 
-## Para jugadores
+## ¿Cómo funciona?
 
-No hace falta VS Code ni tocar el código. Solo descargáis el instalador oficial del launcher
-del enlace que os indique Chernobyl Z (por ejemplo, un enlace directo de MediaFire), lo
-instaláis y el propio launcher se encarga de Minecraft, Java, Forge y del modpack.
+Al abrir el launcher, el jugador puede usar **cuentas Microsoft** o **perfiles offline** (sin cuenta premium).
 
----
+Al pulsar **JUGAR**, el launcher:
 
-## Licencia y uso del código
+1. Inicia sesión con la cuenta elegida.
+2. Prepara **Java 17**, **Minecraft 1.20.1** y **Forge 47.4.28** si falta alguno.
+3. Sincroniza el modpack según el canal elegido: **COMPLETA** o **LITE**.
+4. Inicia Minecraft y lo conecta con el servidor de Chernobyl Z.
 
-Este repositorio puede consultarse públicamente, pero **no está autorizado copiar, modificar,
-usar ni redistribuir el código**. Todo el contenido del proyecto está protegido por los
-condiciones descritas en `LICENSE` (todos los derechos reservados).
-
-Los issues o sugerencias son bienvenidos para detectar errores, pero abrir un issue no concede
-permiso para reutilizar el código.
+La idea es evitar que cada jugador tenga que instalar y actualizar manualmente los componentes del cliente.
 
 ---
 
-## Requisitos (solo para desarrollo)
+## Seguridad y transparencia
 
-> Los jugadores no necesitan nada de esto: solo el instalador oficial.
+El código fuente de este repositorio es **públicamente consultable**. Eso permite revisar cómo está construido el launcher, qué hace y qué pasos sigue para preparar e iniciar Minecraft.
 
-| Herramienta | Versión |
-|---|---|
-| Node.js | 20 o superior |
-| Java | 17 o superior (para instalar Forge) |
-| Git | cualquiera reciente |
+El inicio de sesión con Microsoft se realiza mediante el flujo oficial de Microsoft, sin que el launcher pida la contraseña de la cuenta. Los perfiles offline usan un nombre local y tampoco requieren contraseña.
 
-> En Windows, si `npm` da error de *execution policy*, usa `npm.cmd`.
-
-## Solo para revisar/compilar el código ("Empezar")
-
-Esto es **solo para quien quiera revisar y compilar el código fuente**. Los jugadores no
-necesitan entrar en VS Code: solo usan el instalador oficial.
-
-```bash
-npm install
-npm start        # abre el launcher
-npm run dev      # igual, con DevTools
-```
-
-### En VS Code
-
-Abre la carpeta del proyecto y pulsa **F5** (o *Ejecutar → Iniciar depuración*). Ya hay
-configuración lista en `.vscode/`:
-
-| Acción | Cómo |
-|---|---|
-| Arrancar el launcher | **F5** → `Launcher (F5)` |
-| Arrancar + DevTools | F5 → `Launcher + DevTools` (`--dev`) |
-| Poner breakpoints | En `src/main/*.js` (proceso principal) |
-| Depurar la interfaz | DevTools → pestaña *Sources* |
-| Instalar el juego sin UI | F5 → `Prueba: instalar Minecraft + Forge` |
-| Compilar el instalador | **Ctrl+Shift+B** o `Terminal → Run Build Task` |
-
-Equivalencias si vienes de .NET:
-
-| .NET | Aquí |
-|---|---|
-| `dotnet run` | `npm start` / **F5** |
-| `dotnet build` | no aplica: el código se ejecuta tal cual |
-| `dotnet publish` | `npm run dist` (instalador NSIS en `dist/`) |
-| `dotnet test` | `scripts/test-install.js` y `test-launch.js` |
-| `bin/` | `dist/` (ignorado por git) |
-
-Datos en tiempo de ejecución (Windows): `%APPDATA%\Chernobyl Z\`
-
-```
-Chernobyl Z/
-├── config.json      # ajustes y perfiles
-├── state.json       # archivos gestionados + instancia instalada
-├── game/            # .minecraft (mods, configs, saves...)
-├── java/            # JRE descargado (si hizo falta)
-├── logs/            # launcher.log
-└── cache/           # descargas temporales
-```
+Este README no afirma que el software tenga auditorías externas ni certificaciones que no existan. La transparencia del proyecto se basa en que el código puede consultarse públicamente.
 
 ---
 
-## Configurar el modpack
+## Requisitos para jugadores
 
-Todo se define en **`resources/modpack.json`**:
+Para usar Chernobyl Z Launcher necesitas:
 
-```jsonc
-{
-  "name": "Chernobyl Z",
-  "minecraft": "1.20.1",
-  "forge": "47.4.28",
-  "server": { "name": "Chernobyl Z", "host": "ChernobylZ.refugenodes.com", "port": 25836 },
-  "channels": {
-    "COMPLETA": { "label": "COMPLETA", "description": "PCs potentes · ~6 GB RAM", "memory": { "min": 2048, "max": 6144 } },
-    "LITE": { "label": "LITE", "description": "Gama baja-media · ~4 GB RAM", "memory": { "min": 1536, "max": 4096 } }
-  },
-  "files": [
-    {
-      "path": "mods/example-mod.jar",
-      "url": "https://tu-cdn.com/mods/example-mod.jar",
-      "sha1": "0123456789abcdef0123456789abcdef01234567",
-      "size": 1234567,
-      "channels": ["COMPLETA", "LITE"]
-    },
-    {
-      "path": "config/embeddium-options.json",
-      "url": "https://tu-cdn.com/completa/config/embeddium-options.json",
-      "sha1": "1111111111111111111111111111111111111111",
-      "size": 2345,
-      "channels": ["COMPLETA"]
-    },
-    {
-      "path": "config/embeddium-options.json",
-      "url": "https://tu-cdn.com/lite/config/embeddium-options.json",
-      "sha1": "2222222222222222222222222222222222222222",
-      "size": 2100,
-      "channels": ["LITE"]
-    }
-  ],
-  "mods": [
-    {
-      "id": "example-mod",
-      "name": "Example Mod",
-      "version": "1.2.0",
-      "author": "Autor",
-      "description": "Qué hace este mod, en una o dos frases.",
-      "channels": ["COMPLETA", "LITE"],
-      "file": "mods/example-mod.jar"
-    }
-  ]
-}
-```
-
-- `path`: ruta **relativa** a `game/`. Se ignoran rutas que salgan de esa carpeta.
-- `url`: descarga directa del archivo.
-- `sha1` / `size`: opcionales pero muy recomendados (si el hash no coincide, se vuelve a descargar).
-- `channels`: si se omite, el archivo aplica a todos los canales.
-- Los archivos gestionados que dejan de aparecer en el manifiesto **se eliminan** en la siguiente sincronización.
-- Para tener **contenido distinto por canal** en la misma ruta (configs de gráficos, shaders,
-  resource packs), usa dos entradas con el mismo `path` y `channels` exclusivos. Nunca
-  pongas dos entradas con el mismo `path` y canales solapados: la última ganaría y el
-  resultado dependería del orden. El generador detecta esa colisión y aborta sin escribir
-  manifiesto; si el contenido es idéntico solo avisa de la duplicación.
-
-### Panel de mods
-
-`mods` es la información que se muestra en el panel **Mods del modpack** (menú de perfil):
-
-| Campo | Descripción |
-|---|---|
-| `name` | Nombre visible del mod. |
-| `version` / `author` | Opcionales; se muestran junto al nombre. |
-| `description` | Explicación breve de qué añade el mod. |
-| `channels` | Canales donde aparece. Si se omite, aparece en todos. |
-| `file` | Ruta del `.jar` dentro de `files` (misma cadena que `path`). Sirve para mostrar el tamaño y el estado «INSTALADO» / «SE DESCARGA». |
-
-Si `mods` no existe (o está vacío), el panel deriva los mods de los `.jar` de `files`.
-En cuanto añadas las entradas con descripción, se verán tal cual en el launcher sin
-tocar código.
-
-### Generar entradas del manifiesto
-
-El generador recorre un pack y calcula `sha1`/`size` de `mods/`, `config/`,
-`defaultconfigs/`, `kubejs/`, `tacz/`, `scripts/`, `resourcepacks/` y
-`shaderpacks/`. Puede combinar los dos canales en un solo `files[]`, aunque estén en
-carpetas distintas:
-
-```powershell
-node scripts/generate-manifest.js `
-  --channel COMPLETA "C:\packs\completa" "https://raw.githubusercontent.com/PapuBeto/chernobylz-pack/<commit>/completa" `
-  --channel LITE     "C:\packs\lite"     "https://raw.githubusercontent.com/PapuBeto/chernobylz-pack/<commit>/lite" `
-  --write resources/modpack.json
-```
-
-- `--channel <CANAL> <carpeta> <urlBase>`: una carpeta por canal. Si un archivo está en
-  los dos y es idéntico, el cliente lo reutiliza (mismo `sha1`), no lo vuelve a descargar
-  al cambiar de canal.
-- `--write resources/modpack.json`: sustituye `files` y conserva el resto del manifiesto.
-- `--revision <n>`: fija `revision` al escribir; súbelo en cada publicación remota.
-- `--output files.json`: guarda el array sin tocar `modpack.json`.
-- `--options`: incluye `options.txt` (ver el aviso de más abajo).
-- `--exclude "config/foo/*"`: excluye rutas (se puede repetir).
-- Sin `--channel`, la forma antigua sigue valiendo:
-  `node scripts/generate-manifest.js <carpeta> <urlBase> [canal...]`.
-- Si la carpeta no tiene subcarpetas de pack, se trata como `mods/` (solo `.jar`).
-
-### Dónde alojar los archivos
-
-Para este proyecto lo más práctico es un **repo público aparte** (por ejemplo
-`PapuBeto/chernobylz-pack`) con una carpeta por canal:
-
-```
-chernobylz-pack/
-├── completa/
-│   ├── mods/
-│   ├── config/
-│   ├── kubejs/
-│   ├── tacz/
-│   ├── shaderpacks/
-│   └── resourcepacks/
-└── lite/
-    └── ...
-```
-
-- El generador funciona con cualquier host que **conserve la estructura de carpetas**
-  (raw de GitHub, Cloudflare R2, un VPS...).
-- En GitHub, usa el **SHA del commit** en la URL, no `main`: así una actualización no se
-  queda servida desde la caché de GitHub.
-- GitHub limita a **100 MB por archivo** en el repositorio. Si un shader o resource pack
-  supera ese tamaño, súbelo a **GitHub Releases** y pon esa URL en su entrada; el `path`
-  sigue siendo `resourcepacks/...`. El nombre del asset y la URL no tienen por qué
-  coincidir con la ruta.
-- **No uses Git LFS**: la cuota gratuita de descargas se agota con muy pocos jugadores.
-  Para un pack grande o con muchas descargas, Cloudflare R2 (10 GB gratis y sin coste de
-  salida) es la opción limpia; solo cambian las `url`.
-- Revisa las licencias de mods, shaders y resource packs antes de redistribuirlos.
-
-### Actualizar el pack sin publicar el launcher
-
-`resources/modpack.json` admite dos campos opcionales para desacoplar el pack del
-instalador:
-
-| Campo | Descripción |
-|---|---|
-| `revision` | Entero que identifica la versión del manifiesto. Súbelo en cada cambio. |
-| `manifestUrl` | URL HTTPS del `modpack.json` remoto. Vacío = solo se usa el manifiesto incluido. |
-
-Flujo recomendado:
-
-1. Sube los archivos del pack al repo/CDN y genera el manifiesto con una revisión nueva:
-
-   ```bash
-   node scripts/generate-manifest.js ^
-     --channel COMPLETA "C:\packs\completa" "https://raw.githubusercontent.com/PapuBeto/chernobylz-pack/<commit>/completa" ^
-     --channel LITE "C:\packs\lite" "https://raw.githubusercontent.com/PapuBeto/chernobylz-pack/<commit>/lite" ^
-     --write resources/modpack.json --revision 7
-   ```
-
-2. Sube ese `resources/modpack.json` a la URL de `manifestUrl` (por ejemplo, la raíz
-   del repo del pack). El JSON remoto debe conservar `revision`, `channels` y `files`.
-3. El launcher consulta el manifiesto al arrancar, como máximo cada 15 minutos. Si la
-   revisión remota es mayor y el JSON es válido, lo guarda en
-   `userData/cache/modpack.json` y lo usa; si falla la red o el JSON, sigue con el
-   manifiesto incluido o con la última copia buena.
-4. Los jugadores reciben el cambio sin actualizar el launcher. Solo hace falta una
-   release nueva para cambios de código, de Forge o del manifiesto incluido.
-5. Si quieres forzar la comprobación sin reiniciar, usa
-   **Ajustes → Modpack → Buscar** (el bloque solo aparece si `manifestUrl` no está vacío).
-
-Seguridad y límites:
-
-- El manifiesto remoto solo puede apuntar a **HTTPS** (se permite `localhost` para
-  pruebas). Las rutas deben ser relativas y no pueden salir de la carpeta del juego.
-- La URL de refresco se toma siempre del manifiesto incluido: un manifiesto remoto no
-  puede cambiar el host desde el que se actualiza.
-- El repo del pack es de confianza: sus `files[]` se descargan y se ejecutan como mods.
-- Si `manifestUrl` está vacío no se hace ninguna petición de red.
-
-### `options.txt` y los ajustes de gráficos
-
-No incluyas `options.txt` como archivo gestionado salvo que sepas lo que haces: el
-launcher lo verificaría en cada JUGAR y **resetearía teclas, FOV, idioma, sonido y
-gráficos** cada vez que el jugador los cambie.
-
-Para los ajustes de rendimiento, lo recomendable es:
-
-1. Gestionar las configs de los mods (`config/embeddium-options.json`,
-   `config/iris.properties`, etc.) por canal.
-2. Dejar `options.txt` fuera y, si hace falta un preset de gráficos, aplicarlo solo al
-   cambiar de canal (función pendiente de añadir cuando estén los packs).
-
-`--options` existe para casos concretos (por ejemplo, un perfil de pruebas), no para el
-manifiesto de producción.
+- Windows 10 u 11 de 64 bits.
+- Conexión a internet para iniciar sesión y descargar los componentes del juego.
+- Una cuenta Microsoft o un nombre para tu perfil offline.
+- Espacio suficiente en el disco para Minecraft, Forge, Java y los archivos del modpack.
 
 ---
 
-## Noticias y enlaces
+## Instalación y descarga
 
-- **`resources/news.json`** → tarjetas del panel izquierdo y modal de detalle. Viene vacío
-  por defecto: mientras no haya `items`, el panel no se muestra. Cada noticia admite
-  `id`, `type` (`update`/`fix`/`server`), `date`, `tag`, `title`, `shortTitle`,
-  `description` y `featured`.
-- **`resources/links.json`** → Discord, tienda, YouTube, TikTok, Instagram.
-  Deja una cadena vacía para desactivar el aviso (muestra un toast recordatorio).
+Este repositorio de GitHub es el **repositorio oficial de código**, no el canal oficial de descarga del instalador.
 
----
+Para jugar, descarga el launcher **solo** desde el canal oficial que indique Chernobyl Z. No descargues el instalador desde fuentes no oficiales.
 
-## Build / distribución
-
-```bash
-npm run pack     # carpeta desempaquetada en dist/
-npm run dist     # instalador NSIS en dist/
-npm run icon     # regenera build/icon.png + build/icon.ico
-```
-
-El icono se genera por código (`scripts/generate-icon.js`). Puedes sustituir
-`build/icon.png` e `build/icon.ico` por tu propio arte (256×256) cuando lo tengas.
-
-> **Windows sin permisos de administrador:** electron-builder necesita crear enlaces
-> simbólicos al preparar sus herramientas. Si el build falla con *"Cannot create symbolic
-> link"*, activa el **Modo para desarrolladores** (Ajustes → Sistema → Para desarrolladores)
-> o compila desde GitHub Actions. Para probar el empaquetado sin editar el `.exe`:
->
-> ```bash
-> npx electron-builder --dir -c.win.signAndEditExecutable=false
-> ```
+Una vez descargado, ejecútalo e inicia sesión para entrar a Chernobyl Z.
 
 ---
 
-## Estructura del proyecto
+## Código fuente y licencia
 
-```
-src/
-├── main/                 # proceso principal (Node)
-│   ├── main.js           # ventana, IPC, ciclo de vida
-│   ├── preload.js        # API segura expuesta al renderer
-│   ├── config.js         # ajustes y perfiles
-│   ├── paths.js          # rutas de userData
-│   ├── resources.js      # manifiesto local/remoto, noticias y enlaces
-│   ├── java.js           # detección y descarga de Java 17
-│   ├── game.js           # instalación de Forge y lanzamiento
-│   ├── mods.js           # sincronización del modpack
-│   ├── updater.js        # auto-actualización (electron-updater)
-│   ├── skins.js          # descarga y caché de skins
-│   ├── skin-service.js   # subida/restauración de skin en Mojang
-│   ├── mods-info.js      # metadatos de mods para el panel
-│   ├── auth/             # cuentas
-│   │   ├── index.js      # sesión por perfil + login Microsoft
-│   │   ├── microsoft.js  # device code → Xbox → Minecraft
-│   │   ├── accounts.js   # refresh tokens cifrados (DPAPI)
-│   │   └── offline.js    # perfil offline (UUID v3)
-│   └── server-status.js  # Server List Ping
-└── renderer/             # interfaz (HTML/CSS/JS sin frameworks)
-    ├── index.html
-    ├── css/theme.css     # diseño original
-    ├── css/launcher.css  # ventana, paneles, ajustes
-    └── js/app.js
-resources/
-├── modpack.json
-├── news.json
-├── links.json
-└── auth.json            # clientId de la app de Azure
-scripts/
-├── generate-icon.js
-├── generate-manifest.js
-├── test-install.js
-├── test-launch.js
-├── test-download.js
-└── test-manifest.js
-```
+El código fuente está disponible públicamente en este repositorio para que los usuarios interesados puedan consultarlo y comprobar cómo funciona el launcher.
 
-### Pruebas
+El proyecto se publica con una **licencia restrictiva** (ver `LICENSE`). Que el código sea visible no significa que sea software libre: no se autoriza copiarlo, modificarlo, reutilizarlo ni redistribuirlo sin permiso escrito del titular.
 
-```bash
-node_modules\electron\dist\electron.exe scripts\test-install.js
-node_modules\electron\dist\electron.exe scripts\test-launch.js
-node_modules\electron\dist\electron.exe scripts\test-download.js
-node_modules\electron\dist\electron.exe scripts\test-manifest.js
-```
-
-- `test-install.js` instala Minecraft + Forge en `%TEMP%\cz-install-test` y sincroniza el modpack.
-- `test-launch.js` abre el juego, espera 15 s y lo cierra para comprobar que arranca.
-- `test-download.js` corta una descarga local, comprueba que se reanuda con `Range`, el SHA-1, la velocidad y el aviso de disco lleno.
-- `test-manifest.js` valida actualizaciones por `revision`, la caché y el rechazo de manifiestos inválidos.
-
-El botón **CANCELAR** aborta de verdad: corta la descarga en curso, cancela la tarea de
-instalación y termina el proceso del juego si ya estaba abierto.
-
-Para probar el primer arranque (pantalla de elección de cuenta) sin tocar tus datos:
-
-```bash
-node_modules\electron\dist\electron.exe . --user-data %TEMP%\cz-perfil-limpio
-```
-
-### Seguridad
-
-- `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
-- El renderer solo puede ejecutar las acciones expuestas en `preload.js`.
-- Las URL externas se abren con `shell.openExternal` y solo se aceptan `http(s)`.
-
----
-
-## Cuentas: premium y offline
-
-El launcher soporta las dos a la vez (estilo Prism / TLauncher). **No hay cuenta por
-defecto**: en el primer arranque se abre la pantalla de cuentas y cada jugador elige.
-
-| Cuenta | Cómo entra | UUID | Avatar |
-|---|---|---|---|
-| **Premium (Microsoft)** | Inicia sesión con la cuenta; token real | El de tu cuenta | Su skin real |
-| **No premium (offline)** | Solo un nick | `MD5("OfflinePlayer:<nick>")` | Avatar genérico |
-
-- **Perfiles → Iniciar sesión con Microsoft**: se abre `microsoft.com/link` con un código de
-  8 caracteres. El refresh token se guarda cifrado con DPAPI (`safeStorage`) en
-  `%APPDATA%\Chernobyl Z\accounts.json` y la textura de la skin en `cache/skins/`.
-- La cabeza de la skin se dibuja en la cabecera y en la lista de cuentas; las cuentas no
-  premium mantienen el avatar por defecto.
-- Se pueden tener varias cuentas (premium y no premium) y cambiar con un clic.
-- `online-mode=true` en el servidor **solo** acepta cuentas Microsoft.
-- `online-mode=false` acepta ambas.
-
-### Cambiar de skin (solo premium)
-
-**Menú de perfil → Cambiar skin** abre el panel de skins:
-
-1. **Elegir PNG…** valida que sea un PNG de 64×64 (o 64×32) y muestra una vista previa
-   del cuerpo antes de subirlo.
-2. Selecciona el modelo: **Clásica** (Steve) o **Slim** (Alex).
-3. **Aplicar skin** la sube a Mojang con el token de Minecraft de la cuenta. El cambio se
-   ve al instante en el juego y en el launcher.
-4. **Restaurar** vuelve a la skin predeterminada de la cuenta.
-
-Las cuentas no premium ven un aviso de «solo premium» y un acceso directo a **Cuentas**,
-porque Mojang solo permite cambiar la skin de cuentas con licencia.
-
-### Servidor mixto (premium + no premium)
-
-`server.properties`:
-
-```properties
-online-mode=false
-```
-
-más un plugin que detecte cuentas premium al entrar:
-
-- **nLogin**: detección premium integrada; los premium entran solos y el resto usa `/login`.
-- **AuthMe + FastLogin**: FastLogin comprueba si el nick es premium y AuthMe pide contraseña
-  a los demás.
-
-Resultado: los premium entran sin contraseña, los no premium con `/register` y `/login`.
-La comprobación premium la hace el plugin **por nombre** contra Mojang: es razonable, pero
-no equivale criptográficamente a `online-mode=true`.
-
-> El `clientId` de Azure vive en `resources/auth.json`. Es público y puede cambiarse sin
-> recompilar (basta editar el JSON).
-
-## Actualizaciones automáticas
-
-`electron-updater` + GitHub Releases, con descarga **diferencial** (blockmap): no se
-reinstala todo ni se pierden mods, mundos o ajustes.
-
-- En la versión instalada comprueba al arrancar (8 s) y cada 30 min.
-- Al haber versión nueva aparece una barra inferior con el progreso y el botón
-  **Reiniciar e instalar**; también se puede forzar desde **Ajustes → Launcher → Buscar**.
-- El auto-actualizador necesita que el repositorio (o el de releases) sea **público**:
-  GitHub no entrega assets privados sin token.
-
-Publicar una versión:
-
-```bash
-npm version 1.0.1 --no-git-tag-version
-git commit -am "chore: version 1.0.1"
-git tag v1.0.1
-git push origin main --tags
-```
-
-El workflow compila con `--publish onTag` y sube al release
-`ChernobylZ-Setup-<version>.exe`, su `.blockmap` y `latest.yml`.
-
----
-
-## Solución de problemas
-
-| Problema | Solución |
-|---|---|
-| «No se encontró Minecraft 1.20.1» | Sin conexión o Mojang caído. Revisa la consola. |
-| Forge falla al instalar | Necesita Java 17 en el PATH; el launcher lo añade solo. Revisa `logs/forge-install.log` en la carpeta de datos del launcher. |
-| Crash al entrar | Abre **Consola** (menú de perfil) y revisa `game/crash-reports`. |
-| Servidor OFFLINE | Revisa `server.host` / `server.port` en `resources/modpack.json`. Si el host tiene un registro SRV (`_minecraft._tcp.<host>`), el puerto puede ser distinto del habitual; el servidor actual responde en **25836**. |
-| Mods no aparecen | Comprueba `channels`, `sha1` y que la URL sea accesible. |
-
----
-
-## Próximos pasos
-
-- [x] Autenticación Microsoft (cuentas premium) además de offline.
-- [x] Auto-actualización del launcher (electron-updater + GitHub Releases).
-- [x] Velocidad de descarga visible, tamaño/tiempo restante, reintentos y reanudación por `Range`.
-- [ ] Selector de idioma.
-- [ ] Firma de código del ejecutable.
+Este repositorio permite **ver el código**; no concede permiso para **usar, cambiar o redistribuir** el proyecto.
