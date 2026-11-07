@@ -40,6 +40,14 @@ lanzamiento automático al servidor.
 
 ---
 
+## Para jugadores
+
+No hace falta VS Code ni tocar el código. Solo descargáis el instalador oficial del launcher
+del enlace que os indique Chernobyl Z (por ejemplo, un enlace directo de MediaFire), lo
+instaláis y el propio launcher se encarga de Minecraft, Java, Forge y del modpack.
+
+---
+
 ## Licencia y uso del código
 
 Este repositorio puede consultarse públicamente, pero **no está autorizado copiar, modificar,
@@ -51,7 +59,9 @@ permiso para reutilizar el código.
 
 ---
 
-## Requisitos (desarrollo)
+## Requisitos (solo para desarrollo)
+
+> Los jugadores no necesitan nada de esto: solo el instalador oficial.
 
 | Herramienta | Versión |
 |---|---|
@@ -61,7 +71,10 @@ permiso para reutilizar el código.
 
 > En Windows, si `npm` da error de *execution policy*, usa `npm.cmd`.
 
-## Empezar
+## Solo para revisar/compilar el código ("Empezar")
+
+Esto es **solo para quien quiera revisar y compilar el código fuente**. Los jugadores no
+necesitan entrar en VS Code: solo usan el instalador oficial.
 
 ```bash
 npm install
