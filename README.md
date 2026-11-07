@@ -4,6 +4,12 @@ Launcher de escritorio para el servidor de zombies **Chernobyl Z** (Minecraft **
 Interfaz oscura con estética post-apocalíptica, cuentas premium y no premium, sincronización de mods y
 lanzamiento automático al servidor.
 
+> **Repositorio de código visible, no de descarga.** Este repo sirve para explicar qué hace el
+> launcher y permitir consultar el código. El código NO está publicado para copiarlo, usarlo,
+> modificarlo o redistribuirlo: consulta `LICENSE` — todos los derechos están reservados y no se
+> concede ningún permiso de uso salvo que lo autorice por escrito el titular. Tampoco es un canal
+> oficial de descarga del instalador.
+
 ![Estado](https://img.shields.io/badge/estado-desarrollo-9cff42) ![Electron](https://img.shields.io/badge/Electron-33-9cff42) ![MC](https://img.shields.io/badge/Minecraft-1.20.1-9cff42)
 
 ---
@@ -31,6 +37,17 @@ lanzamiento automático al servidor.
   se oculta y la portada ocupa todo el ancho.
 - **Consola integrada** para diagnosticar problemas y reportes de crash.
 - Conexión directa al servidor al pulsar **JUGAR**.
+
+---
+
+## Licencia y uso del código
+
+Este repositorio puede consultarse públicamente, pero **no está autorizado copiar, modificar,
+usar ni redistribuir el código**. Todo el contenido del proyecto está protegido por los
+condiciones descritas en `LICENSE` (todos los derechos reservados).
+
+Los issues o sugerencias son bienvenidos para detectar errores, pero abrir un issue no concede
+permiso para reutilizar el código.
 
 ---
 
