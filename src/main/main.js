@@ -26,6 +26,7 @@ if (userDataArg > 0 && process.argv[userDataArg + 1]) {
 }
 
 let mainWindow = null;
+let hiddenByLaunch = false;
 let pickedSkinPath = null;
 let statusCache = { at: 0, value: null };
 
@@ -38,14 +39,43 @@ function send(channel, payload) {
   }
 }
 
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
 launchManager.on('status', (payload) => send('launch:status', payload));
 launchManager.on('progress', (payload) => send('launch:progress', payload));
 launchManager.on('log', (payload) => send('launch:log', payload));
 launchManager.on('ready', (payload) => send('launch:ready', payload));
 launchManager.on('synced', (payload) => send('launch:synced', payload));
-launchManager.on('exit', (payload) => send('launch:exit', payload));
-launchManager.on('error', (payload) => send('launch:error', payload));
-launchManager.on('cancelled', () => send('launch:cancelled', {}));
+launchManager.on('exit', (payload) => {
+  send('launch:exit', payload);
+  if (!hiddenByLaunch) return;
+
+  hiddenByLaunch = false;
+  if (payload.code === 0) {
+    app.quit();
+  } else {
+    showMainWindow();
+  }
+});
+launchManager.on('error', (payload) => {
+  send('launch:error', payload);
+  if (hiddenByLaunch) {
+    hiddenByLaunch = false;
+    showMainWindow();
+  }
+});
+launchManager.on('cancelled', () => {
+  send('launch:cancelled', {});
+  if (hiddenByLaunch) {
+    hiddenByLaunch = false;
+    showMainWindow();
+  }
+});
 
 updateService.on('state', (state) => send('update:state', state));
 updateService.on('log', (line) => {
@@ -63,7 +93,9 @@ function createWindow() {
     frame: false,
     backgroundColor: '#0d0f10',
     title: 'Chernobyl Z',
-    icon: path.join(__dirname, '..', '..', 'build', 'icon.png'),
+    icon: app.isPackaged
+      ? paths.resource('icon.png')
+      : path.join(__dirname, '..', '..', 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -76,7 +108,7 @@ function createWindow() {
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
-  if (isDev || process.argv.includes('--screenshot')) {
+  if (!isDev && process.argv.includes('--screenshot')) {
     mainWindow.webContents.on('console-message', (_event, _level, message) => {
       console.log(`[renderer] ${message}`);
     });
@@ -150,8 +182,18 @@ function createWindow() {
     });
   }
 
+  mainWindow.on('minimize', () => send('window:visibility', { hidden: true }));
+  mainWindow.on('hide', () => send('window:visibility', { hidden: true }));
+  mainWindow.on('restore', () => send('window:visibility', { hidden: false }));
+
+  mainWindow.on('show', () => {
+    hiddenByLaunch = false;
+    send('window:visibility', { hidden: false });
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
+    hiddenByLaunch = false;
   });
 }
 
@@ -177,8 +219,15 @@ function modpackSummary(modpack) {
   const channelSizes = {};
 
   for (const id of Object.keys(modpack.channels || {})) {
+    const upperId = id.toUpperCase();
     channelSizes[id] = files.reduce((total, file) => {
-      if (Array.isArray(file.channels) && !file.channels.includes(id)) return total;
+      if (
+        Array.isArray(file.channels) &&
+        file.channels.length > 0 &&
+        !file.channels.some((channel) => String(channel).toUpperCase() === upperId)
+      ) {
+        return total;
+      }
       return total + (Number(file.size) || 0);
     }, 0);
   }
@@ -201,6 +250,7 @@ function registerIpc() {
   ipcMain.handle('app:bootstrap', () => {
     const config = configStore.load();
     const modpack = loadModpack();
+    const effectiveGameDir = configStore.gameDir();
 
     return {
       launcherVersion: app.getVersion(),
@@ -215,7 +265,9 @@ function registerIpc() {
         arch: process.arch,
         totalMemoryMb: Math.round(os.totalmem() / (1024 * 1024)),
         userData: paths.data,
-        gameDir: paths.game,
+        gameDir: effectiveGameDir,
+        defaultGameDir: paths.defaultGame,
+        gameDirFallback: Boolean(config.gameDir && effectiveGameDir === paths.defaultGame),
       },
     };
   });
@@ -228,20 +280,45 @@ function registerIpc() {
 
   ipcMain.handle('settings:save', (_event, patch) => {
     if (!patch || typeof patch !== 'object') throw new Error('Ajustes inválidos.');
-    const allowed = ['memory', 'javaPath', 'resolution', 'closeOnLaunch', 'channel', 'effects', 'music'];
+    const allowed = [
+      'memory',
+      'javaPath',
+      'gameDir',
+      'resolution',
+      'closeOnLaunch',
+      'channel',
+      'effects',
+      'music',
+    ];
     const safe = {};
     for (const key of allowed) {
       if (key in patch) safe[key] = patch[key];
     }
+
+    if ('gameDir' in safe) {
+      const rawDir = safe.gameDir == null ? '' : String(safe.gameDir).trim();
+      if (!rawDir) {
+        safe.gameDir = null;
+      } else {
+        const resolved = path.resolve(rawDir);
+        if (!paths.isAccessibleDir(resolved)) {
+          throw new Error('La carpeta seleccionada no existe o no tiene permisos de escritura.');
+        }
+        safe.gameDir = resolved;
+      }
+    }
+
     return configStore.update(safe);
   });
 
-  ipcMain.handle('profiles:add', (_event, name) => configStore.addProfile(name));
-  ipcMain.handle('profiles:remove', (_event, id) => {
+  function removeProfileAndSignOut(id) {
     authManager.signOut(id);
     const config = configStore.removeProfile(id);
     return { config, auth: authManager.status(config.profiles) };
-  });
+  }
+
+  ipcMain.handle('profiles:add', (_event, name) => configStore.addProfile(name));
+  ipcMain.handle('profiles:remove', (_event, id) => removeProfileAndSignOut(id));
   ipcMain.handle('profiles:select', (_event, id) => configStore.selectProfile(id));
 
   let authFlow = null;
@@ -336,6 +413,14 @@ function registerIpc() {
     return { name: path.basename(file), ...info };
   });
 
+  ipcMain.handle('skin:lookup', async (_event, username) => {
+    const active = configStore.activeProfile();
+    if (!active || active.type !== 'microsoft') {
+      throw new Error('Solo las cuentas premium (Microsoft) pueden cambiar de skin.');
+    }
+    return skins.lookupByUsername(username);
+  });
+
   ipcMain.handle('skin:apply', async (_event, id, variant) => {
     if (!pickedSkinPath) throw new Error('Elige primero un archivo PNG.');
 
@@ -343,6 +428,15 @@ function registerIpc() {
     if (!profile) throw new Error('Cuenta no encontrada.');
 
     const result = await skinService.apply(profile, pickedSkinPath, variant);
+    pickedSkinPath = null;
+    return result;
+  });
+
+  ipcMain.handle('skin:apply-url', async (_event, id, url, variant) => {
+    const profile = configStore.load().profiles.find((item) => item.id === id);
+    if (!profile) throw new Error('Cuenta no encontrada.');
+
+    const result = await skinService.applyFromUrl(profile, url, variant);
     pickedSkinPath = null;
     return result;
   });
@@ -358,26 +452,6 @@ function registerIpc() {
     (_event, channel) => modsInfo.list(channel || configStore.load().channel),
   );
 
-  ipcMain.handle('auth:sign-out', (_event, id) => {
-    authManager.signOut(id);
-
-    const config = configStore.load();
-    const remaining = config.profiles.filter((profile) => profile.id !== id);
-
-    const next = configStore.update({
-      profiles: remaining,
-      activeProfile:
-        remaining.length === 0
-          ? null
-          : config.activeProfile === id
-            ? remaining[0].id
-            : config.activeProfile,
-    });
-
-    return { config: next, auth: authManager.status(next.profiles) };
-  });
-
-  ipcMain.handle('update:state', () => updateService.getState());
   ipcMain.handle('update:check', () => {
     updateService.check();
     return updateService.getState();
@@ -430,7 +504,8 @@ function registerIpc() {
 
   ipcMain.handle('dialog:pick-folder', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Selecciona una carpeta',
+      title: 'Selecciona la carpeta del juego',
+      defaultPath: configStore.gameDir(),
       properties: ['openDirectory', 'createDirectory'],
     });
     return result.canceled ? null : result.filePaths[0];
@@ -438,7 +513,7 @@ function registerIpc() {
 
   ipcMain.handle('shell:open', (_event, target) => {
     if (typeof target !== 'string') return false;
-    if (target === 'game') return shell.openPath(paths.game).then(() => true);
+    if (target === 'game') return shell.openPath(configStore.gameDir()).then(() => true);
     if (target === 'logs') return shell.openPath(paths.logs).then(() => true);
     if (target === 'data') return shell.openPath(paths.data).then(() => true);
     if (/^https?:\/\//i.test(target)) return shell.openExternal(target).then(() => true);
@@ -451,14 +526,20 @@ function registerIpc() {
     if (mainWindow.isMaximized()) mainWindow.unmaximize();
     else mainWindow.maximize();
   });
-  ipcMain.on('window:hide', () => mainWindow?.hide());
+  ipcMain.on('window:hide', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    hiddenByLaunch = true;
+    mainWindow.hide();
+    mainWindow.webContents.session.clearCache().catch(() => {});
+  });
   ipcMain.on('window:close', () => mainWindow?.close());
 }
 
 function ensureDirectories() {
-  for (const dir of [paths.game, paths.java, paths.cache, paths.logs]) {
+  for (const dir of [paths.defaultGame, paths.java, paths.cache, paths.logs]) {
     fs.mkdirSync(dir, { recursive: true });
   }
+  configStore.gameDir();
 }
 
 const gotLock = app.requestSingleInstanceLock();
@@ -466,12 +547,15 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  app.commandLine.appendSwitch('js-flags', '--max-old-space-size=192');
+  app.commandLine.appendSwitch('disable-http-cache');
+  app.commandLine.appendSwitch('media-cache-size', '1');
+  if (process.platform === 'win32') {
+    app.commandLine.appendSwitch('enable-features', 'UseEcoQoSForBackgroundProcess');
+  }
+
   app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    showMainWindow();
   });
 
   app.whenReady().then(async () => {

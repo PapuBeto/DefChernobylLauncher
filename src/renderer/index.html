@@ -38,7 +38,7 @@
       <div class="brand">
         <span class="brand-symbol">☢</span>
         <span class="brand-name">CHERNOBYL Z</span>
-        <span class="brand-version" id="brandVersion">1.0.0</span>
+        <span class="brand-version" id="brandVersion">1.0.7</span>
       </div>
 
       <nav class="socials">
@@ -51,7 +51,7 @@
           <span>DISCORD</span>
         </a>
 
-        <a class="social store" href="#" data-link="store">
+        <a class="social store" href="#" data-link="store" title="Tienda">
           <svg viewBox="0 0 24 24">
             <path d="M4 4h16l1.5 5H2.5L4 4Zm-.5 7h17v9h-17v-9Zm3 2v4h2v-4h-2Zm4 0v4h2v-4h-2Zm4 0v4h2v-4h-2Z" />
           </svg>
@@ -169,23 +169,15 @@
 
           <div class="eyebrow">
             <span>●</span>
-            POST-APOCALIPSIS / MODPACK OFICIAL
+            ZONA DE EXCLUSIÓN • SERVIDOR OFICIAL
           </div>
 
           <h1 class="title">
             CHERNOBYL <span>Z</span>
           </h1>
 
-          <div class="subtitle">
-            SURVIVE · SCAVENGE · ENDURE
-          </div>
-
 
           <div class="play-section">
-
-            <div class="launch-label">
-              LAUNCH SEQUENCE
-            </div>
 
             <div class="launch-controls">
 
@@ -209,13 +201,6 @@
 
               </div>
 
-            </div>
-
-            <div class="build-info">
-              <span id="buildLauncher">v1.0.0</span>
-              <span id="buildForge">Forge 47.4.28</span>
-              <span id="buildMinecraft">MC 1.20.1</span>
-              <span id="buildPack">Pack rev. 1</span>
             </div>
 
             <button class="sync-button" id="syncButton">Sincronizar archivos</button>
@@ -329,14 +314,17 @@
             <label>Carpeta del juego</label>
             <div class="field-inline">
               <input type="text" id="gameDirPath" readonly>
+              <button class="ghost-button" id="pickGameDirButton">Elegir</button>
+              <button class="ghost-button" id="resetGameDirButton">Por defecto</button>
               <button class="ghost-button" id="openGameFolder">Abrir</button>
             </div>
+            <p class="field-hint" id="gameDirNote">Ubicación donde se descargan Minecraft, Forge y el modpack.</p>
           </div>
 
           <div class="field">
             <div class="field-head">
               <label>Launcher</label>
-              <span class="field-value" id="updateVersion">1.0.0</span>
+              <span class="field-value" id="updateVersion">1.0.7</span>
             </div>
             <div class="field-inline">
               <input type="text" id="updateState" readonly>
@@ -392,7 +380,7 @@
         </div>
 
         <div class="panel-footer">
-          <span class="panel-note" id="settingsNote">Memoria y resolución se aplican al iniciar el juego.</span>
+          <span class="panel-note">Memoria, carpeta y resolución se aplican al iniciar el juego.</span>
           <div class="panel-actions">
             <button class="ghost-button" id="settingsCancel">Cancelar</button>
             <button class="primary-button" id="settingsSave">Guardar</button>
@@ -513,6 +501,14 @@
               </div>
 
               <div class="field">
+                <label for="skinPlayerInput">Buscar por jugador</label>
+                <div class="field-inline">
+                  <input type="text" id="skinPlayerInput" maxlength="16" placeholder="Buscar skin por jugador…" autocomplete="off" spellcheck="false">
+                  <button class="ghost-button" id="skinLookupButton">Buscar</button>
+                </div>
+              </div>
+
+              <div class="field">
                 <label>Modelo</label>
                 <div class="skin-variants">
                   <label class="skin-variant">
@@ -583,7 +579,7 @@
         </div>
 
         <div class="panel-footer">
-          <span class="panel-note" id="modsNote">Los mods se descargan solos al pulsar JUGAR.</span>
+          <span class="panel-note">Los mods se descargan solos al pulsar JUGAR.</span>
           <div class="panel-actions">
             <button class="primary-button" id="modsDone">Listo</button>
           </div>
@@ -595,7 +591,8 @@
 
     <!-- CONSOLE MODAL -->
 
-    <div class="panel-overlay" id="consoleOverlay">      <div class="panel panel-wide">
+    <div class="panel-overlay" id="consoleOverlay">
+      <div class="panel panel-wide">
 
         <button class="modal-close" id="consoleClose">×</button>
 
@@ -644,7 +641,7 @@
       </span>
 
       <span class="launcher-version" id="launcherVersion">
-        LAUNCHER 1.0.0
+        LAUNCHER 1.0.7
       </span>
 
     </footer>

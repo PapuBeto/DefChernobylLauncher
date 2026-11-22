@@ -213,13 +213,18 @@ async function ensure(preferredPath, onProgress = () => {}, signal) {
   return { ...version, downloaded: true };
 }
 
-/** Añade el Java elegido al PATH del proceso (Forge lo necesita para sus processors). */
+/** Añade el Java elegido al inicio del PATH del proceso (Forge lo necesita para sus processors). */
 function useInPath(javaPath) {
-  const dir = path.dirname(javaPath);
-  const current = process.env.PATH || '';
-  if (!current.split(path.delimiter).includes(dir)) {
-    process.env.PATH = `${dir}${path.delimiter}${current}`;
-  }
+  const dir = path.dirname(path.resolve(javaPath));
+  const target = process.platform === 'win32' ? dir.toLowerCase() : dir;
+  const current = (process.env.PATH || '')
+    .split(path.delimiter)
+    .filter(Boolean)
+    .filter((entry) => {
+      const normalized = path.normalize(entry);
+      return (process.platform === 'win32' ? normalized.toLowerCase() : normalized) !== target;
+    });
+  process.env.PATH = [dir, ...current].join(path.delimiter);
   process.env.JAVA_HOME = path.dirname(dir);
 }
 

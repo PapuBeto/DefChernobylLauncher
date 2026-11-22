@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const path = require('node:path');
 const crypto = require('node:crypto');
 const { paths } = require('./paths');
 
@@ -10,9 +11,9 @@ const DEFAULT_CONFIG = {
   channel: 'COMPLETA',
   memory: 4096,
   javaPath: null,
+  gameDir: null,
   resolution: { width: 1280, height: 720, fullscreen: false },
   closeOnLaunch: false,
-  showSnapshots: false,
   effects: true,
   music: false,
 };
@@ -28,7 +29,7 @@ function readJson(file, fallback) {
 }
 
 function writeJson(file, data) {
-  fs.mkdirSync(require('node:path').dirname(file), { recursive: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
   fs.renameSync(tmp, file);
@@ -77,6 +78,17 @@ function normalize(config) {
   merged.effects = merged.effects !== false;
   merged.music = Boolean(merged.music);
 
+  if (typeof merged.gameDir === 'string' && merged.gameDir.trim()) {
+    const candidate = path.resolve(merged.gameDir.trim());
+    const defaultDir = path.resolve(paths.defaultGame);
+    const sameAsDefault = process.platform === 'win32'
+      ? candidate.toLowerCase() === defaultDir.toLowerCase()
+      : candidate === defaultDir;
+    merged.gameDir = sameAsDefault ? null : candidate;
+  } else {
+    merged.gameDir = null;
+  }
+
   return merged;
 }
 
@@ -86,6 +98,25 @@ function load() {
   }
   return cache;
 }
+
+/** Devuelve la carpeta efectiva del juego; si la personalizada no es accesible, hace fallback seguro. */
+function gameDir() {
+  const config = load();
+  if (config.gameDir && paths.isAccessibleDir(config.gameDir)) {
+    return config.gameDir;
+  }
+  if (config.gameDir) {
+    console.warn(`[config] Carpeta del juego inaccesible (${config.gameDir}); usando ${paths.defaultGame}.`);
+  }
+  try {
+    fs.mkdirSync(paths.defaultGame, { recursive: true });
+  } catch {
+    /* se reintentará al descargar o lanzar */
+  }
+  return paths.defaultGame;
+}
+
+paths.setGameDirProvider(() => load().gameDir);
 
 /** Guarda un parche parcial y devuelve la configuración completa ya normalizada. */
 function update(patch = {}) {
@@ -162,6 +193,7 @@ function selectProfile(id) {
 module.exports = {
   load,
   update,
+  gameDir,
   addProfile,
   addMicrosoftProfile,
   removeProfile,

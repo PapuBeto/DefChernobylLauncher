@@ -22,6 +22,10 @@ npm-debug.log*
 .game/
 cache/
 tmp/
+tmp-*/
+pack-sources/
+pack-tmp*/
+*.pack.tmp
 
 # OS
 .DS_Store

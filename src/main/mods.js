@@ -3,12 +3,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { Readable, Transform } = require('node:stream');
+const { pipeline } = require('node:stream/promises');
 const { paths } = require('./paths');
 
 const CONCURRENCY = 4;
 const DOWNLOAD_ATTEMPTS = 3;
 const STALL_TIMEOUT_MS = 45000;
 const DISK_RESERVE_BYTES = 256 * 1024 * 1024;
+const PROTECTED_DIRS = new Set(['saves', 'screenshots', 'logs', 'crash-reports', 'backups']);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,7 +42,9 @@ function readState() {
 
 function writeState(state) {
   fs.mkdirSync(path.dirname(paths.state), { recursive: true });
-  fs.writeFileSync(paths.state, JSON.stringify(state, null, 2), 'utf8');
+  const temporary = `${paths.state}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(state, null, 2), 'utf8');
+  fs.renameSync(temporary, paths.state);
 }
 
 function sha1File(file) {
@@ -76,8 +81,81 @@ async function isValid(destination, file) {
   }
 }
 
+function waitClose(stream) {
+  if (!stream || stream.closed) return Promise.resolve();
+  return new Promise((resolve) => {
+    stream.once('close', resolve);
+    stream.once('error', resolve);
+  });
+}
+
+function hashStreamPrefix(file, bytes, hash, signal) {
+  return new Promise((resolve, reject) => {
+    if (bytes <= 0) {
+      resolve();
+      return;
+    }
+
+    const reader = fs.createReadStream(file, { start: 0, end: bytes - 1 });
+    let settled = false;
+
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', onAbort);
+      if (error) reject(error);
+      else resolve();
+    };
+
+    const onAbort = () => {
+      reader.destroy();
+      finish(new Error('Descarga cancelada.'));
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+
+    reader.on('data', (chunk) => hash.update(chunk));
+    reader.on('error', finish);
+    reader.on('end', () => finish());
+  });
+}
+
+function pruneEmptyParents(root, removedFiles) {
+  const base = path.resolve(root);
+  const dirs = new Set();
+
+  for (const file of removedFiles) {
+    let dir = path.dirname(file);
+    while (dir !== base && dir.startsWith(base + path.sep)) {
+      const top = path.relative(base, dir).split(path.sep)[0];
+      if (PROTECTED_DIRS.has(top.toLowerCase())) break;
+      dirs.add(dir);
+      dir = path.dirname(dir);
+    }
+  }
+
+  // Elimina de la ruta más profunda hacia arriba para limpiar subárboles vacíos.
+  const ordered = [...dirs].sort((a, b) => b.length - a.length);
+  for (const dir of ordered) {
+    try {
+      if (fs.readdirSync(dir).length === 0) {
+        fs.rmdirSync(dir);
+      }
+    } catch {
+      /* carpeta ya eliminada o con archivos */
+    }
+  }
+}
+
 async function download(url, destination, onBytes, signal, options = {}) {
   const expectedSize = Number(options.expectedSize) || 0;
+  const expectedSha1 = options.expectedSha1 ? String(options.expectedSha1).toLowerCase() : null;
   const allowResume = Boolean(options.allowResume);
   const temporary = `${destination}.part`;
 
@@ -138,53 +216,46 @@ async function download(url, destination, onBytes, signal, options = {}) {
 
     if (append) onBytes(start, true);
 
+    const hash = expectedSha1 ? crypto.createHash('sha1') : null;
+    if (hash && append && start > 0) {
+      await hashStreamPrefix(temporary, start, hash, controller.signal);
+    }
+
+    const source = Readable.fromWeb(response.body);
     const handle = fs.createWriteStream(temporary, { flags: append ? 'a' : 'w' });
-    let streamError = null;
-    handle.on('error', (error) => {
-      streamError = error;
+    const meter = new Transform({
+      transform(chunk, _encoding, callback) {
+        armStallTimer();
+        if (signal?.aborted) {
+          callback(new Error('Descarga cancelada.'));
+          return;
+        }
+        if (hash) hash.update(chunk);
+        onBytes(chunk.length);
+        callback(null, chunk);
+      },
     });
 
     try {
-      for await (const chunk of response.body) {
-        armStallTimer();
-        if (signal?.aborted) throw new Error('Descarga cancelada.');
-        if (streamError) throw streamError;
-        onBytes(chunk.length);
-        if (!handle.write(chunk)) {
-          await new Promise((resolve, reject) => {
-            const cleanup = () => {
-              handle.off('drain', onDrain);
-              handle.off('error', onError);
-            };
-            const onDrain = () => {
-              cleanup();
-              resolve();
-            };
-            const onError = (error) => {
-              cleanup();
-              reject(error);
-            };
-            handle.once('drain', onDrain);
-            handle.once('error', onError);
-          });
-        }
-      }
+      await pipeline(source, meter, handle, { signal: controller.signal });
     } finally {
-      await new Promise((resolve) => {
-        const onError = () => resolve();
-        handle.once('error', onError);
-        handle.end(() => {
-          handle.off('error', onError);
-          resolve();
-        });
-      });
+      if (!source.destroyed) source.destroy();
+      if (!meter.destroyed) meter.destroy();
+      if (!handle.writableFinished && !handle.destroyed) handle.destroy();
+      await waitClose(handle);
     }
-
-    if (streamError) throw streamError;
 
     const size = fs.statSync(temporary).size;
     if (expectedSize > 0 && size !== expectedSize) {
       throw new Error(`Descarga incompleta de ${path.basename(destination)} (${size}/${expectedSize} bytes).`);
+    }
+
+    if (hash) {
+      const actualSha1 = hash.digest('hex').toLowerCase();
+      if (actualSha1 !== expectedSha1) {
+        fs.rmSync(temporary, { force: true });
+        throw new Error(`Checksum inválido en ${path.basename(destination)}`);
+      }
     }
 
     fs.renameSync(temporary, destination);
@@ -209,6 +280,7 @@ async function download(url, destination, onBytes, signal, options = {}) {
 async function syncFiles(root, files, channel, report = () => {}, signal) {
   const state = readState();
   const managed = new Set(Array.isArray(state.managedFiles) ? state.managedFiles : []);
+  const channelChanged = Boolean(state.channel && state.channel !== channel);
   const nextManaged = new Set();
 
   const pending = [];
@@ -218,6 +290,10 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
 
     const destination = safeJoin(root, file.path);
     nextManaged.add(file.path);
+
+    if (channelChanged) {
+      fs.rmSync(`${destination}.part`, { force: true });
+    }
 
     if (await isValid(destination, file)) continue;
     pending.push({ file, destination });
@@ -301,16 +377,11 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
             // Si no conocemos el tamaño usamos una fracción provisional por archivo.
             completed.set(item.destination, expected > 0 ? Math.min(received, expected) : 0);
             emit(item.file);
-          }, signal, { expectedSize: expected, allowResume: Boolean(item.file.sha1) });
-
-          if (item.file.sha1) {
-            const hash = await sha1File(item.destination);
-            if (hash.toLowerCase() !== String(item.file.sha1).toLowerCase()) {
-              fs.rmSync(item.destination, { force: true });
-              fs.rmSync(`${item.destination}.part`, { force: true });
-              throw new Error(`Checksum inválido en ${item.file.path}`);
-            }
-          }
+          }, signal, {
+            expectedSize: expected,
+            expectedSha1: item.file.sha1 || null,
+            allowResume: Boolean(item.file.sha1),
+          });
 
           completed.set(item.destination, expected > 0 ? expected : 1);
           finished.add(item.destination);
@@ -333,13 +404,19 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
   if (signal?.aborted) throw new Error('Sincronización cancelada.');
 
   // Elimina archivos gestionados que ya no forman parte del canal actual.
+  const removedFiles = [];
   for (const relative of managed) {
     if (nextManaged.has(relative)) continue;
     try {
-      fs.rmSync(safeJoin(root, relative), { force: true });
+      const target = safeJoin(root, relative);
+      fs.rmSync(target, { force: true });
+      removedFiles.push(target);
     } catch {
       /* archivo ya eliminado o ruta no válida */
     }
+  }
+  if (removedFiles.length > 0) {
+    pruneEmptyParents(root, removedFiles);
   }
 
   writeState({ ...state, managedFiles: [...nextManaged], channel, syncedAt: Date.now() });

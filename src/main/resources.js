@@ -6,7 +6,7 @@ const { paths } = require('./paths');
 
 const MAX_MANIFEST_BYTES = 8 * 1024 * 1024;
 const MAX_MANIFEST_FILES = 20000;
-const MANIFEST_TIMEOUT_MS = 2500;
+const MANIFEST_TIMEOUT_MS = 5000;
 const MANIFEST_COOLDOWN_MS = 15 * 60 * 1000;
 
 const FALLBACK_MODPACK = {
@@ -105,11 +105,16 @@ function validateManifest(raw) {
 
 function normalizeModpack(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const hasChannels =
+    raw.channels &&
+    typeof raw.channels === 'object' &&
+    !Array.isArray(raw.channels) &&
+    Object.keys(raw.channels).length > 0;
   return {
     ...FALLBACK_MODPACK,
     ...raw,
     revision: Number(raw.revision) || 1,
-    channels: { ...FALLBACK_MODPACK.channels, ...(raw.channels || {}) },
+    channels: hasChannels ? raw.channels : { ...FALLBACK_MODPACK.channels },
     files: Array.isArray(raw.files) ? raw.files : [],
   };
 }
@@ -182,7 +187,7 @@ async function refreshModpack(urlOverride = '', options = {}) {
     if (declared > MAX_MANIFEST_BYTES) throw new Error('manifiesto demasiado grande');
 
     const text = (await response.text()).replace(/^\uFEFF/, '');
-    if (text.length > MAX_MANIFEST_BYTES) throw new Error('manifiesto demasiado grande');
+    if (Buffer.byteLength(text, 'utf8') > MAX_MANIFEST_BYTES) throw new Error('manifiesto demasiado grande');
 
     const remote = validateManifest(JSON.parse(text));
     if (!remote) throw new Error('manifiesto inválido');

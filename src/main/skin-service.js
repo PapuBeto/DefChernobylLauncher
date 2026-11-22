@@ -89,28 +89,29 @@ async function finalize(profile, accessToken) {
   };
 }
 
-/** Sube una skin PNG a la cuenta premium (clásica o slim). */
-async function apply(profile, filePath, variant) {
+async function sendSkinRequest(profile, init) {
   if (!profile || profile.type !== 'microsoft') {
     throw new Error('Solo las cuentas premium (Microsoft) pueden cambiar de skin.');
   }
 
-  const { buffer } = readSkinFile(filePath);
   const session = await authManager.sessionForProfile(profile);
-  const model = variant === 'slim' ? 'slim' : 'classic';
 
-  const form = new FormData();
-  form.append('variant', model);
-  form.append('file', new Blob([buffer], { type: 'image/png' }), 'skin.png');
+  let response;
+  try {
+    response = await fetch(init.endpoint || SKIN_API, {
+      method: init.method,
+      headers: {
+        authorization: `Bearer ${session.accessToken}`,
+        ...(init.headers || {}),
+      },
+      body: init.body,
+      signal: AbortSignal.timeout(45000),
+    });
+  } catch {
+    throw new Error('No se pudo conectar con Mojang. Comprueba tu conexión e inténtalo de nuevo.');
+  }
 
-  const response = await fetch(SKIN_API, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${session.accessToken}` },
-    body: form,
-    signal: AbortSignal.timeout(45000),
-  });
-
-  if (!response.ok) {
+  if (!response.ok && !(init.allowNoContent && response.status === 204)) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(apiError(response.status, payload));
   }
@@ -118,26 +119,41 @@ async function apply(profile, filePath, variant) {
   return finalize(profile, session.accessToken);
 }
 
+/** Sube una skin PNG a la cuenta premium (clásica o slim). */
+async function apply(profile, filePath, variant) {
+  const { buffer } = readSkinFile(filePath);
+  const model = variant === 'slim' ? 'slim' : 'classic';
+
+  const form = new FormData();
+  form.append('variant', model);
+  form.append('file', new Blob([buffer], { type: 'image/png' }), 'skin.png');
+
+  return sendSkinRequest(profile, { method: 'POST', body: form });
+}
+
+/** Aplica una skin desde una URL oficial de textura de Mojang. */
+async function applyFromUrl(profile, url, variant) {
+  const safeUrl = skins.normalizeTextureUrl(url);
+  if (!safeUrl) {
+    throw new Error('La URL de textura de Mojang no es válida.');
+  }
+
+  const model = variant === 'slim' ? 'slim' : 'classic';
+
+  return sendSkinRequest(profile, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ variant: model, url: safeUrl }),
+  });
+}
+
 /** Restaura la skin predeterminada de la cuenta. */
 async function reset(profile) {
-  if (!profile || profile.type !== 'microsoft') {
-    throw new Error('Solo las cuentas premium (Microsoft) pueden cambiar de skin.');
-  }
-
-  const session = await authManager.sessionForProfile(profile);
-
-  const response = await fetch(`${SKIN_API}/active`, {
+  return sendSkinRequest(profile, {
+    endpoint: `${SKIN_API}/active`,
     method: 'DELETE',
-    headers: { authorization: `Bearer ${session.accessToken}` },
-    signal: AbortSignal.timeout(45000),
+    allowNoContent: true,
   });
-
-  if (!response.ok && response.status !== 204) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(apiError(response.status, payload));
-  }
-
-  return finalize(profile, session.accessToken);
 }
 
 /** Valida un PNG para la vista previa antes de subirlo. */
@@ -146,4 +162,4 @@ function inspect(filePath) {
   return { dataUrl: dataUrl(buffer), width, height, size: buffer.length };
 }
 
-module.exports = { apply, reset, inspect };
+module.exports = { apply, applyFromUrl, reset, inspect };
