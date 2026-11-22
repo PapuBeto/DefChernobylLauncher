@@ -50,9 +50,10 @@ Además, si entras con una cuenta oficial, el inicio de sesión se realiza direc
 
 ## Enlaces de la comunidad
 
+- **Discord oficial:** [Únete al Discord de Chernobyl Z](https://discord.gg/WKXsWTB846)
 - **Tienda oficial:** [chernobyl-z.tebex.store](https://chernobyl-z.tebex.store/)
 - **TikTok oficial:** [@chernobyl.z6](https://www.tiktok.com/@chernobyl.z6)
-- **Discord y YouTube:** Próximamente disponibles aquí y directamente desde los botones del launcher en cuanto el equipo publique los enlaces finales.
+- **YouTube e Instagram:** Próximamente disponibles aquí y directamente desde los botones del launcher cuando se publiquen los enlaces finales.
 
 ---
 

@@ -40,5 +40,8 @@ desktop.ini
 .idea/
 *.swp
 
+# Local admin docs
+GUIA-ADMIN.md
+
 # Electron
 *.tsbuildinfo
