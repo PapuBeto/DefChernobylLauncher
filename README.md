@@ -51,4 +51,16 @@ Además, si entras con una cuenta oficial, el inicio de sesión se realiza direc
 ## Enlaces de la comunidad
 
 - **Tienda oficial:** [chernobyl-z.tebex.store](https://chernobyl-z.tebex.store/)
-- **Discord, YouTube, TikTok e Instagram:** Próximamente disponibles aquí y directamente desde los accesos del launcher en cuanto sean publicados por el equipo de Chernobyl Z.
+- **TikTok oficial:** [@chernobyl.z6](https://www.tiktok.com/@chernobyl.z6)
+- **Discord y YouTube:** Próximamente disponibles aquí y directamente desde los botones del launcher en cuanto el equipo publique los enlaces finales.
+
+---
+
+## Para administradores: cómo publicar noticias
+
+No hace falta recompilar ni sacar una nueva versión del launcher para avisar a los jugadores sobre eventos, mantenimientos o novedades:
+
+1. Edita el archivo `news.json` usando como guía los ejemplos ya incluidos (`id`, `title`, `date`, `tag` y `body` para cada noticia).
+2. Ve al Release **`modpack-assets`** en este repositorio de GitHub y sube el archivo actualizado con el nombre exacto **`news.json`** (reemplazando al anterior).
+
+En cuanto los jugadores abran el launcher, descargará las noticias nuevas automáticamente en segundo plano; si alguien no tiene conexión en ese momento, el programa conservará las últimas noticias guardadas sin interrumpir el inicio.

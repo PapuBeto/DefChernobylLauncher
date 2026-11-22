@@ -45,6 +45,9 @@ const paths = {
   get remoteModpackMeta() {
     return path.join(this.cache, 'modpack-fetch.json');
   },
+  get remoteNews() {
+    return path.join(this.cache, 'news.json');
+  },
   get logs() {
     return path.join(this.data, 'logs');
   },

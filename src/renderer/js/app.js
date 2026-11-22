@@ -321,7 +321,7 @@ function renderNews() {
 
 function openChangelog(item) {
   els.modalTitle.textContent = item.title;
-  els.modalDescription.textContent = item.description;
+  els.modalDescription.textContent = item.body ?? item.description ?? '';
   els.modalDate.textContent = item.date || '';
   els.modalTag.textContent = item.tag || '';
 
@@ -1919,6 +1919,14 @@ function bindEvents() {
    ========================================================= */
 
 async function init() {
+  if (typeof api.onNewsUpdated === 'function') {
+    api.onNewsUpdated((items) => {
+      if (!Array.isArray(items)) return;
+      state.news = items;
+      renderNews();
+    });
+  }
+
   try {
     const boot = await api.bootstrap();
     state.boot = boot;

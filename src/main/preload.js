@@ -70,10 +70,11 @@ contextBridge.exposeInMainWorld('launcher', {
   onError: (callback) => subscribe('launch:error', callback),
   onCancelled: (callback) => subscribe('launch:cancelled', callback),
 
-  // Eventos de cuenta, actualización y ventana
+  // Eventos de cuenta, actualización, noticias y ventana
   onDeviceCode: (callback) => subscribe('auth:device-code', callback),
   onSignedIn: (callback) => subscribe('auth:signed-in', callback),
   onAuthError: (callback) => subscribe('auth:error', callback),
   onUpdateState: (callback) => subscribe('update:state', callback),
+  onNewsUpdated: (callback) => subscribe('news:updated', callback),
   onWindowVisibility: (callback) => subscribe('window:visibility', callback),
 });

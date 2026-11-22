@@ -8,6 +8,10 @@ const MAX_MANIFEST_BYTES = 8 * 1024 * 1024;
 const MAX_MANIFEST_FILES = 20000;
 const MANIFEST_TIMEOUT_MS = 5000;
 const MANIFEST_COOLDOWN_MS = 15 * 60 * 1000;
+const NEWS_URL = 'https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/news.json';
+const NEWS_TIMEOUT_MS = 4500;
+const MAX_NEWS_BYTES = 1024 * 1024;
+const MAX_NEWS_ITEMS = 100;
 
 const FALLBACK_MODPACK = {
   name: 'Chernobyl Z',
@@ -25,6 +29,7 @@ const FALLBACK_MODPACK = {
 let modpackCache = null;
 let newsCache = null;
 let authCache = null;
+const inFlightNews = new Map();
 
 const FALLBACK_AUTH = {
   clientId: '',
@@ -145,6 +150,34 @@ function loadModpack() {
   return modpackCache;
 }
 
+async function fetchRemoteJson(url, { timeoutMs, maxBytes, limitError }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const requestUrl = new URL(url);
+    requestUrl.searchParams.set('_', String(Date.now()));
+    const response = await fetch(requestUrl, {
+      redirect: 'follow',
+      signal: controller.signal,
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!isAllowedUrl(response.url)) throw new Error('redirección no permitida');
+
+    const declared = Number(response.headers.get('content-length')) || 0;
+    if (declared > maxBytes) throw new Error(limitError);
+
+    const text = (await response.text()).replace(/^\uFEFF/, '');
+    if (Buffer.byteLength(text, 'utf8') > maxBytes) throw new Error(limitError);
+
+    return JSON.parse(text);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Descarga el manifiesto remoto si está configurado. Es opcional: sin
  * `manifestUrl` el launcher funciona exactamente igual con el manifiesto local.
@@ -168,28 +201,13 @@ async function refreshModpack(urlOverride = '', options = {}) {
     return { updated: false, reason: 'reciente', revision: current.revision };
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), MANIFEST_TIMEOUT_MS);
-
   try {
-    const requestUrl = new URL(url);
-    requestUrl.searchParams.set('_', String(now));
-    const response = await fetch(requestUrl, {
-      redirect: 'follow',
-      signal: controller.signal,
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
+    const parsed = await fetchRemoteJson(url, {
+      timeoutMs: MANIFEST_TIMEOUT_MS,
+      maxBytes: MAX_MANIFEST_BYTES,
+      limitError: 'manifiesto demasiado grande',
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    if (!isAllowedUrl(response.url)) throw new Error('redirección no permitida');
-
-    const declared = Number(response.headers.get('content-length')) || 0;
-    if (declared > MAX_MANIFEST_BYTES) throw new Error('manifiesto demasiado grande');
-
-    const text = (await response.text()).replace(/^\uFEFF/, '');
-    if (Buffer.byteLength(text, 'utf8') > MAX_MANIFEST_BYTES) throw new Error('manifiesto demasiado grande');
-
-    const remote = validateManifest(JSON.parse(text));
+    const remote = validateManifest(parsed);
     if (!remote) throw new Error('manifiesto inválido');
 
     fs.mkdirSync(paths.cache, { recursive: true });
@@ -212,8 +230,6 @@ async function refreshModpack(urlOverride = '', options = {}) {
     const reason = error?.name === 'AbortError' ? 'tiempo agotado' : String(error?.message || error);
     console.warn(`[manifest] No se pudo actualizar (${reason}); se usa el manifiesto local.`);
     return { updated: false, reason: 'error', error: reason };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -233,12 +249,107 @@ function filesForChannel(id) {
   });
 }
 
+/** Valida la estructura de noticias remotas o empaquetadas antes de exponerlas al renderer. */
+function validateNews(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  if (!Array.isArray(raw.items) || raw.items.length > MAX_NEWS_ITEMS) return null;
+
+  const items = [];
+  for (let i = 0; i < raw.items.length; i += 1) {
+    const item = raw.items[i];
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    if (typeof item.title !== 'string' || !item.title.trim()) return null;
+
+    for (const field of ['id', 'shortTitle', 'date', 'tag', 'body', 'description', 'type']) {
+      if (item[field] != null && typeof item[field] !== 'string') return null;
+    }
+    if (item.featured != null && typeof item.featured !== 'boolean') return null;
+
+    const bodyText = typeof item.body === 'string'
+      ? item.body.trim()
+      : (typeof item.description === 'string' ? item.description.trim() : '');
+
+    const normalized = {
+      id: typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `news-${i + 1}`,
+      title: item.title.trim(),
+      date: typeof item.date === 'string' ? item.date.trim() : '',
+      tag: typeof item.tag === 'string' ? item.tag.trim() : '',
+      body: bodyText,
+      description: bodyText,
+      type: ['update', 'fix', 'server'].includes(item.type) ? item.type : 'update',
+    };
+    if (typeof item.shortTitle === 'string' && item.shortTitle.trim()) {
+      normalized.shortTitle = item.shortTitle.trim();
+    }
+    if (typeof item.featured === 'boolean') {
+      normalized.featured = item.featured;
+    }
+    items.push(normalized);
+  }
+
+  return {
+    version: Number(raw.version) || 1,
+    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
+    items,
+  };
+}
+
+function readBundledNews() {
+  return validateNews(readJson(paths.resource('news.json'), null)) || { version: 1, updatedAt: '', items: [] };
+}
+
 function loadNews() {
   if (!newsCache) {
-    const raw = readJson(paths.resource('news.json'), { items: [] });
-    newsCache = Array.isArray(raw.items) ? raw.items : [];
+    const cached = validateNews(readJson(paths.remoteNews, null));
+    const bundled = readBundledNews();
+    newsCache = (cached || bundled).items;
   }
   return newsCache;
+}
+
+/**
+ * Descarga `news.json` desde GitHub Releases sin lanzar excepciones. Si la red
+ * falla o el JSON es inválido, conserva la caché local o el `news.json` incluido.
+ */
+async function refreshNews(urlOverride = '') {
+  const url = String(urlOverride || NEWS_URL).trim();
+  if (!url) return { updated: false, changed: false, reason: 'sin-url', items: loadNews() };
+  if (!isAllowedUrl(url)) return { updated: false, changed: false, reason: 'url-invalida', items: loadNews() };
+
+  if (inFlightNews.has(url)) {
+    return inFlightNews.get(url);
+  }
+
+  const task = (async () => {
+    try {
+      const raw = await fetchRemoteJson(url, {
+        timeoutMs: NEWS_TIMEOUT_MS,
+        maxBytes: MAX_NEWS_BYTES,
+        limitError: 'archivo de noticias demasiado grande',
+      });
+      const valid = validateNews(raw);
+      if (!valid) throw new Error('noticias inválidas');
+
+      const previous = loadNews();
+      const changed = JSON.stringify(previous) !== JSON.stringify(valid.items);
+      writeJsonAtomic(paths.remoteNews, valid);
+      newsCache = valid.items;
+
+      if (changed) {
+        console.log(`[news] Actualizadas ${valid.items.length} noticias remotas.`);
+      }
+      return { updated: true, changed, count: valid.items.length, items: valid.items };
+    } catch (error) {
+      const reason = error?.name === 'AbortError' ? 'tiempo agotado' : String(error?.message || error);
+      console.warn(`[news] No se pudo actualizar (${reason}); se usan las noticias locales.`);
+      return { updated: false, changed: false, reason: 'error', error: reason, items: loadNews() };
+    } finally {
+      inFlightNews.delete(url);
+    }
+  })();
+
+  inFlightNews.set(url, task);
+  return task;
 }
 
 function loadLinks() {
@@ -266,6 +377,7 @@ module.exports = {
   getChannel,
   filesForChannel,
   loadNews,
+  refreshNews,
   loadLinks,
   loadAuth,
 };

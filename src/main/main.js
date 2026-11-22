@@ -7,7 +7,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 
 const configStore = require('./config');
 const { paths } = require('./paths');
-const { loadModpack, refreshModpack, loadNews, loadLinks } = require('./resources');
+const { loadModpack, refreshModpack, loadNews, refreshNews, loadLinks } = require('./resources');
 const { ping } = require('./server-status');
 const javaManager = require('./java');
 const authManager = require('./auth');
@@ -246,11 +246,30 @@ function modpackSummary(modpack) {
   };
 }
 
+let lastNewsRefreshAt = 0;
+
+function refreshNewsInBackground({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && now - lastNewsRefreshAt < 10000) return;
+  lastNewsRefreshAt = now;
+
+  refreshNews()
+    .then((result) => {
+      if (result?.updated && result.changed) {
+        send('news:updated', result.items);
+      }
+    })
+    .catch((error) => {
+      console.warn('[news] Error inesperado:', error);
+    });
+}
+
 function registerIpc() {
   ipcMain.handle('app:bootstrap', () => {
     const config = configStore.load();
     const modpack = loadModpack();
     const effectiveGameDir = configStore.gameDir();
+    refreshNewsInBackground();
 
     return {
       launcherVersion: app.getVersion(),
@@ -560,6 +579,8 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     ensureDirectories();
+    // Las noticias se descargan en segundo plano para no retrasar la apertura.
+    refreshNewsInBackground({ force: true });
     // Si hay manifiesto remoto configurado, se intenta antes de pintar la UI.
     // refreshModpack nunca lanza: si falla, se usa el manifiesto incluido.
     await refreshModpack().catch((error) => {
