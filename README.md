@@ -54,3 +54,6 @@ Además, si entras con una cuenta oficial, el inicio de sesión se realiza direc
 - **Tienda oficial:** [chernobyl-z.tebex.store](https://chernobyl-z.tebex.store/)
 - **TikTok oficial:** [@chernobyl.z6](https://www.tiktok.com/@chernobyl.z6)
 - **YouTube e Instagram:** Próximamente disponibles aquí y directamente desde los botones del launcher cuando se publiquen los enlaces finales.
+
+Saludos.
+
