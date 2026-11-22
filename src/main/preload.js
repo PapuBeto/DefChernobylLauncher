@@ -21,13 +21,14 @@ contextBridge.exposeInMainWorld('launcher', {
   // Cuentas
   signInMicrosoft: () => ipcRenderer.invoke('auth:sign-in'),
   cancelSignIn: () => ipcRenderer.invoke('auth:cancel'),
-  signOut: (id) => ipcRenderer.invoke('auth:sign-out', id),
   profileSkin: (id) => ipcRenderer.invoke('auth:skin', id),
 
   // Skins (solo premium)
   skinInfo: (id) => ipcRenderer.invoke('skin:info', id),
   pickSkin: () => ipcRenderer.invoke('skin:pick'),
+  lookupSkin: (username) => ipcRenderer.invoke('skin:lookup', username),
   applySkin: (id, variant) => ipcRenderer.invoke('skin:apply', id, variant),
+  applySkinUrl: (id, url, variant) => ipcRenderer.invoke('skin:apply-url', id, url, variant),
   resetSkin: (id) => ipcRenderer.invoke('skin:reset', id),
 
   // Mods del modpack
@@ -37,7 +38,6 @@ contextBridge.exposeInMainWorld('launcher', {
   checkPack: () => ipcRenderer.invoke('pack:check'),
 
   // Actualizaciones
-  updateState: () => ipcRenderer.invoke('update:state'),
   checkUpdates: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
 

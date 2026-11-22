@@ -15,18 +15,7 @@ const configStore = require('./config');
 const javaManager = require('./java');
 const authManager = require('./auth');
 const { loadModpack, getChannel, filesForChannel } = require('./resources');
-const { syncFiles, readState, writeState } = require('./mods');
-
-const PHASES = {
-  idle: 'Listo para jugar',
-  java: 'Preparando Java',
-  minecraft: 'Descargando Minecraft',
-  forge: 'Instalando Forge',
-  mods: 'Sincronizando mods',
-  launching: 'Iniciando el juego',
-  running: 'Jugando',
-  error: 'Error',
-};
+const { syncFiles, readState, writeState, sha1File } = require('./mods');
 
 const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
 const within = ([from, to], fraction) => from + (to - from) * clamp01(fraction);
@@ -117,16 +106,6 @@ async function ensureVanilla(folder, minecraftVersion, report, context = {}) {
 }
 
 const FORGE_MAVEN = 'https://maven.minecraftforge.net/net/minecraftforge/forge';
-
-function sha1File(file) {
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash('sha1');
-    const stream = fs.createReadStream(file);
-    stream.on('error', reject);
-    stream.on('data', (chunk) => hash.update(chunk));
-    stream.on('end', () => resolve(hash.digest('hex')));
-  });
-}
 
 function removeFile(file) {
   try {
@@ -246,21 +225,27 @@ async function downloadForgeInstaller(url, destination, signal, onProgress = () 
 function killTree(child) {
   if (!child?.pid) return;
   if (process.platform === 'win32') {
-    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+    killer.on('error', () => {});
   } else {
-    child.kill('SIGTERM');
+    try {
+      child.kill('SIGTERM');
+    } catch {
+      /* el proceso ya terminó */
+    }
   }
 }
 
-function runForgeInstaller({ installer, gameDir, signal, isCancelled, report, onTask }) {
+function runForgeInstaller({ installer, javaPath, gameDir, signal, isCancelled, report, onTask }) {
   return new Promise((resolve, reject) => {
     const logPath = path.join(paths.logs, 'forge-install.log');
     fs.mkdirSync(paths.logs, { recursive: true });
     const log = fs.createWriteStream(logPath, { flags: 'w' });
     log.on('error', () => {});
-    log.write(`[launcher] ${new Date().toISOString()} java -jar ${installer} --installClient ${gameDir}\n`);
+    const executable = javaPath || 'java';
+    log.write(`[launcher] ${new Date().toISOString()} "${executable}" -jar ${installer} --installClient ${gameDir}\n`);
 
-    const child = spawn('java', ['-Djava.awt.headless=true', '-jar', installer, '--installClient', gameDir], {
+    const child = spawn(executable, ['-Djava.awt.headless=true', '-jar', installer, '--installClient', gameDir], {
       cwd: gameDir,
       windowsHide: true,
     });
@@ -385,6 +370,7 @@ async function ensureForge(folder, minecraftVersion, forgeVersion, report, conte
 
       await runForgeInstaller({
         installer,
+        javaPath: context.javaPath,
         gameDir: folder.root,
         signal: context.signal,
         isCancelled,
@@ -404,8 +390,8 @@ async function ensureForge(folder, minecraftVersion, forgeVersion, report, conte
 }
 
 /** Instala (si hace falta) Minecraft + Forge y devuelve el id de versión lanzable. */
-async function ensureInstance({ minecraftVersion, forgeVersion, report, context = {} }) {
-  const folder = MinecraftFolder.from(paths.game);
+async function ensureInstance({ minecraftVersion, forgeVersion, javaPath, gameDir, report, context = {} }) {
+  const folder = MinecraftFolder.from(gameDir || configStore.gameDir());
   const state = readState();
   const marker = state.install;
 
@@ -430,7 +416,7 @@ async function ensureInstance({ minecraftVersion, forgeVersion, report, context 
     minecraftVersion,
     forgeVersion,
     (fraction) => report(within([0.72, 1], fraction)),
-    context,
+    { ...context, javaPath: javaPath || context.javaPath },
   );
 
   writeState({
@@ -481,6 +467,15 @@ class LaunchManager extends EventEmitter {
     this.emit('log', { line });
   }
 
+  resetLogFile() {
+    try {
+      fs.mkdirSync(paths.logs, { recursive: true });
+      fs.writeFileSync(path.join(paths.logs, 'launcher.log'), '', 'utf8');
+    } catch {
+      /* logging best-effort */
+    }
+  }
+
   appendLogFile(line) {
     try {
       fs.mkdirSync(paths.logs, { recursive: true });
@@ -501,6 +496,7 @@ class LaunchManager extends EventEmitter {
     this.currentTask = null;
     this.abortController = new AbortController();
     this.progressFloor = 0;
+    this.resetLogFile();
 
     const isCancelled = () => this.cancelled;
 
@@ -508,6 +504,7 @@ class LaunchManager extends EventEmitter {
       const config = configStore.load();
       const modpack = loadModpack();
       const channel = getChannel(config.channel);
+      const gameDir = configStore.gameDir();
       const profile =
         config.profiles.find((item) => item.id === config.activeProfile) || config.profiles[0];
 
@@ -545,6 +542,8 @@ class LaunchManager extends EventEmitter {
       const versionId = await ensureInstance({
         minecraftVersion: modpack.minecraft,
         forgeVersion: modpack.forge,
+        javaPath: java.path,
+        gameDir,
         report: (fraction) => {
           this.status('Instalando Minecraft y Forge...', 'minecraft', within([0.08, 0.8], fraction));
           this.progress(within([0.08, 0.8], fraction), 'Minecraft / Forge');
@@ -569,7 +568,7 @@ class LaunchManager extends EventEmitter {
       this.progress(0.82, channel.label);
 
       const files = filesForChannel(channel.id);
-      const sync = await syncFiles(paths.game, files, channel.id, ({ percent, file, completed, total, speed, bytes, transferred }) => {
+      const sync = await syncFiles(gameDir, files, channel.id, ({ percent, file, completed, total, speed, bytes, transferred }) => {
         const rate = formatRate(speed);
         const remaining = Math.max(0, (Number(bytes) || 0) - (Number(transferred) || 0));
         const eta = rate && remaining > 0 ? formatEta(remaining / speed) : '';
@@ -598,8 +597,8 @@ class LaunchManager extends EventEmitter {
       const server = modpack.server || {};
 
       this.child = await launch({
-        gamePath: paths.game,
-        resourcePath: paths.game,
+        gamePath: gameDir,
+        resourcePath: gameDir,
         javaPath: java.path,
         version: versionId,
         gameProfile: { name: auth.name, id: auth.id },
@@ -646,39 +645,56 @@ class LaunchManager extends EventEmitter {
       pipe(this.child.stdout, '');
       pipe(this.child.stderr, '[err] ');
 
+      let settled = false;
+      const failChild = (error) => {
+        if (settled) return;
+        settled = true;
+        this.child = null;
+        this.watcher = null;
+        if (this.cancelled) {
+          this.finishCancelled();
+          return;
+        }
+        this.running = false;
+        this.resetProgress();
+        const message = String(error?.message || error);
+        this.status('Error al iniciar el juego', 'error', 0);
+        this.log(`[launcher] ERROR: ${message}`);
+        this.emit('error', { message });
+      };
+
       this.watcher.on('minecraft-window-ready', () => {
+        if (settled) return;
         this.progress(1, 'Jugando');
         this.status('Jugando', 'running', 1);
         this.emit('ready', { pid: this.child?.pid });
       });
 
       this.watcher.on('minecraft-exit', ({ code, crashReport, crashReportLocation }) => {
+        if (settled) return;
+        settled = true;
         this.child = null;
+        this.watcher = null;
+
+        if (this.cancelled) {
+          this.finishCancelled();
+          return;
+        }
+
         this.running = false;
         this.resetProgress();
         this.status('Listo para jugar', 'idle', 0);
         this.emit('exit', {
           code,
-          crashed: code !== 0 && !this.cancelled,
+          crashed: code !== 0,
           crashReport: crashReport || null,
           crashReportLocation: crashReportLocation || null,
         });
         if (crashReport) this.log(`[launcher] Crash report: ${crashReportLocation}`);
       });
 
-      this.watcher.on('error', (error) => {
-        this.running = false;
-        this.resetProgress();
-        this.status('Error al iniciar el juego', 'error', 0);
-        this.emit('error', { message: String(error?.message || error) });
-      });
-
-      this.child.on('error', (error) => {
-        this.running = false;
-        this.resetProgress();
-        this.status('Error al iniciar el juego', 'error', 0);
-        this.emit('error', { message: error.message });
-      });
+      this.watcher.on('error', failChild);
+      this.child.on('error', failChild);
     } catch (error) {
       this.running = false;
       this.resetProgress();
@@ -708,11 +724,12 @@ class LaunchManager extends EventEmitter {
     try {
       const config = configStore.load();
       const channel = getChannel(config.channel);
+      const gameDir = configStore.gameDir();
 
       this.status('Sincronizando archivos del modpack...', 'mods', 0);
       this.progress(0, channel.label);
 
-      const sync = await syncFiles(paths.game, filesForChannel(channel.id), channel.id, ({
+      const sync = await syncFiles(gameDir, filesForChannel(channel.id), channel.id, ({
         percent,
         file,
         completed,
@@ -766,6 +783,8 @@ class LaunchManager extends EventEmitter {
   finishCancelled() {
     this.running = false;
     this.currentTask = null;
+    this.child = null;
+    this.watcher = null;
     this.resetProgress();
     this.status('Cancelado', 'idle', 0);
     this.emit('cancelled');
@@ -786,16 +805,10 @@ class LaunchManager extends EventEmitter {
       this.currentTask = null;
     }
 
-    if (this.child?.pid) {
-      if (process.platform === 'win32') {
-        spawn('taskkill', ['/pid', String(this.child.pid), '/T', '/F'], { windowsHide: true });
-      } else {
-        this.child.kill('SIGTERM');
-      }
-    }
+    killTree(this.child);
 
     return true;
   }
 }
 
-module.exports = { LaunchManager, ensureInstance, PHASES };
+module.exports = { LaunchManager, ensureInstance };

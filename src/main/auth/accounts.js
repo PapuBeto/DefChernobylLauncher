@@ -57,8 +57,8 @@ function save(id, account) {
     name: account.name,
     uuid: account.uuid,
     token: encrypt(account.refreshToken),
-    skin: account.skin || previous?.skin || null,
-    variant: account.skinVariant || previous?.variant || null,
+    skin: 'skin' in account ? account.skin : (previous?.skin || null),
+    variant: 'skinVariant' in account ? account.skinVariant : (previous?.variant || null),
     updatedAt: Date.now(),
   };
   writeAll(data);

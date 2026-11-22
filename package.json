@@ -18,6 +18,7 @@
     "test:install": "electron scripts/test-install.js",
     "test:download": "electron scripts/test-download.js",
     "test:manifest": "electron scripts/test-manifest.js",
+    "test:launch": "electron scripts/test-launch.js",
     "manifest": "node scripts/generate-manifest.js",
     "icon": "node scripts/generate-icon.js"
   },
@@ -56,6 +57,13 @@
       {
         "from": "resources",
         "to": "app-resources"
+      },
+      {
+        "from": "build",
+        "to": "app-resources",
+        "filter": [
+          "icon.png"
+        ]
       }
     ],
     "win": {

@@ -46,8 +46,6 @@ app.whenReady().then(async () => {
     console.log(`[status:${phase}] ${text}`);
   });
 
-  manager.on('live-log', () => {});
-
   manager.on('ready', ({ pid }) => {
     logs.push(`[test] ventana del juego lista (pid ${pid})`);
     console.log(`[test] ventana del juego lista (pid ${pid})`);

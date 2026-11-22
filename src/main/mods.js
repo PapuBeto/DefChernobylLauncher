@@ -39,7 +39,9 @@ function readState() {
 
 function writeState(state) {
   fs.mkdirSync(path.dirname(paths.state), { recursive: true });
-  fs.writeFileSync(paths.state, JSON.stringify(state, null, 2), 'utf8');
+  const temporary = `${paths.state}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(state, null, 2), 'utf8');
+  fs.renameSync(temporary, paths.state);
 }
 
 function sha1File(file) {

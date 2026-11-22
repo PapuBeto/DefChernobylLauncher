@@ -30,6 +30,8 @@ const state = {
   update: null,
   signingIn: false,
   manualUpdateCheck: false,
+  hideTimer: null,
+  gameDirDraft: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -65,14 +67,11 @@ const els = {
   newsList: $('newsList'),
   playerCount: $('playerCount'),
   serverLabel: $('serverLabel'),
+  serverStatus: $('serverStatus'),
   serverDot: $('serverDot'),
 
   brandVersion: $('brandVersion'),
   launcherVersion: $('launcherVersion'),
-  buildLauncher: $('buildLauncher'),
-  buildForge: $('buildForge'),
-  buildMinecraft: $('buildMinecraft'),
-  buildPack: $('buildPack'),
 
   settingsOverlay: $('settingsOverlay'),
   settingsClose: $('settingsClose'),
@@ -88,12 +87,14 @@ const els = {
   javaDetectButton: $('javaDetectButton'),
   javaBrowseButton: $('javaBrowseButton'),
   gameDirPath: $('gameDirPath'),
+  pickGameDirButton: $('pickGameDirButton'),
+  resetGameDirButton: $('resetGameDirButton'),
+  gameDirNote: $('gameDirNote'),
   musicAudio: $('musicAudio'),
   openGameFolder: $('openGameFolder'),
   closeOnLaunchToggle: $('closeOnLaunchToggle'),
   effectsToggle: $('effectsToggle'),
   musicToggle: $('musicToggle'),
-  settingsNote: $('settingsNote'),
 
   profilesOverlay: $('profilesOverlay'),
   profilesClose: $('profilesClose'),
@@ -125,6 +126,8 @@ const els = {
   skinPreview: $('skinPreview'),
   skinPreviewLabel: $('skinPreviewLabel'),
   skinAccount: $('skinAccount'),
+  skinPlayerInput: $('skinPlayerInput'),
+  skinLookupButton: $('skinLookupButton'),
   skinPickButton: $('skinPickButton'),
   skinApplyButton: $('skinApplyButton'),
   skinResetButton: $('skinResetButton'),
@@ -139,7 +142,6 @@ const els = {
   modsSearch: $('modsSearch'),
   modsSummary: $('modsSummary'),
   modsList: $('modsList'),
-  modsNote: $('modsNote'),
 
   toastStack: $('toastStack'),
 
@@ -235,7 +237,7 @@ function channelSize(id) {
   return total;
 }
 
-function selectChannel(channelId) {
+function selectChannel(channelId, persist = true) {
   const channel = state.modpack.channels[channelId];
   if (!channel) return;
 
@@ -247,7 +249,7 @@ function selectChannel(channelId) {
   }
 
   updateMemoryHint();
-  api.saveSettings({ channel: channelId }).catch(() => {});
+  if (persist) api.saveSettings({ channel: channelId }).catch(() => {});
 }
 
 /* =========================================================
@@ -474,8 +476,7 @@ function renderChannels() {
     ? state.config.channel
     : Object.keys(state.modpack.channels)[0];
 
-  selectChannel(active);
-  api.saveSettings({ channel: active }).catch(() => {});
+  selectChannel(active, active !== state.config.channel);
 }
 
 function updateMemoryHint() {
@@ -501,6 +502,12 @@ function updateMemoryHint() {
    SERVIDOR
    ========================================================= */
 
+function formatServerAddress(host, port) {
+  if (!host) return '';
+  const numericPort = Number(port) || 25565;
+  return numericPort !== 25565 ? `${host}:${numericPort}` : host;
+}
+
 function paintServer(status) {
   state.serverOnline = Boolean(status?.online);
 
@@ -508,8 +515,12 @@ function paintServer(status) {
     els.serverDot.className = 'server-dot pending';
     els.playerCount.textContent = '—';
     els.serverLabel.textContent = 'COMPROBANDO';
+    els.serverStatus.title = '';
     return;
   }
+
+  const configured = state.modpack?.server;
+  const hostLabel = formatServerAddress(status.host || configured?.host, status.port || configured?.port);
 
   if (status.online) {
     els.serverDot.className = 'server-dot';
@@ -517,15 +528,18 @@ function paintServer(status) {
     els.serverLabel.textContent = 'EN LÍNEA';
 
     const parts = [];
+    if (hostLabel) parts.push(hostLabel);
     if (status.latency) parts.push(`${status.latency} ms`);
     if (status.version) parts.push(status.version);
     if (status.motd) parts.push(status.motd.replace(/\s+/g, ' '));
-    els.serverLabel.parentElement.title = parts.join(' · ');
+    els.serverStatus.title = parts.join(' · ');
   } else {
     els.serverDot.className = 'server-dot offline';
-    els.playerCount.textContent = '0';
-    els.serverLabel.textContent = 'OFFLINE';
-    els.serverLabel.parentElement.title = 'No se pudo contactar con el servidor.';
+    els.playerCount.textContent = status.players?.max > 0 ? `0/${status.players.max}` : '0';
+    els.serverLabel.textContent = 'SIN CONEXIÓN';
+    els.serverStatus.title = hostLabel
+      ? `${hostLabel} · No se pudo contactar con el servidor.`
+      : 'No se pudo contactar con el servidor.';
   }
 }
 
@@ -673,8 +687,12 @@ function paintSkinPreview(dataUrl, label) {
   if (label) els.skinPreviewLabel.textContent = label;
 }
 
+const SKIN_HINT_DEFAULT = 'Ningún archivo elegido. PNG de 64×64 (o 64×32).';
+
 function setSkinBusy(busy, message) {
   state.skinBusy = Boolean(busy);
+  els.skinPlayerInput.disabled = state.skinBusy;
+  els.skinLookupButton.disabled = state.skinBusy;
   els.skinPickButton.disabled = state.skinBusy;
   els.skinResetButton.disabled = state.skinBusy;
   els.skinApplyButton.disabled = state.skinBusy || !state.skinDraft;
@@ -683,9 +701,31 @@ function setSkinBusy(busy, message) {
   if (message) els.skinNote.textContent = message;
 }
 
+function selectSkinVariant(variant) {
+  const model = variant === 'slim' ? 'slim' : 'classic';
+  for (const radio of els.skinVariants) radio.checked = radio.value === model;
+}
+
+function applySkinResult(profile, result, noteMessage, toastMessage) {
+  if (result.skin) state.skins[profile.id] = result.skin;
+  else delete state.skins[profile.id];
+
+  state.skinDraft = null;
+  els.skinPlayerInput.value = '';
+  paintSkins();
+  if (activeMicrosoft()?.id === profile.id) drawHead(els.accountSkin, state.skins[profile.id]);
+  paintSkinPreview(state.skins[profile.id] || null, 'SKIN ACTUAL');
+  selectSkinVariant(result.variant);
+
+  els.skinFile.textContent = SKIN_HINT_DEFAULT;
+  els.skinNote.textContent = noteMessage;
+  toast(toastMessage);
+}
+
 async function openSkinsPanel() {
   state.skinDraft = null;
-  els.skinFile.textContent = 'Ningún archivo elegido. PNG de 64×64 (o 64×32).';
+  els.skinPlayerInput.value = '';
+  els.skinFile.textContent = SKIN_HINT_DEFAULT;
   els.skinNote.textContent = 'Se aplica al instante en tu cuenta de Minecraft.';
   els.skinApplyButton.disabled = true;
   setSkinBusy(false);
@@ -704,8 +744,7 @@ async function openSkinsPanel() {
 
   try {
     const info = await api.skinInfo(profile.id);
-    const variant = info?.variant === 'slim' ? 'slim' : 'classic';
-    for (const radio of els.skinVariants) radio.checked = radio.value === variant;
+    selectSkinVariant(info?.variant);
   } catch {
     // Si falla, se queda el modelo clásico.
   }
@@ -727,6 +766,42 @@ async function openSkinsPanel() {
   paintSkinPreview(dataUrl, 'SKIN ACTUAL');
 }
 
+async function lookupPlayerSkin() {
+  const profile = activeMicrosoft();
+  if (!profile || state.skinBusy) return;
+
+  const username = els.skinPlayerInput.value.trim();
+  if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+    toast('Escribe un nombre válido de Minecraft (3–16 caracteres: letras, números o _).', 'error');
+    els.skinPlayerInput.focus();
+    return;
+  }
+
+  setSkinBusy(true, 'Buscando skin en Mojang…');
+
+  try {
+    const found = await api.lookupSkin(username);
+    els.skinPlayerInput.value = found.name;
+    selectSkinVariant(found.variant);
+
+    state.skinDraft = {
+      mode: 'url',
+      url: found.url,
+      name: found.name,
+      dataUrl: found.dataUrl,
+    };
+
+    els.skinFile.textContent = `Jugador: ${found.name} (${found.variant === 'slim' ? 'Slim' : 'Clásica'})`;
+    els.skinNote.textContent = 'Vista previa lista. Pulsa «Aplicar skin» para usarla en tu cuenta.';
+    paintSkinPreview(found.dataUrl, `VISTA PREVIA · ${found.name.toUpperCase()}`);
+  } catch (error) {
+    els.skinNote.textContent = 'No se pudo cargar la skin del jugador.';
+    toast(cleanError(error), 'error', 7000);
+  } finally {
+    setSkinBusy(false);
+  }
+}
+
 async function pickSkinFile() {
   if (state.skinBusy) return;
 
@@ -734,7 +809,8 @@ async function pickSkinFile() {
     const picked = await api.pickSkin();
     if (!picked) return;
 
-    state.skinDraft = picked;
+    els.skinPlayerInput.value = '';
+    state.skinDraft = { mode: 'file', ...picked };
     els.skinFile.textContent = `${picked.name} · ${picked.width}×${picked.height}`;
     els.skinNote.textContent = 'Vista previa del archivo. Pulsa «Aplicar skin» para subirla.';
     els.skinApplyButton.disabled = false;
@@ -749,23 +825,21 @@ async function applySkinChanges() {
   if (!profile || !state.skinDraft || state.skinBusy) return;
 
   const variant = [...els.skinVariants].find((radio) => radio.checked)?.value || 'classic';
+  const fromUrl = state.skinDraft.mode === 'url';
 
-  setSkinBusy(true, 'Subiendo la skin a Mojang…');
+  setSkinBusy(true, fromUrl ? 'Aplicando la skin en Mojang…' : 'Subiendo la skin a Mojang…');
 
   try {
-    const result = await api.applySkin(profile.id, variant);
+    const result = fromUrl
+      ? await api.applySkinUrl(profile.id, state.skinDraft.url, variant)
+      : await api.applySkin(profile.id, variant);
 
-    if (result.skin) state.skins[profile.id] = result.skin;
-    else delete state.skins[profile.id];
-
-    state.skinDraft = null;
-    paintSkins();
-    if (activeMicrosoft()?.id === profile.id) drawHead(els.accountSkin, state.skins[profile.id]);
-    paintSkinPreview(state.skins[profile.id] || null, 'SKIN ACTUAL');
-
-    els.skinFile.textContent = 'Ningún archivo elegido. PNG de 64×64 (o 64×32).';
-    els.skinNote.textContent = 'Skin actualizada. Ya se ve en tu cuenta de Minecraft.';
-    toast('Skin actualizada.');
+    applySkinResult(
+      profile,
+      result,
+      'Skin actualizada. Ya se ve en tu cuenta de Minecraft.',
+      'Skin actualizada.',
+    );
   } catch (error) {
     els.skinNote.textContent = 'No se pudo aplicar la skin.';
     toast(cleanError(error), 'error', 8000);
@@ -784,18 +858,12 @@ async function resetActiveSkin() {
 
   try {
     const result = await api.resetSkin(profile.id);
-
-    if (result.skin) state.skins[profile.id] = result.skin;
-    else delete state.skins[profile.id];
-
-    state.skinDraft = null;
-    paintSkins();
-    if (activeMicrosoft()?.id === profile.id) drawHead(els.accountSkin, state.skins[profile.id]);
-    paintSkinPreview(state.skins[profile.id] || null, 'SKIN ACTUAL');
-
-    els.skinFile.textContent = 'Ningún archivo elegido. PNG de 64×64 (o 64×32).';
-    els.skinNote.textContent = 'Skin predeterminada restaurada.';
-    toast('Skin predeterminada restaurada.');
+    applySkinResult(
+      profile,
+      result,
+      'Skin predeterminada restaurada.',
+      'Skin predeterminada restaurada.',
+    );
   } catch (error) {
     els.skinNote.textContent = 'No se pudo restaurar la skin.';
     toast(cleanError(error), 'error', 8000);
@@ -1157,10 +1225,66 @@ async function addProfile() {
    AJUSTES
    ========================================================= */
 
+function normalizeDirCompare(value) {
+  const trimmed = String(value || '').trim().replace(/[\\/]+$/, '');
+  return state.boot?.system?.platform === 'win32' ? trimmed.toLowerCase() : trimmed;
+}
+
+function renderGameDirField() {
+  const defaultDir = state.boot?.system?.defaultGameDir || state.boot?.system?.gameDir || '';
+  const activeDir = state.boot?.system?.gameDir || defaultDir;
+  const isCustom = Boolean(state.gameDirDraft);
+  const usingFallback = Boolean(
+    state.boot?.system?.gameDirFallback
+    && isCustom
+    && state.gameDirDraft === state.config?.gameDir,
+  );
+
+  els.gameDirPath.value = usingFallback ? activeDir : (state.gameDirDraft || defaultDir);
+  els.gameDirPath.title = els.gameDirPath.value;
+  els.resetGameDirButton.disabled = !isCustom;
+
+  if (usingFallback) {
+    els.gameDirNote.textContent =
+      `La carpeta configurada (${state.config.gameDir}) no está accesible; usando la ruta por defecto.`;
+    els.gameDirNote.classList.add('warning');
+  } else if (isCustom) {
+    els.gameDirNote.textContent = 'Carpeta personalizada. Minecraft, mods y mundos se guardarán aquí.';
+    els.gameDirNote.classList.remove('warning');
+  } else {
+    els.gameDirNote.textContent = 'Usando la carpeta por defecto del launcher (userData/game).';
+    els.gameDirNote.classList.remove('warning');
+  }
+}
+
+async function pickGameDir() {
+  try {
+    const picked = await api.pickFolder();
+    if (!picked) return;
+
+    const defaultDir = state.boot?.system?.defaultGameDir || '';
+    const sameAsDefault = defaultDir && normalizeDirCompare(picked) === normalizeDirCompare(defaultDir);
+    state.gameDirDraft = sameAsDefault ? null : picked;
+    renderGameDirField();
+  } catch (error) {
+    toast(cleanError(error) || 'No se pudo seleccionar la carpeta.', 'error');
+  }
+}
+
+function resetGameDir() {
+  state.gameDirDraft = null;
+  renderGameDirField();
+}
+
 function renderSettings() {
   const config = state.config;
+  const systemMb = Number(state.boot?.system?.totalMemoryMb) || 0;
+  const safeMax = systemMb > 0
+    ? Math.max(2048, Math.floor((systemMb * 0.75) / 512) * 512)
+    : 12288;
+  const maxMemory = Math.min(12288, safeMax);
 
-  els.memoryRange.max = String(Math.min(12288, Math.max(4096, config.memory + 4096)));
+  els.memoryRange.max = String(Math.max(maxMemory, Math.min(16384, config.memory)));
   els.memoryRange.value = String(config.memory);
   els.memoryValue.textContent = `${config.memory} MB`;
 
@@ -1178,8 +1302,9 @@ function renderSettings() {
   els.effectsToggle.checked = config.effects !== false;
   els.musicToggle.checked = config.music === true;
   els.javaPath.value = config.javaPath || '';
-  els.gameDirPath.value = state.boot.system.gameDir;
+  state.gameDirDraft = config.gameDir || null;
 
+  renderGameDirField();
   updateMemoryHint();
   paintJava();
   renderPack();
@@ -1194,19 +1319,6 @@ function renderPack() {
   els.packState.value = state.modpack.source === 'remote'
     ? 'Manifiesto remoto'
     : 'Manifiesto incluido';
-}
-
-function renderBuildPack(modpack) {
-  els.buildPack.textContent = `Pack rev. ${modpack.revision || 1}`;
-  els.buildPack.title = modpack.source === 'remote'
-    ? 'Manifiesto remoto'
-    : 'Manifiesto incluido en el launcher';
-}
-
-function renderModpackInfo(modpack) {
-  els.buildForge.textContent = `Forge ${modpack.forge}`;
-  els.buildMinecraft.textContent = `MC ${modpack.minecraft}`;
-  renderBuildPack(modpack);
 }
 
 function paintJava() {
@@ -1233,22 +1345,39 @@ async function detectJava(explicitPath) {
   }
 }
 
+function closeSettings() {
+  closePanel(els.settingsOverlay);
+  applyEffects(state.config.effects !== false);
+  applyMusic(state.config.music === true);
+}
+
 async function saveSettings() {
   const [width, height] = els.resolutionSelect.value.split('x').map(Number);
+  const patch = {
+    memory: Number(els.memoryRange.value),
+    resolution: {
+      width,
+      height,
+      fullscreen: els.fullscreenToggle.checked,
+    },
+    closeOnLaunch: els.closeOnLaunchToggle.checked,
+    effects: els.effectsToggle.checked,
+    music: els.musicToggle.checked,
+    javaPath: els.javaPath.value.trim() || null,
+  };
+
+  if (state.gameDirDraft !== state.config.gameDir) {
+    patch.gameDir = state.gameDirDraft;
+  }
 
   try {
-    state.config = await api.saveSettings({
-      memory: Number(els.memoryRange.value),
-      resolution: {
-        width,
-        height,
-        fullscreen: els.fullscreenToggle.checked,
-      },
-      closeOnLaunch: els.closeOnLaunchToggle.checked,
-      effects: els.effectsToggle.checked,
-      music: els.musicToggle.checked,
-      javaPath: els.javaPath.value.trim() || null,
-    });
+    state.config = await api.saveSettings(patch);
+    state.gameDirDraft = state.config.gameDir || null;
+
+    if (state.boot?.system && 'gameDir' in patch) {
+      state.boot.system.gameDir = state.config.gameDir || state.boot.system.defaultGameDir;
+      state.boot.system.gameDirFallback = false;
+    }
 
     applyEffects(state.config.effects !== false);
     applyMusic(state.config.music === true);
@@ -1256,7 +1385,7 @@ async function saveSettings() {
     closePanel(els.settingsOverlay);
     toast('Ajustes guardados.');
   } catch (error) {
-    toast(error.message, 'error');
+    toast(cleanError(error) || 'No se pudieron guardar los ajustes.', 'error');
   }
 }
 
@@ -1335,6 +1464,12 @@ function setProgress(percent, detail) {
   if (detail) els.progress.title = detail;
 }
 
+function clearHideTimer() {
+  if (!state.hideTimer) return;
+  clearTimeout(state.hideTimer);
+  state.hideTimer = null;
+}
+
 async function startGame() {
   if (state.launching || state.syncing) {
     await api.cancel();
@@ -1352,6 +1487,7 @@ async function startGame() {
     }
   }
 
+  clearHideTimer();
   setLaunchState('launching');
   setProgress(0, null);
 
@@ -1370,6 +1506,7 @@ async function startSync() {
   }
   if (state.running) return;
 
+  clearHideTimer();
   setLaunchState('syncing');
   setProgress(0, null);
 
@@ -1402,18 +1539,24 @@ function bindEvents() {
     els.status.textContent = 'Jugando';
     els.body.dataset.state = 'running';
 
+    clearHideTimer();
     if (state.config.closeOnLaunch) {
-      setTimeout(() => api.hideWindow(), 1500);
+      state.hideTimer = setTimeout(() => {
+        state.hideTimer = null;
+        api.hideWindow();
+      }, 1500);
     }
   });
 
   api.onSynced(({ files, downloaded }) => {
+    clearHideTimer();
     setLaunchState('idle');
     setProgress(0, null);
     toast(`Archivos sincronizados: ${files} verificados, ${downloaded} descargados.`, 'success');
   });
 
   api.onExit(({ code, crashed, crashReportLocation }) => {
+    clearHideTimer();
     setLaunchState('idle');
 
     if (crashed) {
@@ -1430,6 +1573,7 @@ function bindEvents() {
   });
 
   api.onError(({ message, operation }) => {
+    clearHideTimer();
     const syncing = operation === 'sync' || state.syncing;
     setLaunchState('idle');
     els.body.dataset.state = 'error';
@@ -1438,6 +1582,7 @@ function bindEvents() {
   });
 
   api.onCancelled(() => {
+    clearHideTimer();
     const syncing = state.syncing;
     setLaunchState('idle');
     toast(syncing ? 'Sincronización cancelada.' : 'Inicio cancelado.');
@@ -1515,7 +1660,7 @@ function bindEvents() {
     if (event.key !== 'Escape') return;
 
     if (els.overlay.classList.contains('open')) els.overlay.classList.remove('open');
-    else if (els.settingsOverlay.classList.contains('open')) closePanel(els.settingsOverlay);
+    else if (els.settingsOverlay.classList.contains('open')) closeSettings();
     else if (els.profilesOverlay.classList.contains('open')) closePanel(els.profilesOverlay);
     else if (els.skinsOverlay.classList.contains('open')) closePanel(els.skinsOverlay);
     else if (els.modsOverlay.classList.contains('open')) closePanel(els.modsOverlay);
@@ -1566,7 +1711,6 @@ function bindEvents() {
 
       if (result.updated) {
         state.modpack = result.modpack;
-        renderModpackInfo(state.modpack);
         renderChannels();
         renderPack();
         toast(`Pack actualizado a la revisión ${result.revision}. Se descargará al jugar.`, 'success');
@@ -1594,15 +1738,11 @@ function bindEvents() {
     openPanel(els.settingsOverlay);
   });
 
-  const closeSettings = () => {
-    closePanel(els.settingsOverlay);
-    applyEffects(state.config.effects !== false);
-    applyMusic(state.config.music === true);
-  };
-
   els.settingsClose.addEventListener('click', closeSettings);
   els.settingsCancel.addEventListener('click', closeSettings);
   els.settingsSave.addEventListener('click', saveSettings);
+  els.pickGameDirButton.addEventListener('click', pickGameDir);
+  els.resetGameDirButton.addEventListener('click', resetGameDir);
 
   els.effectsToggle.addEventListener('change', () => {
     applyEffects(els.effectsToggle.checked);
@@ -1686,6 +1826,10 @@ function bindEvents() {
   els.skinsClose.addEventListener('click', () => closePanel(els.skinsOverlay));
   els.skinsDone.addEventListener('click', () => closePanel(els.skinsOverlay));
 
+  els.skinLookupButton.addEventListener('click', lookupPlayerSkin);
+  els.skinPlayerInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') lookupPlayerSkin();
+  });
   els.skinPickButton.addEventListener('click', pickSkinFile);
   els.skinApplyButton.addEventListener('click', applySkinChanges);
   els.skinResetButton.addEventListener('click', resetActiveSkin);
@@ -1737,9 +1881,6 @@ async function init() {
 
     els.brandVersion.textContent = boot.launcherVersion;
     els.launcherVersion.textContent = `LAUNCHER ${boot.launcherVersion}`;
-    els.buildLauncher.textContent = `v${boot.launcherVersion}`;
-    renderModpackInfo(boot.modpack);
-    els.gameDirPath.value = boot.system.gameDir;
 
     renderProfile();
     renderNews();
@@ -1758,8 +1899,12 @@ async function init() {
     setInterval(refreshServerStatus, 60000);
 
     detectJava(null);
+
+    if (boot.system?.gameDirFallback) {
+      toast('La carpeta personalizada del juego no está accesible; usando userData/game.', 'error', 8000);
+    }
   } catch (error) {
-    toast(`No se pudo iniciar el launcher: ${error.message}`, 'error', 12000);
+    toast(`No se pudo iniciar el launcher: ${cleanError(error)}`, 'error', 12000);
   }
 
   bindEvents();

@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { paths } = require('./paths');
+const configStore = require('./config');
 const { loadModpack, filesForChannel, getChannel } = require('./resources');
 const { readState } = require('./mods');
 
@@ -53,11 +53,13 @@ function list(channelId) {
       .sort((left, right) => left.name.localeCompare(right.name));
   }
 
+  const gameDir = configStore.gameDir();
+
   const items = mods.map((mod) => {
     const key = normalizePath(mod.file);
     const file = key ? byPath.get(key) : null;
     const onDisk =
-      Boolean(key) && fs.existsSync(path.join(paths.game, key));
+      Boolean(key) && fs.existsSync(path.join(gameDir, key));
     const installed = Boolean(key) && onDisk && managed.has(key);
 
     return {

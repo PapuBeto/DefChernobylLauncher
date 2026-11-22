@@ -13,6 +13,10 @@ const authManager = require('./auth');
 
 const memory = new Map();
 
+const USERNAME_RE = /^[a-zA-Z0-9_]{3,16}$/;
+const MOJANG_PROFILE_LOOKUP = 'https://api.mojang.com/users/profiles/minecraft';
+const MOJANG_SESSION_PROFILE = 'https://sessionserver.mojang.com/session/minecraft/profile';
+
 function normalizeTextureUrl(raw) {
   try {
     const url = new URL(String(raw));
@@ -51,6 +55,66 @@ function writeUrls(map) {
   }
 }
 
+async function fetchSessionSkin(uuid, options = {}) {
+  const cleanUuid = String(uuid || '').replace(/-/g, '');
+  if (!/^[0-9a-f]{32}$/i.test(cleanUuid)) return null;
+
+  let response;
+  try {
+    response = await fetch(`${MOJANG_SESSION_PROFILE}/${cleanUuid}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    if (options.strict) {
+      throw new Error('No se pudo conectar con Mojang. Comprueba tu conexión a internet.');
+    }
+    return null;
+  }
+
+  if (response.status === 429) {
+    if (options.strict) {
+      throw new Error('Mojang ha limitado las búsquedas. Espera un momento e inténtalo de nuevo.');
+    }
+    return null;
+  }
+
+  if (!response.ok) {
+    if (options.strict && response.status !== 404 && response.status !== 204) {
+      throw new Error(`Mojang devolvió un error al leer la skin (HTTP ${response.status}).`);
+    }
+    return null;
+  }
+
+  let profile;
+  try {
+    profile = await response.json();
+  } catch {
+    if (options.strict) throw new Error('Mojang devolvió una respuesta inválida.');
+    return null;
+  }
+
+  const encoded = profile?.properties?.find((item) => item.name === 'textures')?.value;
+  if (!encoded) return null;
+
+  let decoded;
+  try {
+    decoded = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+  } catch {
+    if (options.strict) throw new Error('No se pudo leer la textura del perfil en Mojang.');
+    return null;
+  }
+
+  const skin = decoded?.textures?.SKIN;
+  const url = normalizeTextureUrl(skin?.url);
+  if (!url) return null;
+
+  const variant = String(skin?.metadata?.model || '').toLowerCase() === 'slim'
+    ? 'slim'
+    : 'classic';
+
+  return { url, variant };
+}
+
 /**
  * Resuelve la textura: primero lo guardado en accounts.json, luego la caché y
  * por último el perfil público de Mojang (funciona con sesiones antiguas).
@@ -66,25 +130,12 @@ async function resolveUrl(profileId) {
   const match = /^ms:([0-9a-f-]{32,36})$/i.exec(String(profileId));
   if (!match) return null;
 
-  const uuid = match[1].replace(/-/g, '');
-  const response = await fetch(
-    `https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`,
-    { signal: AbortSignal.timeout(15000) },
-  );
+  const resolved = await fetchSessionSkin(match[1]);
+  if (!resolved?.url) return null;
 
-  if (!response.ok) return null;
-
-  const profile = await response.json();
-  const encoded = profile?.properties?.find((item) => item.name === 'textures')?.value;
-  if (!encoded) return null;
-
-  const decoded = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
-  const url = normalizeTextureUrl(decoded?.textures?.SKIN?.url);
-  if (!url) return null;
-
-  urls[profileId] = url;
+  urls[profileId] = resolved.url;
   writeUrls(urls);
-  return url;
+  return resolved.url;
 }
 
 /** Olvida la URL cacheada de un perfil (tras cambiar o restaurar su skin). */
@@ -95,8 +146,8 @@ function forget(profileId) {
   writeUrls(urls);
 }
 
-async function dataUrl(profileId) {
-  const url = await resolveUrl(profileId);
+async function textureDataUrl(rawUrl) {
+  const url = normalizeTextureUrl(rawUrl);
   if (!url) return null;
 
   if (memory.has(url)) return memory.get(url);
@@ -111,7 +162,13 @@ async function dataUrl(profileId) {
   }
 
   if (!buffer) {
-    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    let response;
+    try {
+      response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    } catch {
+      throw new Error('No se pudo descargar la textura de Mojang. Comprueba tu conexión.');
+    }
+
     if (!response.ok) {
       throw new Error(`No se pudo descargar la skin (HTTP ${response.status}).`);
     }
@@ -130,4 +187,65 @@ async function dataUrl(profileId) {
   return value;
 }
 
-module.exports = { dataUrl, forget };
+async function dataUrl(profileId) {
+  const url = await resolveUrl(profileId);
+  return url ? textureDataUrl(url) : null;
+}
+
+/** Busca la skin pública de un jugador de Minecraft (Java Edition) por nick. */
+async function lookupByUsername(username) {
+  const clean = String(username || '').trim();
+  if (!USERNAME_RE.test(clean)) {
+    throw new Error('Escribe un nombre válido de Minecraft (3–16 caracteres: letras, números o _).');
+  }
+
+  let response;
+  try {
+    response = await fetch(`${MOJANG_PROFILE_LOOKUP}/${encodeURIComponent(clean)}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    throw new Error('No se pudo conectar con Mojang. Comprueba tu conexión a internet.');
+  }
+
+  if (response.status === 404 || response.status === 204) {
+    throw new Error('No se encontró ningún jugador de Minecraft con ese nombre.');
+  }
+  if (response.status === 429) {
+    throw new Error('Mojang ha limitado las búsquedas. Espera un momento e inténtalo de nuevo.');
+  }
+  if (!response.ok) {
+    throw new Error(`No se pudo consultar el jugador en Mojang (HTTP ${response.status}).`);
+  }
+
+  let profile;
+  try {
+    profile = await response.json();
+  } catch {
+    throw new Error('Mojang devolvió una respuesta inválida.');
+  }
+
+  if (!profile?.id) {
+    throw new Error('No se encontró ningún jugador de Minecraft con ese nombre.');
+  }
+
+  const skin = await fetchSessionSkin(profile.id, { strict: true });
+  if (!skin?.url) {
+    throw new Error('Ese jugador no tiene una skin personalizada activa.');
+  }
+
+  const preview = await textureDataUrl(skin.url);
+  if (!preview) {
+    throw new Error('No se pudo cargar la textura de la skin.');
+  }
+
+  return {
+    name: profile.name || clean,
+    uuid: profile.id,
+    url: skin.url,
+    variant: skin.variant,
+    dataUrl: preview,
+  };
+}
+
+module.exports = { dataUrl, forget, lookupByUsername, normalizeTextureUrl };
