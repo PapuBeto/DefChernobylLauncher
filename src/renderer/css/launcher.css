@@ -1066,6 +1066,11 @@ body.no-effects .bg-fx {
   }
 }
 
+body.is-paused .bg-orb i,
+body.is-paused .bg-spore {
+  animation-play-state: paused;
+}
+
 /* =========================================================
    PANEL DE SKINS
    ========================================================= */

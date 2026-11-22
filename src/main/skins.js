@@ -12,6 +12,16 @@ const authManager = require('./auth');
  */
 
 const memory = new Map();
+const MAX_MEMORY_CACHE = 25;
+
+function rememberSkinDataUrl(url, value) {
+  if (memory.has(url)) memory.delete(url);
+  memory.set(url, value);
+  if (memory.size > MAX_MEMORY_CACHE) {
+    const oldest = memory.keys().next().value;
+    memory.delete(oldest);
+  }
+}
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,16}$/;
 const MOJANG_PROFILE_LOOKUP = 'https://api.mojang.com/users/profiles/minecraft';
@@ -150,7 +160,11 @@ async function textureDataUrl(rawUrl) {
   const url = normalizeTextureUrl(rawUrl);
   if (!url) return null;
 
-  if (memory.has(url)) return memory.get(url);
+  if (memory.has(url)) {
+    const cached = memory.get(url);
+    rememberSkinDataUrl(url, cached);
+    return cached;
+  }
 
   const file = cacheFile(url);
   let buffer = null;
@@ -183,7 +197,7 @@ async function textureDataUrl(rawUrl) {
   }
 
   const value = `data:image/png;base64,${buffer.toString('base64')}`;
-  memory.set(url, value);
+  rememberSkinDataUrl(url, value);
   return value;
 }
 

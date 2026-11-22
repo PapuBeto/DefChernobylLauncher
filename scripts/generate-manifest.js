@@ -4,29 +4,35 @@
  * Genera las entradas `files` de resources/modpack.json a partir de una o varias
  * carpetas de pack (.minecraft).
  *
- * Forma simple (una carpeta, uno o varios canales):
+ * Forma recomendada para dos canales independientes:
  *
- *   node scripts/generate-manifest.js <carpeta> <urlBase> [canal...]
+ *   node scripts/generate-manifest.js --completa ./pack-sources/COMPLETA --lite ./pack-sources/LITE --base-url https://cdn.ejemplo.com --write resources/modpack.json
  *
- *   node scripts/generate-manifest.js "C:\packs\completa" "https://cdn.../completa" COMPLETA
+ * También puedes usar:
  *
- * Forma por canal (recomendada cuando COMPLETA y LITE son carpetas distintas):
+ *   npm run manifest:packs -- --base-url https://cdn.ejemplo.com
+ *
+ * o forma explícita por canal:
  *
  *   node scripts/generate-manifest.js ^
- *     --channel COMPLETA "C:\packs\completa" "https://cdn.../completa" ^
- *     --channel LITE "C:\packs\lite" "https://cdn.../lite" ^
+ *     --channel COMPLETA "C:\packs\completa" "https://cdn.../COMPLETA" ^
+ *     --channel LITE "C:\packs\lite" "https://cdn.../LITE" ^
  *     --write resources/modpack.json
  *
  * Opciones:
- *   --write <archivo>   Sustituye `files` en ese modpack.json.
- *   --revision <n>      Ajusta `revision` al escribir (súbelo en cada cambio remoto).
- *   --output <archivo>  Guarda el array JSON en un archivo.
- *   --options           Incluye también options.txt (ver README).
- *   --exclude <glob>    Excluye rutas que coincidan (repetible).
+ *   --completa <carpeta> [url]  Carpeta fuente del canal COMPLETA.
+ *   --lite <carpeta> [url]      Carpeta fuente del canal LITE.
+ *   --base-url <url>            URL base para construir <url>/<CANAL>.
+ *   --completa-url <url>        URL base específica para COMPLETA.
+ *   --lite-url <url>            URL base específica para LITE.
+ *   --write <archivo>           Sustituye `files` en ese modpack.json.
+ *   --revision <n>              Ajusta `revision` al escribir (súbelo en cada cambio remoto).
+ *   --output <archivo>          Guarda el array JSON en un archivo.
+ *   --options / --no-options    Incluye o excluye options.txt (incluido por defecto en modo dual).
+ *   --exclude <glob>            Excluye rutas que coincidan (repetible).
  *
  * Carpetas incluidas: mods, config, defaultconfigs, kubejs, tacz, scripts,
- * resourcepacks y shaderpacks. Si la carpeta no tiene ninguna de ellas se trata
- * como una carpeta de mods (modo antiguo: solo .jar).
+ * resourcepacks y shaderpacks (además de options.txt en la raíz si aplica).
  */
 
 const fs = require('node:fs');
@@ -80,15 +86,70 @@ function fail(message) {
   process.exit(1);
 }
 
+function isHttpUrl(value) {
+  return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+}
+
+function readModpackDefaults(writeFile) {
+  const candidates = [];
+  if (writeFile) candidates.push(path.resolve(writeFile));
+  candidates.push(path.resolve('resources', 'modpack.json'));
+
+  for (const file of candidates) {
+    try {
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (data && typeof data === 'object') return data;
+    } catch {
+      /* archivo inexistente o inválido */
+    }
+  }
+  return null;
+}
+
+function resolveChannelBaseUrl(channelName, explicitUrl, sharedBaseUrl, modpackDefaults) {
+  if (explicitUrl) return explicitUrl.replace(/\/+$/, '');
+
+  const channelSuffix = channelName || 'PACK';
+
+  if (sharedBaseUrl) {
+    return `${sharedBaseUrl.replace(/\/+$/, '')}/${channelSuffix}`;
+  }
+
+  const channelConfigUrl = modpackDefaults?.channels?.[channelSuffix]?.baseUrl;
+  if (isHttpUrl(channelConfigUrl)) return channelConfigUrl.replace(/\/+$/, '');
+
+  if (isHttpUrl(modpackDefaults?.baseUrl)) {
+    return `${modpackDefaults.baseUrl.replace(/\/+$/, '')}/${channelSuffix}`;
+  }
+
+  if (isHttpUrl(modpackDefaults?.manifestUrl)) {
+    try {
+      const dirUrl = new URL('.', modpackDefaults.manifestUrl).toString().replace(/\/+$/, '');
+      return `${dirUrl}/${channelSuffix}`;
+    } catch {
+      /* manifestUrl inválida */
+    }
+  }
+
+  if (isHttpUrl(process.env.MODPACK_BASE_URL)) {
+    return `${process.env.MODPACK_BASE_URL.replace(/\/+$/, '')}/${channelSuffix}`;
+  }
+
+  return null;
+}
+
 function parseArgs(argv) {
   const channels = [];
   let folder = null;
   let baseUrl = null;
+  let sharedBaseUrl = null;
+  const channelUrls = {};
   let positionalChannels = [];
   let writeFile = null;
   let outputFile = null;
   let revision = null;
-  let includeOptions = false;
+  let includeOptions = null;
+  let dualMode = false;
   const excludes = [];
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -100,6 +161,25 @@ function parseArgs(argv) {
       if (!name || !root || !base) fail('--channel necesita <nombre> <carpeta> <urlBase>');
       channels.push({ name, root, base });
       i += 3;
+    } else if (arg === '--completa' || arg === '--lite') {
+      const name = arg === '--completa' ? 'COMPLETA' : 'LITE';
+      const root = argv[++i];
+      if (!root) fail(`${arg} necesita <carpeta>`);
+      let explicitBase = null;
+      if (isHttpUrl(argv[i + 1])) {
+        explicitBase = argv[++i];
+      }
+      channels.push({ name, root, base: explicitBase });
+      dualMode = true;
+    } else if (arg === '--base-url') {
+      sharedBaseUrl = argv[++i];
+      if (!isHttpUrl(sharedBaseUrl)) fail('--base-url necesita una URL http(s) válida');
+    } else if (arg === '--completa-url') {
+      channelUrls.COMPLETA = argv[++i];
+      if (!isHttpUrl(channelUrls.COMPLETA)) fail('--completa-url necesita una URL http(s) válida');
+    } else if (arg === '--lite-url') {
+      channelUrls.LITE = argv[++i];
+      if (!isHttpUrl(channelUrls.LITE)) fail('--lite-url necesita una URL http(s) válida');
     } else if (arg === '--write') {
       writeFile = argv[++i];
       if (!writeFile) fail('--write necesita un archivo');
@@ -111,6 +191,8 @@ function parseArgs(argv) {
       if (!outputFile) fail('--output necesita un archivo');
     } else if (arg === '--options') {
       includeOptions = true;
+    } else if (arg === '--no-options') {
+      includeOptions = false;
     } else if (arg === '--exclude') {
       const pattern = argv[++i];
       if (!pattern) fail('--exclude necesita un patrón');
@@ -133,16 +215,58 @@ function parseArgs(argv) {
     }
   }
 
+  if (channels.length === 0 && !folder && !baseUrl) {
+    for (const name of ['COMPLETA', 'LITE']) {
+      const candidate = path.resolve('pack-sources', name);
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+        channels.push({ name, root: candidate, base: null });
+        dualMode = true;
+      }
+    }
+  }
+
   if (channels.length === 0) {
-    fail('Uso: node scripts/generate-manifest.js <carpeta> <urlBase> [canal...]\n' +
-      '  o: node scripts/generate-manifest.js --channel COMPLETA <carpeta> <urlBase> ...');
+    fail(
+      'Uso: node scripts/generate-manifest.js --completa <carpeta> --lite <carpeta> [--base-url <url>] [--write resources/modpack.json]\n' +
+      '  o: node scripts/generate-manifest.js <carpeta> <urlBase> [canal...]\n' +
+      '  o: node scripts/generate-manifest.js --channel COMPLETA <carpeta> <urlBase> ...',
+    );
   }
 
   if (revision !== null && !writeFile) {
     fail('--revision solo tiene sentido junto con --write');
   }
 
-  return { channels, writeFile, outputFile, revision, includeOptions, excludes };
+  const modpackDefaults = readModpackDefaults(writeFile);
+  const placeholderChannels = [];
+
+  for (const channel of channels) {
+    const normalizedName = normalizeChannel(channel.name);
+    const explicit = channel.base || (normalizedName ? channelUrls[normalizedName] : null);
+    const resolved = resolveChannelBaseUrl(normalizedName, explicit, sharedBaseUrl, modpackDefaults);
+    if (resolved) {
+      channel.base = resolved;
+    } else {
+      const label = normalizedName || 'PACK';
+      channel.base = `https://cdn.local/${label}`;
+      placeholderChannels.push(label);
+    }
+  }
+
+  if (placeholderChannels.length > 0) {
+    console.error(
+      `Aviso: sin --base-url ni URL base en modpack.json; usando URL provisional https://cdn.local/<CANAL> para ${placeholderChannels.join(', ')}.`,
+    );
+  }
+
+  return {
+    channels,
+    writeFile,
+    outputFile,
+    revision,
+    includeOptions: includeOptions ?? dualMode,
+    excludes,
+  };
 }
 
 function normalizeChannel(value) {
@@ -210,6 +334,11 @@ function joinUrl(baseUrl, relative) {
   return `${baseUrl.replace(/\/+$/, '')}/${encodePath(relative)}`;
 }
 
+function hasPackStructure(dir, includeOptions) {
+  if (PACK_DIRS.some((sub) => fs.existsSync(path.join(dir, sub)))) return true;
+  return Boolean(includeOptions && fs.existsSync(path.join(dir, 'options.txt')));
+}
+
 function collectRoot(root, includeOptions, excludes) {
   const absolute = path.resolve(root);
   if (!fs.existsSync(absolute) || !fs.statSync(absolute).isDirectory()) {
@@ -217,11 +346,11 @@ function collectRoot(root, includeOptions, excludes) {
   }
 
   let base = absolute;
-  let isPackRoot = PACK_DIRS.some((dir) => fs.existsSync(path.join(base, dir)));
+  let isPackRoot = hasPackStructure(base, includeOptions);
 
   // Muchos packs vienen dentro de una carpeta .minecraft.
   const nested = path.join(absolute, '.minecraft');
-  if (!isPackRoot && fs.existsSync(nested) && PACK_DIRS.some((dir) => fs.existsSync(path.join(nested, dir)))) {
+  if (!isPackRoot && fs.existsSync(nested) && hasPackStructure(nested, includeOptions)) {
     base = nested;
     isPackRoot = true;
   }
@@ -408,7 +537,9 @@ async function main() {
   }
 
   const totalBytes = entries.reduce((sum, entry) => sum + entry.size, 0);
-  console.error(`${entries.length} entradas · ${(totalBytes / 1048576).toFixed(1)} MB`);
+  console.error(`${entries.length} entradas · ${(totalBytes / 1048576).toFixed(2)} MB`);
+  const channelNames = [...new Set(channels.map((channel) => normalizeChannel(channel.name)).filter(Boolean))];
+  printChannelSummary(entries, channelNames);
 
   if (roots.length === 1 && !rootCache.get(roots[0]).isPackRoot) {
     console.error('Modo antiguo: carpeta tratada como mods/ (solo .jar).');
@@ -417,6 +548,43 @@ async function main() {
   for (const root of roots) {
     const links = rootCache.get(root).skippedLinks;
     if (links.length) console.error(`Aviso: ${links.length} enlaces simbólicos ignorados en ${root}.`);
+  }
+}
+
+function formatMb(bytes) {
+  return `${(bytes / 1048576).toFixed(2)} MB`;
+}
+
+function printChannelSummary(entries, channelNames) {
+  const names = channelNames.length ? channelNames : ['TODOS'];
+  console.error('Resumen por canal:');
+  for (const name of names) {
+    const channelEntries = name === 'TODOS'
+      ? entries
+      : entries.filter((entry) => !Array.isArray(entry.channels) || entry.channels.includes(name));
+
+    let modsCount = 0;
+    let modsBytes = 0;
+    let otherCount = 0;
+    let otherBytes = 0;
+
+    for (const entry of channelEntries) {
+      const size = Number(entry.size) || 0;
+      if (String(entry.path).startsWith('mods/')) {
+        modsCount += 1;
+        modsBytes += size;
+      } else {
+        otherCount += 1;
+        otherBytes += size;
+      }
+    }
+
+    const totalCount = modsCount + otherCount;
+    const totalBytes = modsBytes + otherBytes;
+    console.error(
+      `  ${name}: ${totalCount} archivos · ${formatMb(totalBytes)} ` +
+      `(mods: ${modsCount} · ${formatMb(modsBytes)} | config/otros: ${otherCount} · ${formatMb(otherBytes)})`,
+    );
   }
 }
 

@@ -32,6 +32,9 @@ const state = {
   manualUpdateCheck: false,
   hideTimer: null,
   gameDirDraft: null,
+  serverTimer: null,
+  lastServerCheck: 0,
+  windowPaused: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -364,8 +367,15 @@ function paintGlow() {
 }
 
 function startGlow() {
-  if (!glow.active || glow.raf) return;
+  if (!glow.active || state.windowPaused || glow.raf) return;
   glow.raf = requestAnimationFrame(paintGlow);
+}
+
+function stopGlow() {
+  if (glow.raf) {
+    cancelAnimationFrame(glow.raf);
+    glow.raf = null;
+  }
 }
 
 function centerGlow() {
@@ -394,6 +404,7 @@ function initGlow() {
   paintGlow();
 
   window.addEventListener('pointermove', (event) => {
+    if (state.windowPaused || !glow.active) return;
     glow.tx = event.clientX;
     glow.ty = event.clientY;
     startGlow();
@@ -409,14 +420,34 @@ function applyEffects(enabled) {
 
   if (!state.effects) {
     glow.active = false;
-    if (glow.raf) cancelAnimationFrame(glow.raf);
-    glow.raf = null;
+    stopGlow();
     return;
   }
 
   initGlow();
-  glow.active = true;
-  startGlow();
+  glow.active = !state.windowPaused;
+  if (glow.active) startGlow();
+}
+
+function setWindowPaused(paused) {
+  const next = Boolean(paused);
+  if (state.windowPaused === next) return;
+  state.windowPaused = next;
+
+  document.body.classList.toggle('is-paused', next);
+
+  if (next) {
+    glow.active = false;
+    stopGlow();
+    stopServerPolling();
+  } else {
+    if (state.effects) {
+      initGlow();
+      glow.active = true;
+      startGlow();
+    }
+    startServerPolling();
+  }
 }
 
 function applyMusic(enabled) {
@@ -544,10 +575,27 @@ function paintServer(status) {
 }
 
 async function refreshServerStatus() {
+  state.lastServerCheck = Date.now();
   try {
     paintServer(await api.serverStatus());
   } catch {
     paintServer({ online: false, players: { online: 0, max: 0 } });
+  }
+}
+
+function stopServerPolling() {
+  if (!state.serverTimer) return;
+  clearInterval(state.serverTimer);
+  state.serverTimer = null;
+}
+
+function startServerPolling() {
+  if (state.windowPaused || document.hidden) return;
+  if (!state.lastServerCheck || Date.now() - state.lastServerCheck >= 20000) {
+    refreshServerStatus();
+  }
+  if (!state.serverTimer) {
+    state.serverTimer = setInterval(refreshServerStatus, 60000);
   }
 }
 
@@ -1617,6 +1665,8 @@ function bindEvents() {
   els.minimizeButton.addEventListener('click', () => api.minimize());
   els.maximizeButton.addEventListener('click', () => api.toggleMaximize());
   els.closeButton.addEventListener('click', () => api.closeWindow());
+  api.onWindowVisibility(({ hidden }) => setWindowPaused(hidden));
+  document.addEventListener('visibilitychange', () => setWindowPaused(document.hidden));
 
   // Menús
   els.versionButton.addEventListener('click', (event) => {
@@ -1895,8 +1945,7 @@ async function init() {
     setLaunchState('idle');
     setProgress(0, null);
 
-    refreshServerStatus();
-    setInterval(refreshServerStatus, 60000);
+    startServerPolling();
 
     detectJava(null);
 

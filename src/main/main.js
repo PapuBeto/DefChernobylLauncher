@@ -182,8 +182,13 @@ function createWindow() {
     });
   }
 
+  mainWindow.on('minimize', () => send('window:visibility', { hidden: true }));
+  mainWindow.on('hide', () => send('window:visibility', { hidden: true }));
+  mainWindow.on('restore', () => send('window:visibility', { hidden: false }));
+
   mainWindow.on('show', () => {
     hiddenByLaunch = false;
+    send('window:visibility', { hidden: false });
   });
 
   mainWindow.on('closed', () => {
@@ -214,8 +219,15 @@ function modpackSummary(modpack) {
   const channelSizes = {};
 
   for (const id of Object.keys(modpack.channels || {})) {
+    const upperId = id.toUpperCase();
     channelSizes[id] = files.reduce((total, file) => {
-      if (Array.isArray(file.channels) && !file.channels.includes(id)) return total;
+      if (
+        Array.isArray(file.channels) &&
+        file.channels.length > 0 &&
+        !file.channels.some((channel) => String(channel).toUpperCase() === upperId)
+      ) {
+        return total;
+      }
       return total + (Number(file.size) || 0);
     }, 0);
   }
@@ -518,6 +530,7 @@ function registerIpc() {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     hiddenByLaunch = true;
     mainWindow.hide();
+    mainWindow.webContents.session.clearCache().catch(() => {});
   });
   ipcMain.on('window:close', () => mainWindow?.close());
 }
@@ -534,6 +547,13 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  app.commandLine.appendSwitch('js-flags', '--max-old-space-size=192');
+  app.commandLine.appendSwitch('disable-http-cache');
+  app.commandLine.appendSwitch('media-cache-size', '1');
+  if (process.platform === 'win32') {
+    app.commandLine.appendSwitch('enable-features', 'UseEcoQoSForBackgroundProcess');
+  }
+
   app.on('second-instance', () => {
     showMainWindow();
   });
