@@ -2,82 +2,53 @@
 
 # ☢ Chernobyl Z Launcher
 
-**Launcher oficial de Chernobyl Z**
+**El launcher oficial de Chernobyl Z para Minecraft 1.20.1**
 
-![Electron](https://img.shields.io/badge/Electron-33-9cff42)
+Entra al servidor en minutos, sin instalar mods ni configurar nada a mano.
+
 ![Minecraft 1.20.1](https://img.shields.io/badge/Minecraft-1.20.1-9cff42)
-![Forge 47.4.28](https://img.shields.io/badge/Forge-47.4.28-9cff42)
+![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%2F%2011-9cff42)
 
 </div>
 
 ---
 
-## Presentación de Chernobyl Z
+## Presentación
 
-**Chernobyl Z** es un servidor de Minecraft 1.20.1 con Minecraft Forge 47.4.28. Para que un jugador pueda entrar con la versión y los archivos correctos del servidor, Chernobyl Z ofrece su propio launcher.
+**Chernobyl Z Launcher** es el launcher oficial de la comunidad **Chernobyl Z**. Está diseñado para que cualquier jugador pueda entrar al servidor de **Minecraft 1.20.1** de forma rápida, cómoda y sin complicaciones: abres el programa, eliges tu versión y pulsas **JUGAR**.
 
-Chernobyl Z Launcher es la aplicación oficial pensada para que entrar al servidor sea tan simple como abrir el programa, iniciar sesión y pulsar **JUGAR**.
-
----
-
-## ¿Qué es Chernobyl Z Launcher?
-
-Es una aplicación de escritorio desarrollada específicamente para facilitar el acceso a Chernobyl Z. Centraliza la preparación del cliente y el inicio del juego en un solo programa.
-
-No sustituye a Minecraft: lo prepara con la versión, el modloader y los archivos que necesita Chernobyl Z, y luego inicia el juego ya listo para conectar.
+Olvídate de buscar archivos sueltos, revisar versiones o configurar carpetas manualmente; el launcher deja tu juego listo automáticamente.
 
 ---
 
-## ¿Cómo funciona?
+## ¿Qué hace por ti?
 
-Al abrir el launcher, el jugador puede usar **cuentas Microsoft** o **perfiles offline** (sin cuenta premium).
-
-Al pulsar **JUGAR**, el launcher:
-
-1. Inicia sesión con la cuenta elegida.
-2. Prepara **Java 17**, **Minecraft 1.20.1** y **Forge 47.4.28** si falta alguno.
-3. Sincroniza el modpack según el canal elegido: **COMPLETA** o **LITE**.
-4. Inicia Minecraft y lo conecta con el servidor de Chernobyl Z.
-
-La idea es evitar que cada jugador tenga que instalar y actualizar manualmente los componentes del cliente.
+- **Instalación y actualización automática:** Descarga y mantiene al día únicamente los mods, configuraciones y recursos del servidor cada vez que hay novedades, sin que tengas que tocar nada.
+- **Dos modos para elegir (`COMPLETA` y `LITE`):** Puedes disfrutar la experiencia **COMPLETA** con todos los mods y efectos visuales, o elegir la versión **LITE** si prefieres mayor fluidez en una PC de bajos recursos. Puedes cambiar entre ambas cuando quieras sin perder tus mundos ni capturas.
+- **Entra con tu cuenta:** Compatible con cuentas oficiales de **Microsoft / Minecraft** (con opción para ver y cambiar tu skin por nombre de jugador o archivo) y también con **modo sin conexión (no premium)** usando tu propio nick.
+- **Listo para jugar:** Incluye música ambiental del launcher (que puedes pausar o ajustar a tu gusto), selector fácil de memoria RAM, carpeta de instalación personalizable, avisos del servidor y conexión directa al mundo de Chernobyl Z.
 
 ---
 
-## Seguridad y transparencia
+## ¿Cómo empezar a jugar?
 
-El código fuente de este repositorio es **públicamente consultable**. Eso permite revisar cómo está construido el launcher, qué hace y qué pasos sigue para preparar e iniciar Minecraft.
-
-El inicio de sesión con Microsoft se realiza mediante el flujo oficial de Microsoft, sin que el launcher pida la contraseña de la cuenta. Los perfiles offline usan un nombre local y tampoco requieren contraseña.
-
-Este README no afirma que el software tenga auditorías externas ni certificaciones que no existan. La transparencia del proyecto se basa en que el código puede consultarse públicamente.
+1. Descarga el instalador (`ChernobylZ-Setup.exe`, con el número de la versión más reciente) desde la sección de [**Releases**](https://github.com/PapuBeto/DefChernobylLauncher/releases/latest) de esta página.
+2. Ábrelo en tu PC con Windows 10 u 11, inicia sesión con tu cuenta (o escribe tu nombre de jugador) y elige entre la versión **COMPLETA** o **LITE**.
+3. Pulsa **JUGAR** y espera unos momentos mientras el launcher prepara todo automáticamente.
 
 ---
 
-## Requisitos para jugadores
+## Transparencia y seguridad
 
-Para usar Chernobyl Z Launcher necesitas:
+Queremos que juegues con total tranquilidad. Por eso mantenemos este código disponible públicamente en GitHub: cualquier jugador o persona interesada puede revisarlo directamente para comprobar que el launcher es limpio, seguro y que no contiene virus, anuncios ni programas ocultos.
 
-- Windows 10 u 11 de 64 bits.
-- Conexión a internet para iniciar sesión y descargar los componentes del juego.
-- Una cuenta Microsoft o un nombre para tu perfil offline.
-- Espacio suficiente en el disco para Minecraft, Forge, Java y los archivos del modpack.
+Además, si entras con una cuenta oficial, el inicio de sesión se realiza directamente a través de Microsoft; el launcher nunca te pide ni guarda tu contraseña.
 
----
-
-## Instalación y descarga
-
-Este repositorio de GitHub es el **repositorio oficial de código**, no el canal oficial de descarga del instalador.
-
-Para jugar, descarga el launcher **solo** desde el canal oficial que indique Chernobyl Z. No descargues el instalador desde fuentes no oficiales.
-
-Una vez descargado, ejecútalo e inicia sesión para entrar a Chernobyl Z.
+> Este proyecto es de uso exclusivo para los jugadores del servidor **Chernobyl Z**. Aunque el código pueda consultarse por transparencia, no está permitida su copia, modificación ni redistribución sin autorización previa (puedes ver los detalles en [LICENSE](./LICENSE)).
 
 ---
 
-## Código fuente y licencia
+## Enlaces de la comunidad
 
-El código fuente está disponible públicamente en este repositorio para que los usuarios interesados puedan consultarlo y comprobar cómo funciona el launcher.
-
-El proyecto se publica con una **licencia restrictiva** (ver `LICENSE`). Que el código sea visible no significa que sea software libre: no se autoriza copiarlo, modificarlo, reutilizarlo ni redistribuirlo sin permiso escrito del titular.
-
-Este repositorio permite **ver el código**; no concede permiso para **usar, cambiar o redistribuir** el proyecto.
+- **Tienda oficial:** [chernobyl-z.tebex.store](https://chernobyl-z.tebex.store/)
+- **Discord, YouTube, TikTok e Instagram:** Próximamente disponibles aquí y directamente desde los accesos del launcher en cuanto sean publicados por el equipo de Chernobyl Z.
