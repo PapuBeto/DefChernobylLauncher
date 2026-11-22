@@ -25,6 +25,8 @@
  *   --base-url <url>            URL base para construir <url>/<CANAL>.
  *   --completa-url <url>        URL base específica para COMPLETA.
  *   --lite-url <url>            URL base específica para LITE.
+ *   --release-url <url>         URL base plana de GitHub Release (ej. .../releases/download/modpack-assets).
+ *   --release-dir <carpeta>     Carpeta local con assets renombrados (por defecto: ./pack-sources/release-upload).
  *   --write <archivo>           Sustituye `files` en ese modpack.json.
  *   --revision <n>              Ajusta `revision` al escribir (súbelo en cada cambio remoto).
  *   --output <archivo>          Guarda el array JSON en un archivo.
@@ -143,6 +145,8 @@ function parseArgs(argv) {
   let folder = null;
   let baseUrl = null;
   let sharedBaseUrl = null;
+  let releaseUrl = null;
+  let releaseDir = null;
   const channelUrls = {};
   let positionalChannels = [];
   let writeFile = null;
@@ -180,6 +184,12 @@ function parseArgs(argv) {
     } else if (arg === '--lite-url') {
       channelUrls.LITE = argv[++i];
       if (!isHttpUrl(channelUrls.LITE)) fail('--lite-url necesita una URL http(s) válida');
+    } else if (arg === '--release-url') {
+      releaseUrl = argv[++i];
+      if (!isHttpUrl(releaseUrl)) fail('--release-url necesita una URL http(s) válida');
+    } else if (arg === '--release-dir') {
+      releaseDir = argv[++i];
+      if (!releaseDir) fail('--release-dir necesita una carpeta');
     } else if (arg === '--write') {
       writeFile = argv[++i];
       if (!writeFile) fail('--write necesita un archivo');
@@ -227,7 +237,7 @@ function parseArgs(argv) {
 
   if (channels.length === 0) {
     fail(
-      'Uso: node scripts/generate-manifest.js --completa <carpeta> --lite <carpeta> [--base-url <url>] [--write resources/modpack.json]\n' +
+      'Uso: node scripts/generate-manifest.js --completa <carpeta> --lite <carpeta> [--base-url <url> | --release-url <url>] [--write resources/modpack.json]\n' +
       '  o: node scripts/generate-manifest.js <carpeta> <urlBase> [canal...]\n' +
       '  o: node scripts/generate-manifest.js --channel COMPLETA <carpeta> <urlBase> ...',
     );
@@ -237,30 +247,47 @@ function parseArgs(argv) {
     fail('--revision solo tiene sentido junto con --write');
   }
 
+  if (releaseDir && !releaseUrl) {
+    fail('--release-dir solo puede usarse junto con --release-url');
+  }
+
+  const normalizedReleaseUrl = releaseUrl ? releaseUrl.replace(/\/+$/, '') : null;
+  const resolvedReleaseDir = normalizedReleaseUrl
+    ? path.resolve(releaseDir || path.join('pack-sources', 'release-upload'))
+    : null;
+
   const modpackDefaults = readModpackDefaults(writeFile);
   const placeholderChannels = [];
 
-  for (const channel of channels) {
-    const normalizedName = normalizeChannel(channel.name);
-    const explicit = channel.base || (normalizedName ? channelUrls[normalizedName] : null);
-    const resolved = resolveChannelBaseUrl(normalizedName, explicit, sharedBaseUrl, modpackDefaults);
-    if (resolved) {
-      channel.base = resolved;
-    } else {
-      const label = normalizedName || 'PACK';
-      channel.base = `https://cdn.local/${label}`;
-      placeholderChannels.push(label);
+  if (normalizedReleaseUrl) {
+    for (const channel of channels) {
+      channel.base = normalizedReleaseUrl;
     }
-  }
+  } else {
+    for (const channel of channels) {
+      const normalizedName = normalizeChannel(channel.name);
+      const explicit = channel.base || (normalizedName ? channelUrls[normalizedName] : null);
+      const resolved = resolveChannelBaseUrl(normalizedName, explicit, sharedBaseUrl, modpackDefaults);
+      if (resolved) {
+        channel.base = resolved;
+      } else {
+        const label = normalizedName || 'PACK';
+        channel.base = `https://cdn.local/${label}`;
+        placeholderChannels.push(label);
+      }
+    }
 
-  if (placeholderChannels.length > 0) {
-    console.error(
-      `Aviso: sin --base-url ni URL base en modpack.json; usando URL provisional https://cdn.local/<CANAL> para ${placeholderChannels.join(', ')}.`,
-    );
+    if (placeholderChannels.length > 0) {
+      console.error(
+        `Aviso: sin --base-url ni URL base en modpack.json; usando URL provisional https://cdn.local/<CANAL> para ${placeholderChannels.join(', ')}.`,
+      );
+    }
   }
 
   return {
     channels,
+    releaseUrl: normalizedReleaseUrl,
+    releaseDir: resolvedReleaseDir,
     writeFile,
     outputFile,
     revision,
@@ -383,11 +410,54 @@ function collectRoot(root, includeOptions, excludes) {
   return { files, skippedLinks, isPackRoot, base };
 }
 
+function channelPrefix(channels) {
+  if (Array.isArray(channels) && channels.length === 1) {
+    const clean = String(channels[0]).toLowerCase().replace(/[^a-z0-9._-]+/g, '_');
+    return `${clean || 'pack'}__`;
+  }
+  return 'shared__';
+}
+
+function toFlatAssetName(prefix, relativePath, sha1, usedNames) {
+  const safePath = String(relativePath)
+    .replace(/[\\/]+/g, '__')
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.+|\.+$/g, '') || 'file';
+
+  const baseName = `${prefix}${safePath}`;
+  let candidate = baseName;
+
+  if (candidate.toLowerCase() === 'modpack.json' || usedNames.has(candidate.toLowerCase())) {
+    const ext = path.posix.extname(baseName);
+    const stem = ext ? baseName.slice(0, -ext.length) : baseName;
+    const shortHash = String(sha1 || '').slice(0, 8) || '00000000';
+    candidate = `${stem}_${shortHash}${ext}`;
+    let suffix = 2;
+    while (candidate.toLowerCase() === 'modpack.json' || usedNames.has(candidate.toLowerCase())) {
+      candidate = `${stem}_${shortHash}_${suffix}${ext}`;
+      suffix += 1;
+    }
+  }
+
+  usedNames.add(candidate.toLowerCase());
+  return candidate;
+}
+
 async function main() {
-  const { channels, writeFile, outputFile, revision, includeOptions, excludes } = parseArgs(process.argv.slice(2));
+  const { channels, releaseUrl, releaseDir, writeFile, outputFile, revision, includeOptions, excludes } = parseArgs(process.argv.slice(2));
   const excludeRegexes = excludes.map(globToRegExp);
   const roots = [...new Set(channels.map((channel) => path.resolve(channel.root)))];
   const rootCache = new Map();
+
+  if (releaseDir) {
+    if (releaseDir === path.resolve('.') || releaseDir === path.parse(releaseDir).root) {
+      fail(`--release-dir apunta a una carpeta protegida: ${releaseDir}`);
+    }
+    if (roots.some((root) => releaseDir === root || releaseDir.startsWith(`${root}${path.sep}`))) {
+      fail(`--release-dir no puede estar dentro de una carpeta fuente (${releaseDir})`);
+    }
+  }
 
   for (const root of roots) {
     rootCache.set(root, collectRoot(root, includeOptions, excludeRegexes));
@@ -402,7 +472,9 @@ async function main() {
   for (const channel of channels) {
     const name = normalizeChannel(channel.name);
     const root = rootCache.get(path.resolve(channel.root));
-    const origin = `${path.resolve(channel.root)}\0${channel.base.replace(/\/+$/, '')}`;
+    const origin = releaseUrl
+      ? releaseUrl
+      : `${path.resolve(channel.root)}\0${channel.base.replace(/\/+$/, '')}`;
 
     for (const file of root.files) {
       let info = fileCache.get(file.full);
@@ -418,10 +490,11 @@ async function main() {
       if (!entry) {
         entry = {
           path: manifestPath,
-          url: joinUrl(channel.base, file.relative),
+          url: releaseUrl ? '' : joinUrl(channel.base, file.relative),
           sha1: info.sha1,
           size: info.size,
           channels: new Set(),
+          sourceFile: file.full,
         };
         byPathAndHash.set(key, entry);
       }
@@ -436,6 +509,7 @@ async function main() {
 
   if (totalFiles > 0) console.error('');
 
+  const sourceByEntry = new WeakMap();
   const entries = [...byPathAndHash.values()]
     .map((entry) => {
       const output = {
@@ -445,9 +519,14 @@ async function main() {
         size: entry.size,
       };
       if (entry.channels.size > 0) output.channels = [...entry.channels].sort();
+      sourceByEntry.set(output, entry.sourceFile);
       return output;
     })
-    .sort((a, b) => a.path.localeCompare(b.path) || a.url.localeCompare(b.url));
+    .sort((a, b) => (
+      a.path.localeCompare(b.path)
+      || (a.channels?.join(',') || '').localeCompare(b.channels?.join(',') || '')
+      || a.url.localeCompare(b.url)
+    ));
 
   const duplicateErrors = [];
   const duplicateWarnings = [];
@@ -495,6 +574,17 @@ async function main() {
     fail('Manifiesto no generado: hay rutas duplicadas con contenido distinto para canales solapados.');
   }
 
+  const assetByEntry = new Map();
+  if (releaseUrl) {
+    const usedNames = new Set();
+    for (const entry of entries) {
+      const prefix = channelPrefix(entry.channels || []);
+      const assetName = toFlatAssetName(prefix, entry.path, entry.sha1, usedNames);
+      entry.url = `${releaseUrl}/${assetName}`;
+      assetByEntry.set(entry, assetName);
+    }
+  }
+
   const json = JSON.stringify(entries, null, 2);
 
   if (outputFile) {
@@ -528,6 +618,24 @@ async function main() {
         console.error(`Aviso: mods[] apunta a "${mod.file}", que no está en files.`);
       }
     }
+  }
+
+  if (releaseDir) {
+    fs.rmSync(releaseDir, { recursive: true, force: true });
+    fs.mkdirSync(releaseDir, { recursive: true });
+    for (const entry of entries) {
+      const assetName = assetByEntry.get(entry);
+      const sourceFile = sourceByEntry.get(entry);
+      fs.copyFileSync(sourceFile, path.join(releaseDir, assetName));
+    }
+    if (writeFile) {
+      fs.copyFileSync(path.resolve(writeFile), path.join(releaseDir, 'modpack.json'));
+    }
+    const totalAssets = entries.length + (writeFile ? 1 : 0);
+    const rawRelative = (path.relative(process.cwd(), releaseDir) || releaseDir).replace(/\\/g, '/');
+    const displayDir = rawRelative.startsWith('.') ? rawRelative : `./${rawRelative}`;
+    console.error(`Carpeta de release preparada: ${releaseDir} (${totalAssets} archivos)`);
+    console.error(`Súbelos con: gh release upload modpack-assets ${displayDir}/* --clobber`);
   }
 
   if (!outputFile && !writeFile) {

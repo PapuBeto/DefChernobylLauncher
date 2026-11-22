@@ -21,6 +21,7 @@
     "test:launch": "electron scripts/test-launch.js",
     "manifest": "node scripts/generate-manifest.js",
     "manifest:packs": "node scripts/generate-manifest.js --completa ./pack-sources/COMPLETA --lite ./pack-sources/LITE --write resources/modpack.json",
+    "manifest:release": "node scripts/generate-manifest.js --completa ./pack-sources/COMPLETA --lite ./pack-sources/LITE --release-url https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets --write resources/modpack.json",
     "icon": "node scripts/generate-icon.js"
   },
   "dependencies": {

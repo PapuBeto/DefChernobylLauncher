@@ -3,7 +3,7 @@
   "minecraft": "1.20.1",
   "forge": "47.4.28",
   "revision": 1,
-  "manifestUrl": "",
+  "manifestUrl": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/modpack.json",
   "server": {
     "name": "Chernobyl Z",
     "host": "ChernobylZ.refugenodes.com",
