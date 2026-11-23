@@ -18,6 +18,8 @@ const DEFAULT_CONFIG = {
   music: false,
 };
 
+const VALID_CHANNELS = new Set(['COMPLETA', 'LITE', 'PRUEBAS']);
+
 let cache = null;
 
 function readJson(file, fallback) {
@@ -65,7 +67,8 @@ function normalize(config) {
   }
 
   merged.memory = Math.min(16384, Math.max(1024, Number(merged.memory) || 4096));
-  merged.channel = String(merged.channel || 'COMPLETA').toUpperCase();
+  const rawChannel = String(merged.channel || 'COMPLETA').trim().toUpperCase();
+  merged.channel = VALID_CHANNELS.has(rawChannel) ? rawChannel : 'COMPLETA';
 
   if (!merged.resolution || typeof merged.resolution !== 'object') {
     merged.resolution = { ...DEFAULT_CONFIG.resolution };

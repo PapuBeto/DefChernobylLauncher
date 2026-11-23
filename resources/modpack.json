@@ -2,7 +2,7 @@
   "name": "Chernobyl Z",
   "minecraft": "1.20.1",
   "forge": "47.4.28",
-  "revision": 1,
+  "revision": 2,
   "manifestUrl": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/modpack.json",
   "server": {
     "name": "Chernobyl Z",
@@ -24,6 +24,14 @@
       "memory": {
         "min": 1536,
         "max": 4096
+      }
+    },
+    "PRUEBAS": {
+      "label": "PRUEBAS",
+      "description": "Versión experimental · Puede fallar",
+      "memory": {
+        "min": 2048,
+        "max": 6144
       }
     }
   },

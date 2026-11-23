@@ -22,9 +22,12 @@
  * Opciones:
  *   --completa <carpeta> [url]  Carpeta fuente del canal COMPLETA.
  *   --lite <carpeta> [url]      Carpeta fuente del canal LITE.
+ *   --pruebas <carpeta> [url]   Carpeta fuente del canal PRUEBAS.
  *   --base-url <url>            URL base para construir <url>/<CANAL>.
  *   --completa-url <url>        URL base específica para COMPLETA.
  *   --lite-url <url>            URL base específica para LITE.
+ *   --pruebas-url <url>         URL base específica para PRUEBAS.
+ *   --skip-missing              Omite carpetas de canal que aún no existan en disco.
  *   --release-url <url>         URL base plana de GitHub Release (ej. .../releases/download/modpack-assets).
  *   --release-dir <carpeta>     Carpeta local con assets renombrados (por defecto: ./pack-sources/release-upload).
  *   --write <archivo>           Sustituye `files` en ese modpack.json.
@@ -140,8 +143,22 @@ function resolveChannelBaseUrl(channelName, explicitUrl, sharedBaseUrl, modpackD
   return null;
 }
 
+const CHANNEL_ARG_MAP = {
+  '--completa': 'COMPLETA',
+  '--lite': 'LITE',
+  '--pruebas': 'PRUEBAS',
+};
+
+const CHANNEL_URL_ARG_MAP = {
+  '--completa-url': 'COMPLETA',
+  '--lite-url': 'LITE',
+  '--pruebas-url': 'PRUEBAS',
+};
+
+const AUTO_CHANNELS = ['COMPLETA', 'LITE', 'PRUEBAS'];
+
 function parseArgs(argv) {
-  const channels = [];
+  let channels = [];
   let folder = null;
   let baseUrl = null;
   let sharedBaseUrl = null;
@@ -154,6 +171,8 @@ function parseArgs(argv) {
   let revision = null;
   let includeOptions = null;
   let dualMode = false;
+  let skipMissing = false;
+  let explicitChannelArg = false;
   const excludes = [];
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -164,9 +183,10 @@ function parseArgs(argv) {
       const base = argv[i + 3];
       if (!name || !root || !base) fail('--channel necesita <nombre> <carpeta> <urlBase>');
       channels.push({ name, root, base });
+      explicitChannelArg = true;
       i += 3;
-    } else if (arg === '--completa' || arg === '--lite') {
-      const name = arg === '--completa' ? 'COMPLETA' : 'LITE';
+    } else if (arg in CHANNEL_ARG_MAP) {
+      const name = CHANNEL_ARG_MAP[arg];
       const root = argv[++i];
       if (!root) fail(`${arg} necesita <carpeta>`);
       let explicitBase = null;
@@ -175,15 +195,16 @@ function parseArgs(argv) {
       }
       channels.push({ name, root, base: explicitBase });
       dualMode = true;
+      explicitChannelArg = true;
     } else if (arg === '--base-url') {
       sharedBaseUrl = argv[++i];
       if (!isHttpUrl(sharedBaseUrl)) fail('--base-url necesita una URL http(s) válida');
-    } else if (arg === '--completa-url') {
-      channelUrls.COMPLETA = argv[++i];
-      if (!isHttpUrl(channelUrls.COMPLETA)) fail('--completa-url necesita una URL http(s) válida');
-    } else if (arg === '--lite-url') {
-      channelUrls.LITE = argv[++i];
-      if (!isHttpUrl(channelUrls.LITE)) fail('--lite-url necesita una URL http(s) válida');
+    } else if (arg in CHANNEL_URL_ARG_MAP) {
+      const channelName = CHANNEL_URL_ARG_MAP[arg];
+      channelUrls[channelName] = argv[++i];
+      if (!isHttpUrl(channelUrls[channelName])) fail(`${arg} necesita una URL http(s) válida`);
+    } else if (arg === '--skip-missing') {
+      skipMissing = true;
     } else if (arg === '--release-url') {
       releaseUrl = argv[++i];
       if (!isHttpUrl(releaseUrl)) fail('--release-url necesita una URL http(s) válida');
@@ -226,7 +247,7 @@ function parseArgs(argv) {
   }
 
   if (channels.length === 0 && !folder && !baseUrl) {
-    for (const name of ['COMPLETA', 'LITE']) {
+    for (const name of AUTO_CHANNELS) {
       const candidate = path.resolve('pack-sources', name);
       if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
         channels.push({ name, root: candidate, base: null });
@@ -235,9 +256,20 @@ function parseArgs(argv) {
     }
   }
 
-  if (channels.length === 0) {
+  if (skipMissing && channels.length > 0) {
+    channels = channels.filter((channel) => {
+      const resolved = path.resolve(channel.root);
+      const exists = fs.existsSync(resolved) && fs.statSync(resolved).isDirectory();
+      if (!exists) {
+        console.error(`Aviso: carpeta omitida para ${normalizeChannel(channel.name) || channel.root} (no existe: ${resolved}).`);
+      }
+      return exists;
+    });
+  }
+
+  if (channels.length === 0 && !(skipMissing && (explicitChannelArg || releaseUrl || writeFile))) {
     fail(
-      'Uso: node scripts/generate-manifest.js --completa <carpeta> --lite <carpeta> [--base-url <url> | --release-url <url>] [--write resources/modpack.json]\n' +
+      'Uso: node scripts/generate-manifest.js --completa <carpeta> --lite <carpeta> [--pruebas <carpeta>] [--base-url <url> | --release-url <url>] [--write resources/modpack.json]\n' +
       '  o: node scripts/generate-manifest.js <carpeta> <urlBase> [canal...]\n' +
       '  o: node scripts/generate-manifest.js --channel COMPLETA <carpeta> <urlBase> ...',
     );
@@ -649,7 +681,7 @@ async function main() {
   const channelNames = [...new Set(channels.map((channel) => normalizeChannel(channel.name)).filter(Boolean))];
   printChannelSummary(entries, channelNames);
 
-  if (roots.length === 1 && !rootCache.get(roots[0]).isPackRoot) {
+  if (roots.length === 1 && rootCache.get(roots[0]).files.length > 0 && !rootCache.get(roots[0]).isPackRoot) {
     console.error('Modo antiguo: carpeta tratada como mods/ (solo .jar).');
   }
 

@@ -22,6 +22,8 @@ const FALLBACK_MODPACK = {
   server: { name: 'Chernobyl Z', host: 'ChernobylZ.refugenodes.com', port: 25836 },
   channels: {
     COMPLETA: { label: 'COMPLETA', description: 'PCs potentes · ~6 GB RAM', memory: { min: 2048, max: 6144 } },
+    LITE: { label: 'LITE', description: 'Gama baja-media · ~4 GB RAM', memory: { min: 1536, max: 4096 } },
+    PRUEBAS: { label: 'PRUEBAS', description: 'Versión experimental · Puede fallar', memory: { min: 2048, max: 6144 } },
   },
   files: [],
 };
@@ -69,19 +71,41 @@ function isSafeRelativePath(value) {
   return !value.split(/[\\/]+/).includes('..');
 }
 
+function normalizeChannels(rawChannels) {
+  if (Array.isArray(rawChannels)) {
+    const map = {};
+    for (const entry of rawChannels) {
+      if (typeof entry !== 'string') continue;
+      const id = entry.trim().toUpperCase();
+      if (!/^[A-Z0-9_-]+$/.test(id)) continue;
+      const base = FALLBACK_MODPACK.channels[id];
+      map[id] = base ? { ...base } : { label: id };
+    }
+    return Object.keys(map).length > 0 ? map : null;
+  }
+
+  if (!rawChannels || typeof rawChannels !== 'object') return null;
+
+  const map = {};
+  for (const [rawId, channel] of Object.entries(rawChannels)) {
+    const id = String(rawId).trim().toUpperCase();
+    if (!/^[A-Z0-9_-]+$/.test(id)) return null;
+    if (!channel || typeof channel !== 'object' || Array.isArray(channel)) return null;
+    const base = FALLBACK_MODPACK.channels[id] || {};
+    map[id] = { label: id, ...base, ...channel };
+  }
+  return Object.keys(map).length > 0 ? map : null;
+}
+
 /** Valida un manifiesto remoto antes de confiar en sus rutas y URLs. */
 function validateManifest(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   if (!Number.isInteger(raw.revision) || raw.revision < 1) return null;
   if (raw.minecraft != null && !/^[0-9A-Za-z._-]+$/.test(String(raw.minecraft))) return null;
   if (raw.forge != null && !/^[0-9A-Za-z._-]+$/.test(String(raw.forge))) return null;
-  if (!raw.channels || typeof raw.channels !== 'object' || Array.isArray(raw.channels)) return null;
-  if (Object.keys(raw.channels).length === 0) return null;
 
-  for (const [id, channel] of Object.entries(raw.channels)) {
-    if (!/^[A-Z0-9_-]+$/.test(id)) return null;
-    if (!channel || typeof channel !== 'object' || Array.isArray(channel)) return null;
-  }
+  const channels = normalizeChannels(raw.channels);
+  if (!channels) return null;
 
   if (!Array.isArray(raw.files) || raw.files.length > MAX_MANIFEST_FILES) return null;
   for (const file of raw.files) {
@@ -110,16 +134,12 @@ function validateManifest(raw) {
 
 function normalizeModpack(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const hasChannels =
-    raw.channels &&
-    typeof raw.channels === 'object' &&
-    !Array.isArray(raw.channels) &&
-    Object.keys(raw.channels).length > 0;
+  const channels = normalizeChannels(raw.channels);
   return {
     ...FALLBACK_MODPACK,
     ...raw,
     revision: Number(raw.revision) || 1,
-    channels: hasChannels ? raw.channels : { ...FALLBACK_MODPACK.channels },
+    channels: channels || { ...FALLBACK_MODPACK.channels },
     files: Array.isArray(raw.files) ? raw.files : [],
   };
 }

@@ -101,6 +101,27 @@ body[data-state="syncing"] .sync-button {
   pointer-events: none;
 }
 
+.version {
+  z-index: 25;
+}
+
+.channel-warning {
+  margin: 12px 0 0;
+  max-width: 326px;
+  padding: 8px 12px;
+  border: 1px solid rgba(235, 179, 71, 0.35);
+  border-left: 2px solid #ebb347;
+  background: rgba(235, 179, 71, 0.08);
+  color: #f0d79c;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.channel-warning[hidden] {
+  display: none;
+}
+
 /* ---------- Aviso flotante ---------- */
 
 .toast-stack {

@@ -54,6 +54,7 @@ const els = {
   versionMenu: $('versionMenu'),
   versionArrow: $('versionArrow'),
   currentVersion: $('currentVersion'),
+  channelWarning: $('channelWarning'),
 
   profileButton: $('profileButton'),
   profileMenu: $('profileMenu'),
@@ -249,6 +250,10 @@ function selectChannel(channelId, persist = true) {
 
   for (const option of els.versionMenu.querySelectorAll('.version-option')) {
     option.classList.toggle('active', option.dataset.channel === channelId);
+  }
+
+  if (els.channelWarning) {
+    els.channelWarning.hidden = String(channelId || '').toUpperCase() !== 'PRUEBAS';
   }
 
   updateMemoryHint();
