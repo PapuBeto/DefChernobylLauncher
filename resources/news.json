@@ -4,32 +4,24 @@
     "campos": {
       "id": "Identificador corto único (ej: 'apertura-1-0').",
       "title": "Titular visible en la lista lateral y en el modal.",
-      "date": "Fecha corta (ej: '21 NOV').",
-      "tag": "Etiqueta superior derecha (ej: 'NUEVO', 'ACTUALIZACIÓN', 'EVENTO', 'SERVIDOR', 'HOTFIX').",
+      "date": "Fecha corta (ej: '21 NOV' o '2026-11-22').",
+      "tag": "Etiqueta superior derecha (ej: 'OFICIAL', 'NUEVO', 'ACTUALIZACIÓN', 'EVENTO', 'SERVIDOR', 'HOTFIX').",
       "body": "Texto completo de la noticia que aparece al hacer clic.",
-      "type": "Color del punto indicador: 'update' (verde), 'fix' (rojo) o 'server' (gris). Opcional.",
+      "type": "Color del punto indicador: 'update'/'info' (verde), 'fix' (rojo) o 'server' (gris). Opcional.",
       "featured": "Pon true en una sola noticia (o se destacará automáticamente la primera). Opcional."
     }
   },
   "version": 1,
-  "updatedAt": "2026-11-21T00:00:00.000Z",
+  "updatedAt": "2026-11-22T00:00:00.000Z",
   "items": [
     {
-      "id": "bienvenida-1-0-0",
-      "type": "update",
-      "date": "21 NOV",
-      "tag": "NUEVO",
-      "title": "Chernobyl Z Launcher 1.0.0 — listo para entrar a la Zona",
-      "body": "Bienvenido al launcher oficial de Chernobyl Z para Minecraft 1.20.1. Desde aquí puedes iniciar sesión con tu cuenta Microsoft o perfil sin conexión, ajustar tu memoria RAM y mantener tus mods al día automáticamente.",
+      "id": "bienvenida-beta-testers",
+      "type": "info",
+      "date": "2026-11-22",
+      "tag": "OFICIAL",
+      "title": "BIENVENIDOS BETA TESTERS",
+      "body": "¡Gracias por sumarte como Beta Tester de Chernobyl Z! Tu apoyo probando el launcher, reportando errores y ayudando a pulir la experiencia es clave para dejar el servidor al cien. Selecciona la versión PRUEBAS si vas a testear las últimas novedades y comparte cualquier detalle con el equipo.",
       "featured": true
-    },
-    {
-      "id": "canales-completa-lite",
-      "type": "server",
-      "date": "21 NOV",
-      "tag": "SERVIDOR",
-      "title": "Elige entre la versión COMPLETA o LITE según tu PC",
-      "body": "Usa el selector junto al botón JUGAR para alternar entre la edición COMPLETA (con todos los efectos visuales) y la edición LITE (optimizada para equipos con menos recursos). Tus mundos y ajustes personales siempre se conservan."
     }
   ]
 }
