@@ -1601,8 +1601,14 @@ function bindEvents() {
     }
   });
 
-  api.onSynced(({ files, downloaded }) => {
+  api.onSynced(({ files, downloaded, modpack }) => {
     clearHideTimer();
+    if (modpack) {
+      state.modpack = modpack;
+      renderChannels();
+      renderPack();
+      refreshServerStatus();
+    }
     setLaunchState('idle');
     setProgress(0, null);
     toast(`Archivos sincronizados: ${files} verificados, ${downloaded} descargados.`, 'success');

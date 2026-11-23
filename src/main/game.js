@@ -7,14 +7,14 @@ const { spawn } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const AdmZip = require('adm-zip');
 
-const { MinecraftFolder, launch, createMinecraftProcessWatcher } = require('@xmcl/core');
+const { MinecraftFolder, launch, createMinecraftProcessWatcher, createQuickPlayMultiplayer } = require('@xmcl/core');
 const { getVersionList, installTask } = require('@xmcl/installer');
 
 const { paths } = require('./paths');
 const configStore = require('./config');
 const javaManager = require('./java');
 const authManager = require('./auth');
-const { loadModpack, getChannel, filesForChannel } = require('./resources');
+const { loadModpack, refreshModpack, getChannel, filesForChannel } = require('./resources');
 const { syncFiles, readState, writeState, sha1File } = require('./mods');
 
 const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
@@ -501,6 +501,7 @@ class LaunchManager extends EventEmitter {
     const isCancelled = () => this.cancelled;
 
     try {
+      await refreshModpack().catch(() => {});
       const config = configStore.load();
       const modpack = loadModpack();
       const channel = getChannel(config.channel);
@@ -595,6 +596,16 @@ class LaunchManager extends EventEmitter {
       this.progress(0.97, 'Launch');
 
       const server = modpack.server || {};
+      const serverPort = Number(server.port) || 25565;
+      const mcMinor = Number(String(modpack.minecraft || '').split('.')[1]);
+      const useQuickPlay = Number.isFinite(mcMinor) && mcMinor >= 20;
+
+      if (server.host) {
+        this.log(
+          `[launcher] Conexión directa al servidor: ${server.host}:${serverPort}` +
+          `${useQuickPlay ? ' (QuickPlay)' : ''}`,
+        );
+      }
 
       this.child = await launch({
         gamePath: gameDir,
@@ -614,7 +625,12 @@ class LaunchManager extends EventEmitter {
           height: config.resolution.height,
           fullscreen: config.resolution.fullscreen,
         },
-        server: server.host ? { ip: server.host, port: Number(server.port) || 25565 } : undefined,
+        quickPlayMultiplayer: server.host && useQuickPlay
+          ? createQuickPlayMultiplayer(server.host, serverPort)
+          : undefined,
+        server: server.host && !useQuickPlay
+          ? { ip: server.host, port: serverPort }
+          : undefined,
         extraJVMArgs: [
           '-XX:+UseG1GC',
           '-XX:+ParallelRefProcEnabled',
@@ -722,6 +738,9 @@ class LaunchManager extends EventEmitter {
     this.progressFloor = 0;
 
     try {
+      this.status('Comprobando actualizaciones del modpack...', 'mods', 0);
+      await refreshModpack('', { force: true }).catch(() => {});
+
       const config = configStore.load();
       const channel = getChannel(config.channel);
       const gameDir = configStore.gameDir();

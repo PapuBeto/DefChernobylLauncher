@@ -50,7 +50,10 @@ launchManager.on('status', (payload) => send('launch:status', payload));
 launchManager.on('progress', (payload) => send('launch:progress', payload));
 launchManager.on('log', (payload) => send('launch:log', payload));
 launchManager.on('ready', (payload) => send('launch:ready', payload));
-launchManager.on('synced', (payload) => send('launch:synced', payload));
+launchManager.on('synced', (payload) => {
+  statusCache = { at: 0, value: null };
+  send('launch:synced', { ...payload, modpack: modpackSummary(loadModpack()) });
+});
 launchManager.on('exit', (payload) => {
   send('launch:exit', payload);
   if (!hiddenByLaunch) return;
@@ -294,6 +297,7 @@ function registerIpc() {
   ipcMain.handle('pack:check', async () => {
     // refreshModpack nunca lanza: siempre devuelve un resultado.
     const result = await refreshModpack('', { force: true });
+    statusCache = { at: 0, value: null };
     return { ...result, modpack: modpackSummary(loadModpack()) };
   });
 

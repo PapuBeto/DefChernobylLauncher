@@ -6,7 +6,7 @@
   "manifestUrl": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/modpack.json",
   "server": {
     "name": "Chernobyl Z",
-    "host": "ChernobylZ.refugenodes.com",
+    "host": "172.93.111.217",
     "port": 25836
   },
   "channels": {

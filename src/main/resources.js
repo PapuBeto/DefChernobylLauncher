@@ -19,7 +19,7 @@ const FALLBACK_MODPACK = {
   forge: '47.4.28',
   revision: 1,
   manifestUrl: '',
-  server: { name: 'Chernobyl Z', host: 'ChernobylZ.refugenodes.com', port: 25836 },
+  server: { name: 'Chernobyl Z', host: '172.93.111.217', port: 25836 },
   channels: {
     COMPLETA: { label: 'COMPLETA', description: 'PCs potentes · ~6 GB RAM', memory: { min: 2048, max: 6144 } },
     LITE: { label: 'LITE', description: 'Gama baja-media · ~4 GB RAM', memory: { min: 1536, max: 4096 } },
