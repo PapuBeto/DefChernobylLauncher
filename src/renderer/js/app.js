@@ -1831,8 +1831,8 @@ function bindEvents() {
     const result = await api.pickJava();
     if (!result) return;
 
-    if (!result.version || result.version.major < 17) {
-      toast('Ese Java es anterior a la versión 17.', 'error');
+    if (!result.version || result.version.major !== 17) {
+      toast('Minecraft 1.20.1 con Forge requiere Java 17.', 'error');
       return;
     }
 

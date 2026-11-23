@@ -9,6 +9,7 @@ const { paths } = require('./paths');
 
 const execFileAsync = promisify(execFile);
 const MIN_JAVA = 17;
+const TARGET_JAVA = 17;
 
 function javaExecutable(javaHome) {
   return path.join(javaHome, 'bin', os.platform() === 'win32' ? 'java.exe' : 'java');
@@ -110,7 +111,7 @@ function safeDirectories(dir) {
   }
 }
 
-/** Devuelve el mejor Java 17+ disponible o null. */
+/** Devuelve el Java 17 exacto disponible o null (evita Java 21+ que rompe Forge 1.20.1). */
 async function detect(preferredPath) {
   const seen = new Set();
   const candidates = [];
@@ -124,7 +125,7 @@ async function detect(preferredPath) {
     seen.add(normalized);
 
     const version = await readJavaVersion(normalized);
-    if (version && version.major >= MIN_JAVA) return version;
+    if (version && version.major === TARGET_JAVA) return version;
   }
 
   return null;
@@ -200,14 +201,20 @@ async function ensure(preferredPath, onProgress = () => {}, signal) {
   const target = path.join(paths.java, `temurin-${MIN_JAVA}`);
   fs.rmSync(target, { recursive: true, force: true });
   fs.mkdirSync(target, { recursive: true });
-  new AdmZip(archive).extractAllTo(target, true);
+  try {
+    new AdmZip(archive).extractAllTo(target, true);
+  } finally {
+    fs.rmSync(archive, { force: true });
+  }
   onProgress(0.95);
 
   const exe = findExecutableIn(target);
   if (!exe) throw new Error('La instalación de Java descargada está incompleta.');
 
   const version = await readJavaVersion(exe);
-  if (!version) throw new Error('Java se descargó pero no se pudo ejecutar.');
+  if (!version || version.major !== TARGET_JAVA) {
+    throw new Error('Java 17 se descargó pero no se pudo verificar.');
+  }
   onProgress(1);
 
   return { ...version, downloaded: true };

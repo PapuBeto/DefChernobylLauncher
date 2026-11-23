@@ -7,7 +7,7 @@ const { spawn } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const AdmZip = require('adm-zip');
 
-const { MinecraftFolder, launch, createMinecraftProcessWatcher, createQuickPlayMultiplayer } = require('@xmcl/core');
+const { MinecraftFolder, Version, launch, createMinecraftProcessWatcher, createQuickPlayMultiplayer } = require('@xmcl/core');
 const { getVersionList, installTask } = require('@xmcl/installer');
 
 const { paths } = require('./paths');
@@ -304,6 +304,134 @@ function runForgeInstaller({ installer, javaPath, gameDir, signal, isCancelled, 
   });
 }
 
+function isValidZipFile(filePath) {
+  let fd;
+  try {
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile() || stat.size < 22) return false;
+
+    fd = fs.openSync(filePath, 'r');
+    const head = Buffer.alloc(4);
+    if (fs.readSync(fd, head, 0, 4, 0) < 4) return false;
+    if (head[0] !== 0x50 || head[1] !== 0x4b) return false;
+
+    const tailLen = Math.min(stat.size, 65557);
+    const tailStart = stat.size - tailLen;
+    const tail = Buffer.alloc(tailLen);
+    if (fs.readSync(fd, tail, 0, tailLen, tailStart) < 22) return false;
+
+    for (let i = tail.length - 22; i >= 0; i -= 1) {
+      if (
+        tail[i] === 0x50 &&
+        tail[i + 1] === 0x4b &&
+        tail[i + 2] === 0x05 &&
+        tail[i + 3] === 0x06
+      ) {
+        const commentLen = tail.readUInt16LE(i + 20);
+        if (i + 22 + commentLen === tail.length) {
+          const cdOffset = tail.readUInt32LE(i + 16);
+          const cdSize = tail.readUInt32LE(i + 12);
+          if (cdOffset === 0xffffffff || cdOffset + cdSize <= tailStart + i) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) {
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* ya cerrado */
+      }
+    }
+  }
+}
+
+function getArgValue(args, flag) {
+  if (!Array.isArray(args)) return null;
+  const idx = args.indexOf(flag);
+  if (idx >= 0 && idx + 1 < args.length && typeof args[idx + 1] === 'string') {
+    return args[idx + 1];
+  }
+  return null;
+}
+
+/**
+ * Comprueba que el client.jar, las librerías y los artefactos generados por
+ * Forge no estén corruptos ni truncados (evita ZipException al iniciar).
+ * Si alguno está roto, lo elimina y fuerza una reinstalación limpia.
+ */
+async function verifyInstanceFiles(folder, minecraftVersion, forgeVersion, versionId) {
+  let broken = 0;
+  let forgeArtifactsBroken = false;
+
+  const clientJar = folder.getVersionJar(minecraftVersion);
+  if (!isValidZipFile(clientJar)) {
+    removeFile(clientJar);
+    broken += 1;
+  }
+
+  let resolved;
+  try {
+    resolved = await Version.parse(folder, versionId);
+  } catch {
+    removeFile(folder.getVersionJson(versionId));
+    return false;
+  }
+
+  for (const lib of resolved.libraries || []) {
+    const relPath = lib?.download?.path;
+    if (!relPath) continue;
+    const full = folder.getLibraryByPath(relPath);
+    if (!fs.existsSync(full)) {
+      broken += 1;
+    } else if (!isValidZipFile(full)) {
+      removeFile(full);
+      broken += 1;
+    }
+  }
+
+  const gameArgs = resolved.arguments?.game || [];
+  const mcpVersion = getArgValue(gameArgs, '--fml.mcpVersion');
+  const processorJars = [];
+
+  if (mcpVersion) {
+    const mcMcp = `${minecraftVersion}-${mcpVersion}`;
+    processorJars.push(
+      path.join(folder.root, 'libraries', 'net', 'minecraft', 'client', mcMcp, `client-${mcMcp}-srg.jar`),
+      path.join(folder.root, 'libraries', 'net', 'minecraft', 'client', mcMcp, `client-${mcMcp}-extra.jar`),
+      path.join(folder.root, 'libraries', 'net', 'minecraft', 'client', mcMcp, `client-${mcMcp}-slim.jar`),
+    );
+  }
+
+  const mcForge = `${minecraftVersion}-${forgeVersion}`;
+  processorJars.push(
+    path.join(folder.root, 'libraries', 'net', 'minecraftforge', 'forge', mcForge, `forge-${mcForge}-client.jar`),
+    path.join(folder.root, 'libraries', 'net', 'minecraftforge', 'forge', mcForge, `forge-${mcForge}-universal.jar`),
+  );
+
+  for (const artifact of processorJars) {
+    if (!fs.existsSync(artifact)) {
+      forgeArtifactsBroken = true;
+      broken += 1;
+    } else if (!isValidZipFile(artifact)) {
+      removeFile(artifact);
+      forgeArtifactsBroken = true;
+      broken += 1;
+    }
+  }
+
+  if (forgeArtifactsBroken) {
+    removeFile(folder.getVersionJson(versionId));
+  }
+
+  return broken === 0;
+}
+
 function findForgeVersion(folder, minecraftVersion, forgeVersion) {
   const versions = path.join(folder.root, 'versions');
   const expected = `${minecraftVersion}-forge-${forgeVersion}`;
@@ -325,7 +453,7 @@ function findForgeVersion(folder, minecraftVersion, forgeVersion) {
 async function ensureForge(folder, minecraftVersion, forgeVersion, report, context = {}) {
   const isCancelled = context.isCancelled || (() => false);
   const existing = findForgeVersion(folder, minecraftVersion, forgeVersion);
-  if (existing) {
+  if (existing && (await verifyInstanceFiles(folder, minecraftVersion, forgeVersion, existing))) {
     report(1);
     return existing;
   }
@@ -403,8 +531,20 @@ async function ensureInstance({ minecraftVersion, forgeVersion, javaPath, gameDi
     fs.existsSync(folder.getVersionJson(marker.versionId));
 
   if (markerValid) {
-    report(1);
-    return marker.versionId;
+    const healthy = await verifyInstanceFiles(folder, minecraftVersion, forgeVersion, marker.versionId);
+    if (healthy) {
+      report(1);
+      return marker.versionId;
+    }
+    console.warn(`[launcher] Instalación de ${marker.versionId} dañada o incompleta; reinstalando archivos corruptos...`);
+  } else {
+    const existingForge = findForgeVersion(folder, minecraftVersion, forgeVersion);
+    if (existingForge) {
+      const healthy = await verifyInstanceFiles(folder, minecraftVersion, forgeVersion, existingForge);
+      if (!healthy) {
+        console.warn(`[launcher] Instalación previa de ${existingForge} dañada o incompleta; reinstalando archivos corruptos...`);
+      }
+    }
   }
 
   fs.mkdirSync(folder.root, { recursive: true });
