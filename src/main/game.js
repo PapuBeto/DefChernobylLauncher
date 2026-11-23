@@ -1,0 +1,814 @@
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const { spawn } = require('node:child_process');
+const { EventEmitter } = require('node:events');
+const AdmZip = require('adm-zip');
+
+const { MinecraftFolder, launch, createMinecraftProcessWatcher } = require('@xmcl/core');
+const { getVersionList, installTask } = require('@xmcl/installer');
+
+const { paths } = require('./paths');
+const configStore = require('./config');
+const javaManager = require('./java');
+const authManager = require('./auth');
+const { loadModpack, getChannel, filesForChannel } = require('./resources');
+const { syncFiles, readState, writeState, sha1File } = require('./mods');
+
+const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
+const within = ([from, to], fraction) => from + (to - from) * clamp01(fraction);
+
+function formatRate(bytesPerSecond) {
+  const value = Number(bytesPerSecond);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const mb = value / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB/s`;
+  const kb = value / 1024;
+  return `${Math.max(1, Math.round(kb))} KB/s`;
+}
+
+function formatSize(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return '0 MB';
+  const mb = value / (1024 * 1024);
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${mb >= 100 ? mb.toFixed(0) : mb.toFixed(1)} MB`;
+}
+
+function formatEta(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  if (value < 60) return `${Math.max(1, Math.ceil(value))}s`;
+  if (value < 3600) return `${Math.floor(value / 60)}m ${Math.round(value % 60)}s`;
+  return `${Math.floor(value / 3600)}h ${Math.round((value % 3600) / 60)}m`;
+}
+
+function trackProgress(task, onFraction) {
+  const timer = setInterval(() => {
+    const total = task.total;
+    if (total > 0) onFraction(clamp01(task.progress / total));
+  }, 300);
+  timer.unref?.();
+  return () => clearInterval(timer);
+}
+
+/** Reintenta una operación (las descargas de Mojang fallan de vez en cuando). */
+async function withRetries(operation, attempts = 3, onRetry = () => {}, isCancelled = () => false) {
+  let lastError;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await operation(attempt);
+    } catch (error) {
+      lastError = error;
+      if (isCancelled() || attempt === attempts - 1) break;
+      onRetry(attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
+    }
+  }
+
+  throw lastError;
+}
+
+async function ensureVanilla(folder, minecraftVersion, report, context = {}) {
+  const isCancelled = context.isCancelled || (() => false);
+  const list = await withRetries(() => getVersionList(), 3, () => {}, isCancelled);
+  const meta = list.versions.find((version) => version.id === minecraftVersion);
+
+  if (!meta) {
+    throw new Error(`No se encontró Minecraft ${minecraftVersion} en el manifiesto de Mojang.`);
+  }
+
+  return withRetries(
+    async () => {
+      const task = installTask(meta, folder, {
+        side: 'client',
+        assetsDownloadConcurrency: 8,
+        librariesDownloadConcurrency: 8,
+      });
+      context.onTask?.(task);
+      const stop = trackProgress(task, report);
+
+      try {
+        await task.startAndWait();
+      } finally {
+        stop();
+      }
+
+      return task.get();
+    },
+    3,
+    () => report(0),
+    isCancelled,
+  );
+}
+
+const FORGE_MAVEN = 'https://maven.minecraftforge.net/net/minecraftforge/forge';
+
+function removeFile(file) {
+  try {
+    fs.rmSync(file, { force: true });
+  } catch {
+    /* archivo bloqueado o ya eliminado */
+  }
+}
+
+function isForgeInstaller(file) {
+  try {
+    if (!fs.existsSync(file) || fs.statSync(file).size < 1_000_000) return false;
+    const zip = new AdmZip(file);
+    return Boolean(zip.getEntry('install_profile.json'));
+  } catch {
+    return false;
+  }
+}
+
+async function fetchText(url, timeoutMs, signal) {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  }
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal, redirect: 'follow' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.text()).trim();
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
+async function downloadForgeInstaller(url, destination, signal, onProgress = () => {}) {
+  let expected = null;
+  try {
+    const text = await fetchText(`${url}.sha1`, 15000, signal);
+    const value = text.split(/\s+/)[0].toLowerCase();
+    if (/^[a-f0-9]{40}$/.test(value)) expected = value;
+  } catch {
+    /* el .sha1 es opcional; el instalador se valida al abrirlo */
+  }
+
+  if (fs.existsSync(destination) && isForgeInstaller(destination)) {
+    if (!expected) {
+      onProgress(1);
+      return;
+    }
+    const local = await sha1File(destination);
+    if (local === expected) {
+      onProgress(1);
+      return;
+    }
+    removeFile(destination);
+  } else {
+    removeFile(destination);
+  }
+
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    if (signal?.aborted) throw new Error('Descarga cancelada.');
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => controller.abort(), 90000);
+    const temporary = `${destination}.part`;
+    onProgress(0);
+
+    try {
+      const response = await fetch(url, { signal: controller.signal, redirect: 'follow' });
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+
+      const total = Number(response.headers.get('content-length')) || 0;
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      const handle = fs.createWriteStream(temporary);
+      const hash = crypto.createHash('sha1');
+      let size = 0;
+
+      try {
+        for await (const chunk of response.body) {
+          hash.update(chunk);
+          size += chunk.length;
+          if (total > 0) onProgress(Math.min(0.99, size / total));
+          if (!handle.write(chunk)) {
+            await new Promise((resolve) => handle.once('drain', resolve));
+          }
+        }
+      } finally {
+        await new Promise((resolve) => handle.end(resolve));
+      }
+
+      const sha1 = hash.digest('hex');
+      if (expected && sha1 !== expected) throw new Error('SHA-1 del instalador no coincide.');
+      if (size < 1_000_000) throw new Error('El instalador llegó incompleto.');
+
+      fs.renameSync(temporary, destination);
+      onProgress(1);
+      return;
+    } catch (error) {
+      lastError = error;
+      removeFile(temporary);
+      if (signal?.aborted) throw new Error('Descarga cancelada.');
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+    }
+  }
+
+  throw new Error(`No se pudo descargar el instalador de Forge: ${lastError?.message || lastError}`);
+}
+
+function killTree(child) {
+  if (!child?.pid) return;
+  if (process.platform === 'win32') {
+    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+    killer.on('error', () => {});
+  } else {
+    try {
+      child.kill('SIGTERM');
+    } catch {
+      /* el proceso ya terminó */
+    }
+  }
+}
+
+function runForgeInstaller({ installer, javaPath, gameDir, signal, isCancelled, report, onTask }) {
+  return new Promise((resolve, reject) => {
+    const logPath = path.join(paths.logs, 'forge-install.log');
+    fs.mkdirSync(paths.logs, { recursive: true });
+    const log = fs.createWriteStream(logPath, { flags: 'w' });
+    log.on('error', () => {});
+    const executable = javaPath || 'java';
+    log.write(`[launcher] ${new Date().toISOString()} "${executable}" -jar ${installer} --installClient ${gameDir}\n`);
+
+    const child = spawn(executable, ['-Djava.awt.headless=true', '-jar', installer, '--installClient', gameDir], {
+      cwd: gameDir,
+      windowsHide: true,
+    });
+
+    let tail = '';
+    const onData = (chunk) => {
+      log.write(chunk);
+      tail = (tail + chunk.toString('utf8')).slice(-16000);
+    };
+    child.stdout?.on('data', onData);
+    child.stderr?.on('data', onData);
+
+    let cancelled = false;
+    let fake = 0.02;
+    report(fake);
+
+    const kill = () => {
+      cancelled = true;
+      killTree(child);
+    };
+
+    onTask?.({ cancel: async () => kill() });
+
+    const cancellationTimer = setInterval(() => {
+      if (isCancelled()) kill();
+    }, 500);
+
+    const progressTimer = setInterval(() => {
+      fake = Math.min(0.92, fake + 0.012);
+      report(fake);
+    }, 1200);
+
+    const cleanup = () => {
+      clearInterval(cancellationTimer);
+      clearInterval(progressTimer);
+      log.end();
+    };
+
+    child.once('error', (error) => {
+      cleanup();
+      reject(error);
+    });
+
+    child.once('close', (code) => {
+      cleanup();
+      if (cancelled || isCancelled() || signal?.aborted) {
+        reject(new Error('Instalación de Forge cancelada.'));
+        return;
+      }
+      if (code !== 0) {
+        reject(new Error(`El instalador de Forge falló (código ${code}).\n${tail.slice(-3000)}`));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function findForgeVersion(folder, minecraftVersion, forgeVersion) {
+  const versions = path.join(folder.root, 'versions');
+  const expected = `${minecraftVersion}-forge-${forgeVersion}`;
+  const names = fs.existsSync(versions) ? fs.readdirSync(versions) : [];
+  const candidates = [expected, ...names.filter((name) => name !== expected && name.includes(`forge-${forgeVersion}`))];
+
+  for (const name of candidates) {
+    const json = path.join(versions, name, `${name}.json`);
+    try {
+      const data = JSON.parse(fs.readFileSync(json, 'utf8'));
+      if (data?.id) return name;
+    } catch {
+      /* versión incompleta: se reinstala */
+    }
+  }
+  return null;
+}
+
+async function ensureForge(folder, minecraftVersion, forgeVersion, report, context = {}) {
+  const isCancelled = context.isCancelled || (() => false);
+  const existing = findForgeVersion(folder, minecraftVersion, forgeVersion);
+  if (existing) {
+    report(1);
+    return existing;
+  }
+
+  const installer = path.join(
+    folder.root,
+    'libraries',
+    'net',
+    'minecraftforge',
+    'forge',
+    `${minecraftVersion}-${forgeVersion}`,
+    `forge-${minecraftVersion}-${forgeVersion}-installer.jar`,
+  );
+
+  const profiles = path.join(folder.root, 'launcher_profiles.json');
+  let profileData = null;
+  try {
+    if (fs.existsSync(profiles)) profileData = JSON.parse(fs.readFileSync(profiles, 'utf8'));
+  } catch {
+    profileData = null;
+  }
+
+  if (!profileData || typeof profileData !== 'object' || Array.isArray(profileData)) {
+    fs.writeFileSync(profiles, JSON.stringify({ profiles: {}, settings: {}, version: 3 }, null, 2), 'utf8');
+  }
+
+  const reportDownload = (fraction) => report(clamp01(fraction) * 0.8);
+  const reportInstaller = (fraction) => report(0.8 + clamp01(fraction) * 0.2);
+
+  return withRetries(
+    async () => {
+      if (isCancelled()) throw new Error('Instalación cancelada.');
+
+      await downloadForgeInstaller(
+        `${FORGE_MAVEN}/${minecraftVersion}-${forgeVersion}/forge-${minecraftVersion}-${forgeVersion}-installer.jar`,
+        installer,
+        context.signal,
+        reportDownload,
+      );
+
+      if (isCancelled()) throw new Error('Instalación cancelada.');
+
+      await runForgeInstaller({
+        installer,
+        javaPath: context.javaPath,
+        gameDir: folder.root,
+        signal: context.signal,
+        isCancelled,
+        report: reportInstaller,
+        onTask: context.onTask,
+      });
+
+      const versionId = findForgeVersion(folder, minecraftVersion, forgeVersion);
+      if (!versionId) throw new Error('Forge terminó pero no se encontró la versión instalada.');
+      report(1);
+      return versionId;
+    },
+    2,
+    () => report(0),
+    isCancelled,
+  );
+}
+
+/** Instala (si hace falta) Minecraft + Forge y devuelve el id de versión lanzable. */
+async function ensureInstance({ minecraftVersion, forgeVersion, javaPath, gameDir, report, context = {} }) {
+  const folder = MinecraftFolder.from(gameDir || configStore.gameDir());
+  const state = readState();
+  const marker = state.install;
+
+  const markerValid =
+    marker &&
+    marker.minecraft === minecraftVersion &&
+    marker.forge === forgeVersion &&
+    marker.versionId &&
+    fs.existsSync(folder.getVersionJson(marker.versionId));
+
+  if (markerValid) {
+    report(1);
+    return marker.versionId;
+  }
+
+  fs.mkdirSync(folder.root, { recursive: true });
+
+  await ensureVanilla(folder, minecraftVersion, (fraction) => report(within([0, 0.72], fraction)), context);
+
+  const versionId = await ensureForge(
+    folder,
+    minecraftVersion,
+    forgeVersion,
+    (fraction) => report(within([0.72, 1], fraction)),
+    { ...context, javaPath: javaPath || context.javaPath },
+  );
+
+  writeState({
+    ...readState(),
+    install: { minecraft: minecraftVersion, forge: forgeVersion, versionId, installedAt: Date.now() },
+  });
+
+  report(1);
+  return versionId;
+}
+
+class LaunchManager extends EventEmitter {
+  constructor() {
+    super();
+    this.running = false;
+    this.cancelled = false;
+    this.child = null;
+    this.watcher = null;
+    this.currentTask = null;
+    this.abortController = null;
+    this.logs = [];
+    this.progressFloor = 0;
+  }
+
+  status(text, phase = 'idle', percent = null) {
+    const value = percent === null ? null : clamp01(percent);
+    const shown = value === null || phase === 'idle' || phase === 'error'
+      ? value
+      : Math.max(this.progressFloor, value);
+    this.emit('status', { text, phase, percent: shown });
+  }
+
+  progress(percent, detail) {
+    // La barra nunca retrocede: las tareas internas de xmcl reinician su conteo.
+    this.progressFloor = Math.max(this.progressFloor, clamp01(percent));
+    this.emit('progress', { percent: this.progressFloor, detail: detail || null });
+  }
+
+  resetProgress() {
+    this.progressFloor = 0;
+    this.emit('progress', { percent: 0, detail: null });
+  }
+
+  log(line) {
+    if (!line) return;
+    this.logs.push(line);
+    if (this.logs.length > 800) this.logs.shift();
+    this.emit('log', { line });
+  }
+
+  resetLogFile() {
+    try {
+      fs.mkdirSync(paths.logs, { recursive: true });
+      fs.writeFileSync(path.join(paths.logs, 'launcher.log'), '', 'utf8');
+    } catch {
+      /* logging best-effort */
+    }
+  }
+
+  appendLogFile(line) {
+    try {
+      fs.mkdirSync(paths.logs, { recursive: true });
+      fs.appendFileSync(path.join(paths.logs, 'launcher.log'), `${line}\n`, 'utf8');
+    } catch {
+      /* logging best-effort */
+    }
+  }
+
+  async start() {
+    if (this.running) {
+      throw new Error('El juego ya se está iniciando.');
+    }
+
+    this.running = true;
+    this.cancelled = false;
+    this.logs = [];
+    this.currentTask = null;
+    this.abortController = new AbortController();
+    this.progressFloor = 0;
+    this.resetLogFile();
+
+    const isCancelled = () => this.cancelled;
+
+    try {
+      const config = configStore.load();
+      const modpack = loadModpack();
+      const channel = getChannel(config.channel);
+      const gameDir = configStore.gameDir();
+      const profile =
+        config.profiles.find((item) => item.id === config.activeProfile) || config.profiles[0];
+
+      if (!profile) {
+        throw new Error('Elige una cuenta premium o no premium antes de jugar.');
+      }
+
+      // 0. Cuenta (renueva el token de Microsoft antes de descargar nada)
+      if (profile.type === 'microsoft') {
+        this.status('Comprobando cuenta Microsoft...', 'idle', 0);
+        this.progress(0.005, 'Cuenta');
+      }
+
+      const auth = await authManager.sessionForProfile(profile);
+      this.log(
+        `[launcher] Cuenta ${profile.type === 'microsoft' ? 'Microsoft' : 'offline'}: ${auth.name} (${auth.id})`,
+      );
+
+      if (this.cancelled) return this.finishCancelled();
+
+      // 1. Java
+      this.status('Verificando Java 17...', 'java', 0);
+      this.progress(0.01, 'Java');
+
+      const java = await javaManager.ensure(config.javaPath, (fraction) => {
+        this.status('Descargando Java 17...', 'java', within([0, 0.08], fraction));
+        this.progress(within([0, 0.08], fraction), 'Java');
+      }, this.abortController.signal);
+
+      if (this.cancelled) return this.finishCancelled();
+      javaManager.useInPath(java.path);
+      this.log(`[launcher] Java ${java.raw} (${java.path})`);
+
+      // 2. Minecraft + Forge
+      const versionId = await ensureInstance({
+        minecraftVersion: modpack.minecraft,
+        forgeVersion: modpack.forge,
+        javaPath: java.path,
+        gameDir,
+        report: (fraction) => {
+          this.status('Instalando Minecraft y Forge...', 'minecraft', within([0.08, 0.8], fraction));
+          this.progress(within([0.08, 0.8], fraction), 'Minecraft / Forge');
+        },
+        context: {
+          onTask: (task) => {
+            this.currentTask = task;
+          },
+          isCancelled,
+          signal: this.abortController.signal,
+        },
+      });
+
+      this.currentTask = null;
+
+      this.log(`[launcher] Versión instalada: ${versionId}`);
+
+      if (this.cancelled) return this.finishCancelled();
+
+      // 3. Mods del canal elegido
+      this.status('Sincronizando archivos del modpack...', 'mods', 0.82);
+      this.progress(0.82, channel.label);
+
+      const files = filesForChannel(channel.id);
+      const sync = await syncFiles(gameDir, files, channel.id, ({ percent, file, completed, total, speed, bytes, transferred }) => {
+        const rate = formatRate(speed);
+        const remaining = Math.max(0, (Number(bytes) || 0) - (Number(transferred) || 0));
+        const eta = rate && remaining > 0 ? formatEta(remaining / speed) : '';
+        const parts = [];
+        if (total > 0) parts.push(`${completed}/${total}`);
+        if (bytes > 0) parts.push(`${formatSize(transferred)}/${formatSize(bytes)}`);
+        if (rate) parts.push(rate);
+        if (eta) parts.push(`~${eta}`);
+        const detail = parts.length > 0 ? parts.join(' · ') : channel.label;
+        this.status(
+          file ? `Descargando ${path.basename(file)} (${detail})` : 'Verificando archivos del modpack...',
+          'mods',
+          within([0.82, 0.95], percent),
+        );
+        this.progress(within([0.82, 0.95], percent), detail);
+      }, this.abortController.signal);
+
+      this.log(`[launcher] Modpack ${channel.id}: ${sync.files} archivos verificados, ${sync.downloaded} descargados.`);
+
+      if (this.cancelled) return this.finishCancelled();
+
+      // 4. Lanzar
+      this.status('Iniciando el juego...', 'launching', 0.97);
+      this.progress(0.97, 'Launch');
+
+      const server = modpack.server || {};
+
+      this.child = await launch({
+        gamePath: gameDir,
+        resourcePath: gameDir,
+        javaPath: java.path,
+        version: versionId,
+        gameProfile: { name: auth.name, id: auth.id },
+        accessToken: auth.accessToken,
+        userType: auth.userType,
+        launcherName: 'Chernobyl Z',
+        launcherBrand: 'Chernobyl Z',
+        versionType: 'Chernobyl Z',
+        minMemory: Math.min(1024, Math.floor(config.memory / 2)),
+        maxMemory: config.memory,
+        resolution: {
+          width: config.resolution.width,
+          height: config.resolution.height,
+          fullscreen: config.resolution.fullscreen,
+        },
+        server: server.host ? { ip: server.host, port: Number(server.port) || 25565 } : undefined,
+        extraJVMArgs: [
+          '-XX:+UseG1GC',
+          '-XX:+ParallelRefProcEnabled',
+          '-XX:MaxGCPauseMillis=200',
+          '-XX:+UnlockExperimentalVMOptions',
+          '-XX:+DisableExplicitGC',
+          '-XX:G1NewSizePercent=20',
+          '-XX:G1ReservePercent=20',
+          '-XX:G1HeapRegionSize=32M',
+          '-Dfile.encoding=UTF-8',
+        ],
+        ignoreInvalidMinecraftCertificates: true,
+        ignorePatchDiscrepancies: true,
+      });
+
+      this.watcher = createMinecraftProcessWatcher(this.child);
+
+      const pipe = (stream, prefix) => {
+        stream?.on('data', (chunk) => {
+          for (const line of chunk.toString('utf8').split(/\r?\n/)) {
+            if (!line.trim()) continue;
+            this.log(`${prefix}${line}`);
+            this.appendLogFile(line);
+          }
+        });
+      };
+
+      pipe(this.child.stdout, '');
+      pipe(this.child.stderr, '[err] ');
+
+      let settled = false;
+      const failChild = (error) => {
+        if (settled) return;
+        settled = true;
+        this.child = null;
+        this.watcher = null;
+        if (this.cancelled) {
+          this.finishCancelled();
+          return;
+        }
+        this.running = false;
+        this.resetProgress();
+        const message = String(error?.message || error);
+        this.status('Error al iniciar el juego', 'error', 0);
+        this.log(`[launcher] ERROR: ${message}`);
+        this.emit('error', { message });
+      };
+
+      this.watcher.on('minecraft-window-ready', () => {
+        if (settled) return;
+        this.progress(1, 'Jugando');
+        this.status('Jugando', 'running', 1);
+        this.emit('ready', { pid: this.child?.pid });
+      });
+
+      this.watcher.on('minecraft-exit', ({ code, crashReport, crashReportLocation }) => {
+        if (settled) return;
+        settled = true;
+        this.child = null;
+        this.watcher = null;
+
+        if (this.cancelled) {
+          this.finishCancelled();
+          return;
+        }
+
+        this.running = false;
+        this.resetProgress();
+        this.status('Listo para jugar', 'idle', 0);
+        this.emit('exit', {
+          code,
+          crashed: code !== 0,
+          crashReport: crashReport || null,
+          crashReportLocation: crashReportLocation || null,
+        });
+        if (crashReport) this.log(`[launcher] Crash report: ${crashReportLocation}`);
+      });
+
+      this.watcher.on('error', failChild);
+      this.child.on('error', failChild);
+    } catch (error) {
+      this.running = false;
+      this.resetProgress();
+
+      if (this.cancelled) return this.finishCancelled();
+
+      const message = error?.message || String(error);
+      this.status(`Error: ${message}`, 'error', 0);
+      this.log(`[launcher] ERROR: ${message}`);
+      this.emit('error', { message });
+      throw error;
+    }
+  }
+
+  async syncNow() {
+    if (this.running) {
+      throw new Error('Ya hay una operación en curso.');
+    }
+
+    this.running = true;
+    this.cancelled = false;
+    this.logs = [];
+    this.currentTask = null;
+    this.abortController = new AbortController();
+    this.progressFloor = 0;
+
+    try {
+      const config = configStore.load();
+      const channel = getChannel(config.channel);
+      const gameDir = configStore.gameDir();
+
+      this.status('Sincronizando archivos del modpack...', 'mods', 0);
+      this.progress(0, channel.label);
+
+      const sync = await syncFiles(gameDir, filesForChannel(channel.id), channel.id, ({
+        percent,
+        file,
+        completed,
+        total,
+        speed,
+        bytes,
+        transferred,
+      }) => {
+        const rate = formatRate(speed);
+        const remaining = Math.max(0, (Number(bytes) || 0) - (Number(transferred) || 0));
+        const eta = rate && remaining > 0 ? formatEta(remaining / speed) : '';
+        const parts = [];
+        if (total > 0) parts.push(`${completed}/${total}`);
+        if (bytes > 0) parts.push(`${formatSize(transferred)}/${formatSize(bytes)}`);
+        if (rate) parts.push(rate);
+        if (eta) parts.push(`~${eta}`);
+        const detail = parts.length > 0 ? parts.join(' · ') : channel.label;
+
+        this.status(
+          file ? `Descargando ${path.basename(file)} (${detail})` : 'Verificando archivos del modpack...',
+          'mods',
+          percent,
+        );
+        this.progress(percent, detail);
+      }, this.abortController.signal);
+
+      this.log(`[launcher] Sincronización manual ${channel.id}: ${sync.files} archivos verificados, ${sync.downloaded} descargados.`);
+      this.status(`Archivos sincronizados: ${sync.files} verificados, ${sync.downloaded} descargados.`, 'mods', 1);
+      this.progress(1, channel.label);
+
+      if (this.cancelled) return this.finishCancelled();
+
+      this.running = false;
+      this.resetProgress();
+      this.emit('synced', { channel: channel.id, files: sync.files, downloaded: sync.downloaded });
+      return { channel: channel.id, files: sync.files, downloaded: sync.downloaded };
+    } catch (error) {
+      this.running = false;
+      this.resetProgress();
+
+      if (this.cancelled) return this.finishCancelled();
+
+      const message = error?.message || String(error);
+      this.status(`Error al sincronizar: ${message}`, 'error', 0);
+      this.log(`[launcher] ERROR (sync): ${message}`);
+      this.emit('error', { message, operation: 'sync' });
+      throw error;
+    }
+  }
+
+  finishCancelled() {
+    this.running = false;
+    this.currentTask = null;
+    this.child = null;
+    this.watcher = null;
+    this.resetProgress();
+    this.status('Cancelado', 'idle', 0);
+    this.emit('cancelled');
+  }
+
+  cancel() {
+    if (!this.running) return false;
+    this.cancelled = true;
+
+    try {
+      this.abortController?.abort();
+    } catch {
+      /* abort best-effort */
+    }
+
+    if (this.currentTask) {
+      this.currentTask.cancel().catch(() => {});
+      this.currentTask = null;
+    }
+
+    killTree(this.child);
+
+    return true;
+  }
+}
+
+module.exports = { LaunchManager, ensureInstance };

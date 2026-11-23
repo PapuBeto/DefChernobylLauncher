@@ -1,0 +1,1983 @@
+'use strict';
+
+/* =========================================================
+   CHERNOBYL Z — LAUNCHER
+   Lógica del renderer: habla con el proceso principal por IPC.
+   ========================================================= */
+
+const api = window.launcher;
+
+const state = {
+  boot: null,
+  config: null,
+  modpack: null,
+  news: [],
+  links: {},
+  launching: false,
+  syncing: false,
+  running: false,
+  java: null,
+  serverOnline: false,
+  logBuffer: [],
+  auth: {},
+  skins: {},
+  skinPending: new Set(),
+  skinDraft: null,
+  skinBusy: false,
+  mods: null,
+  effects: true,
+  music: false,
+  update: null,
+  signingIn: false,
+  manualUpdateCheck: false,
+  hideTimer: null,
+  gameDirDraft: null,
+  serverTimer: null,
+  lastServerCheck: 0,
+  windowPaused: false,
+};
+
+const $ = (id) => document.getElementById(id);
+
+const els = {
+  body: document.body,
+  main: document.querySelector('main'),
+  bgFx: $('bgFx'),
+  bgSpores: $('bgSpores'),
+  playButton: $('playButton'),
+  syncButton: $('syncButton'),
+  progress: $('progress'),
+  percentage: $('percentage'),
+  status: $('status'),
+
+  versionButton: $('versionButton'),
+  versionMenu: $('versionMenu'),
+  versionArrow: $('versionArrow'),
+  currentVersion: $('currentVersion'),
+  channelWarning: $('channelWarning'),
+
+  profileButton: $('profileButton'),
+  profileMenu: $('profileMenu'),
+  profileName: $('profileName'),
+
+  overlay: $('overlay'),
+  modalClose: $('modalClose'),
+  modalTitle: $('modalTitle'),
+  modalDescription: $('modalDescription'),
+  modalDate: $('modalDate'),
+  modalTag: $('modalTag'),
+  modalDot: $('modalDot'),
+
+  newsList: $('newsList'),
+  playerCount: $('playerCount'),
+  serverLabel: $('serverLabel'),
+  serverStatus: $('serverStatus'),
+  serverDot: $('serverDot'),
+
+  brandVersion: $('brandVersion'),
+  launcherVersion: $('launcherVersion'),
+
+  settingsOverlay: $('settingsOverlay'),
+  settingsClose: $('settingsClose'),
+  settingsCancel: $('settingsCancel'),
+  settingsSave: $('settingsSave'),
+  memoryRange: $('memoryRange'),
+  memoryValue: $('memoryValue'),
+  memoryHint: $('memoryHint'),
+  resolutionSelect: $('resolutionSelect'),
+  fullscreenToggle: $('fullscreenToggle'),
+  javaPath: $('javaPath'),
+  javaState: $('javaState'),
+  javaDetectButton: $('javaDetectButton'),
+  javaBrowseButton: $('javaBrowseButton'),
+  gameDirPath: $('gameDirPath'),
+  pickGameDirButton: $('pickGameDirButton'),
+  resetGameDirButton: $('resetGameDirButton'),
+  gameDirNote: $('gameDirNote'),
+  musicAudio: $('musicAudio'),
+  openGameFolder: $('openGameFolder'),
+  closeOnLaunchToggle: $('closeOnLaunchToggle'),
+  effectsToggle: $('effectsToggle'),
+  musicToggle: $('musicToggle'),
+
+  profilesOverlay: $('profilesOverlay'),
+  profilesClose: $('profilesClose'),
+  profilesDone: $('profilesDone'),
+  profileList: $('profileList'),
+  newProfileName: $('newProfileName'),
+  addProfileButton: $('addProfileButton'),
+  profilesNote: $('profilesNote'),
+  profilesIntro: $('profilesIntro'),
+  listHead: $('listHead'),
+
+  avatarDefault: $('avatarDefault'),
+  avatarCanvas: $('avatarCanvas'),
+  accountUser: $('accountUser'),
+  accountSkin: $('accountSkin'),
+  accountName: $('accountName'),
+
+  consoleOverlay: $('consoleOverlay'),
+  consoleClose: $('consoleClose'),
+  consoleDone: $('consoleDone'),
+  consoleOutput: $('consoleOutput'),
+  openLogsFolder: $('openLogsFolder'),
+
+  skinsOverlay: $('skinsOverlay'),
+  skinsClose: $('skinsClose'),
+  skinsDone: $('skinsDone'),
+  skinLayout: $('skinLayout'),
+  skinOffline: $('skinOffline'),
+  skinPreview: $('skinPreview'),
+  skinPreviewLabel: $('skinPreviewLabel'),
+  skinAccount: $('skinAccount'),
+  skinPlayerInput: $('skinPlayerInput'),
+  skinLookupButton: $('skinLookupButton'),
+  skinPickButton: $('skinPickButton'),
+  skinApplyButton: $('skinApplyButton'),
+  skinResetButton: $('skinResetButton'),
+  skinFile: $('skinFile'),
+  skinNote: $('skinNote'),
+  skinGoAccounts: $('skinGoAccounts'),
+  skinVariants: document.querySelectorAll('input[name="skinVariant"]'),
+
+  modsOverlay: $('modsOverlay'),
+  modsClose: $('modsClose'),
+  modsDone: $('modsDone'),
+  modsSearch: $('modsSearch'),
+  modsSummary: $('modsSummary'),
+  modsList: $('modsList'),
+
+  toastStack: $('toastStack'),
+
+  minimizeButton: $('minimizeButton'),
+  maximizeButton: $('maximizeButton'),
+  closeButton: $('closeButton'),
+
+  openProfiles: $('openProfiles'),
+  openSkins: $('openSkins'),
+  openMods: $('openMods'),
+  openSettings: $('openSettings'),
+  openConsole: $('openConsole'),
+  quitLauncher: $('quitLauncher'),
+
+  accountFlag: $('accountFlag'),
+  accountHint: $('accountHint'),
+  msLoginButton: $('msLoginButton'),
+  deviceBox: $('deviceBox'),
+  deviceCode: $('deviceCode'),
+  deviceLink: $('deviceLink'),
+  deviceCopy: $('deviceCopy'),
+  deviceCancel: $('deviceCancel'),
+
+  updateBar: $('updateBar'),
+  updateText: $('updateText'),
+  updateFill: $('updateFill'),
+  updateAction: $('updateAction'),
+  updateVersion: $('updateVersion'),
+  updateState: $('updateState'),
+  updateCheckButton: $('updateCheckButton'),
+
+  packField: $('packField'),
+  packRevision: $('packRevision'),
+  packState: $('packState'),
+  packCheckButton: $('packCheckButton'),
+};
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+
+function toast(message, type = 'info', timeout = 4200) {
+  const node = document.createElement('div');
+  node.className = `toast ${type}`;
+  node.textContent = message;
+  els.toastStack.appendChild(node);
+
+  setTimeout(() => {
+    node.classList.add('hide');
+    setTimeout(() => node.remove(), 200);
+  }, timeout);
+}
+
+const cleanError = (error) =>
+  String(error?.message || error || '')
+    .replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, '')
+    .trim();
+
+function openPanel(overlay) {
+  overlay.classList.add('open');
+}
+function closePanel(overlay) {
+  overlay.classList.remove('open');
+}
+
+function closeAllMenu() {
+  els.versionMenu.classList.remove('open');
+  els.versionArrow.classList.remove('open');
+  els.profileMenu.classList.remove('open');
+}
+
+function formatPercent(value) {
+  return `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%`;
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value <= 0) return '';
+  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
+  const mb = value / (1024 * 1024);
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${mb.toFixed(1)} MB`;
+}
+
+function channelSize(id) {
+  const known = state.modpack.channelSizes?.[id];
+  if (Number.isFinite(Number(known))) return Number(known);
+  let total = 0;
+  for (const file of state.modpack.files || []) {
+    if (Array.isArray(file.channels) && !file.channels.includes(id)) continue;
+    total += Number(file.size) || 0;
+  }
+  return total;
+}
+
+function selectChannel(channelId, persist = true) {
+  const channel = state.modpack.channels[channelId];
+  if (!channel) return;
+
+  state.config.channel = channelId;
+  els.currentVersion.textContent = channel.label;
+
+  for (const option of els.versionMenu.querySelectorAll('.version-option')) {
+    option.classList.toggle('active', option.dataset.channel === channelId);
+  }
+
+  if (els.channelWarning) {
+    els.channelWarning.hidden = String(channelId || '').toUpperCase() !== 'PRUEBAS';
+  }
+
+  updateMemoryHint();
+  if (persist) api.saveSettings({ channel: channelId }).catch(() => {});
+}
+
+/* =========================================================
+   NOTICIAS
+   ========================================================= */
+
+function renderNews() {
+  els.newsList.innerHTML = '';
+
+  const hasNews = state.news.length > 0;
+  els.main.classList.toggle('no-news', !hasNews);
+
+  if (!hasNews) {
+    els.newsList.innerHTML = '<p class="news-empty">Todavía no hay novedades publicadas.</p>';
+    return;
+  }
+
+  state.news.forEach((item, index) => {
+    const article = document.createElement('article');
+    article.className = `news-item changelog${item.featured || index === 0 ? ' featured' : ''}`;
+    article.dataset.id = item.id;
+    article.tabIndex = 0;
+
+    if (item.featured || index === 0) {
+      const image = document.createElement('div');
+      image.className = 'news-image';
+      article.appendChild(image);
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'news-meta';
+
+    const dot = document.createElement('span');
+    dot.className = `news-dot${item.type === 'fix' ? ' fix' : item.type === 'server' ? ' server' : ''}`;
+
+    const date = document.createElement('span');
+    date.className = 'news-date';
+    date.textContent = item.date || '';
+
+    const tag = document.createElement('span');
+    tag.className = 'news-tag';
+    tag.textContent = item.tag || '';
+
+    meta.append(dot, date, tag);
+
+    const title = document.createElement('h2');
+    title.className = 'news-title';
+    title.textContent = item.featured || index === 0
+      ? item.title
+      : item.shortTitle || item.title;
+
+    article.append(meta, title);
+
+    const open = () => openChangelog(item);
+    article.addEventListener('click', open);
+    article.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        open();
+      }
+    });
+
+    els.newsList.appendChild(article);
+  });
+}
+
+function openChangelog(item) {
+  els.modalTitle.textContent = item.title;
+  els.modalDescription.textContent = item.body ?? item.description ?? '';
+  els.modalDate.textContent = item.date || '';
+  els.modalTag.textContent = item.tag || '';
+
+  els.modalDot.className = 'modal-dot';
+  if (item.type === 'fix') els.modalDot.classList.add('fix');
+  if (item.type === 'server') els.modalDot.classList.add('server');
+
+  els.overlay.classList.add('open');
+}
+
+/* =========================================================
+   FONDO REACTIVO
+   ========================================================= */
+
+const glow = {
+  ready: false,
+  active: false,
+  raf: null,
+  x: 0,
+  y: 0,
+  tx: 0,
+  ty: 0,
+  x2: 0,
+  y2: 0,
+};
+
+function paintGlow() {
+  glow.raf = null;
+
+  glow.x += (glow.tx - glow.x) * 0.12;
+  glow.y += (glow.ty - glow.y) * 0.12;
+  glow.x2 += (glow.tx - glow.x2) * 0.045;
+  glow.y2 += (glow.ty - glow.y2) * 0.045;
+
+  els.bgFx.style.setProperty('--mx', `${glow.x}px`);
+  els.bgFx.style.setProperty('--my', `${glow.y}px`);
+  els.bgFx.style.setProperty('--mx2', `${glow.x2}px`);
+  els.bgFx.style.setProperty('--my2', `${glow.y2}px`);
+
+  if (Math.abs(glow.tx - glow.x) > 0.4 || Math.abs(glow.ty - glow.y) > 0.4) {
+    glow.raf = requestAnimationFrame(paintGlow);
+  }
+}
+
+function startGlow() {
+  if (!glow.active || state.windowPaused || glow.raf) return;
+  glow.raf = requestAnimationFrame(paintGlow);
+}
+
+function stopGlow() {
+  if (glow.raf) {
+    cancelAnimationFrame(glow.raf);
+    glow.raf = null;
+  }
+}
+
+function centerGlow() {
+  glow.tx = window.innerWidth * 0.6;
+  glow.ty = window.innerHeight * 0.42;
+  startGlow();
+}
+
+function initGlow() {
+  if (glow.ready) return;
+  glow.ready = true;
+
+  for (let index = 0; index < 18; index += 1) {
+    const spore = document.createElement('span');
+    spore.className = 'bg-spore';
+    spore.style.left = `${Math.random() * 100}%`;
+    spore.style.setProperty('--size', `${1 + Math.random() * 2.4}px`);
+    spore.style.setProperty('--dur', `${12 + Math.random() * 12}s`);
+    spore.style.setProperty('--delay', `${-Math.random() * 18}s`);
+    spore.style.setProperty('--sway', `${(Math.random() - 0.5) * 90}px`);
+    els.bgSpores.appendChild(spore);
+  }
+
+  glow.x = glow.x2 = glow.tx = window.innerWidth * 0.62;
+  glow.y = glow.y2 = glow.ty = window.innerHeight * 0.4;
+  paintGlow();
+
+  window.addEventListener('pointermove', (event) => {
+    if (state.windowPaused || !glow.active) return;
+    glow.tx = event.clientX;
+    glow.ty = event.clientY;
+    startGlow();
+  }, { passive: true });
+
+  window.addEventListener('pointerleave', centerGlow);
+  window.addEventListener('blur', centerGlow);
+}
+
+function applyEffects(enabled) {
+  state.effects = Boolean(enabled);
+  document.body.classList.toggle('no-effects', !state.effects);
+
+  if (!state.effects) {
+    glow.active = false;
+    stopGlow();
+    return;
+  }
+
+  initGlow();
+  glow.active = !state.windowPaused;
+  if (glow.active) startGlow();
+}
+
+function setWindowPaused(paused) {
+  const next = Boolean(paused);
+  if (state.windowPaused === next) return;
+  state.windowPaused = next;
+
+  document.body.classList.toggle('is-paused', next);
+
+  if (next) {
+    glow.active = false;
+    stopGlow();
+    stopServerPolling();
+  } else {
+    if (state.effects) {
+      initGlow();
+      glow.active = true;
+      startGlow();
+    }
+    startServerPolling();
+  }
+}
+
+function applyMusic(enabled) {
+  state.music = Boolean(enabled);
+  const audio = els.musicAudio;
+  if (!audio) return;
+
+  if (state.music) {
+    audio.volume = 0.35;
+    audio.play().catch(() => {});
+  } else {
+    audio.pause();
+  }
+}
+
+function unlockMusic() {
+  if (!state.music) return;
+  els.musicAudio?.play().catch(() => {});
+}
+
+function armMusicUnlock() {
+  window.addEventListener('pointerdown', unlockMusic, { passive: true });
+  window.addEventListener('keydown', unlockMusic);
+}
+
+/* =========================================================
+   CANALES / VERSIONES
+   ========================================================= */
+
+function renderChannels() {
+  els.versionMenu.innerHTML = '';
+
+  for (const [id, channel] of Object.entries(state.modpack.channels)) {
+    const option = document.createElement('div');
+    option.className = 'version-option';
+    option.dataset.channel = id;
+
+    const name = document.createElement('span');
+    name.className = 'option-name';
+    name.textContent = channel.label || id;
+
+    const description = document.createElement('span');
+    description.className = 'option-description';
+    const size = formatBytes(channelSize(id));
+    description.textContent = [channel.description || '', size ? `~${size}` : ''].filter(Boolean).join(' · ');
+
+    option.append(name, description);
+    option.addEventListener('click', () => {
+      selectChannel(id);
+      closeAllMenu();
+    });
+
+    els.versionMenu.appendChild(option);
+  }
+
+  const active = state.modpack.channels[state.config.channel]
+    ? state.config.channel
+    : Object.keys(state.modpack.channels)[0];
+
+  selectChannel(active, active !== state.config.channel);
+}
+
+function updateMemoryHint() {
+  const channel = state.modpack.channels[state.config.channel] || {};
+  const max = channel.memory?.max;
+  const current = Number(els.memoryRange.value) || state.config.memory;
+
+  if (!max) {
+    els.memoryHint.textContent = 'Cada canal del modpack puede recomendar una cantidad distinta.';
+    els.memoryHint.classList.remove('warning');
+    return;
+  }
+
+  const recommended = `${Math.round(max / 1024)} GB (${max} MB)`;
+  const over = current > max;
+  els.memoryHint.textContent = over
+    ? `Canal ${channel.label}: máximo recomendado ${recommended}. Tienes ${current} MB.`
+    : `Recomendado para el canal ${channel.label}: ${recommended}.`;
+  els.memoryHint.classList.toggle('warning', over);
+}
+
+/* =========================================================
+   SERVIDOR
+   ========================================================= */
+
+function formatServerAddress(host, port) {
+  if (!host) return '';
+  const numericPort = Number(port) || 25565;
+  return numericPort !== 25565 ? `${host}:${numericPort}` : host;
+}
+
+function paintServer(status) {
+  state.serverOnline = Boolean(status?.online);
+
+  if (!status) {
+    els.serverDot.className = 'server-dot pending';
+    els.playerCount.textContent = '—';
+    els.serverLabel.textContent = 'COMPROBANDO';
+    els.serverStatus.title = '';
+    return;
+  }
+
+  const configured = state.modpack?.server;
+  const hostLabel = formatServerAddress(status.host || configured?.host, status.port || configured?.port);
+
+  if (status.online) {
+    els.serverDot.className = 'server-dot';
+    els.playerCount.textContent = `${status.players.online}/${status.players.max}`;
+    els.serverLabel.textContent = 'EN LÍNEA';
+
+    const parts = [];
+    if (hostLabel) parts.push(hostLabel);
+    if (status.latency) parts.push(`${status.latency} ms`);
+    if (status.version) parts.push(status.version);
+    if (status.motd) parts.push(status.motd.replace(/\s+/g, ' '));
+    els.serverStatus.title = parts.join(' · ');
+  } else {
+    els.serverDot.className = 'server-dot offline';
+    els.playerCount.textContent = status.players?.max > 0 ? `0/${status.players.max}` : '0';
+    els.serverLabel.textContent = 'SIN CONEXIÓN';
+    els.serverStatus.title = hostLabel
+      ? `${hostLabel} · No se pudo contactar con el servidor.`
+      : 'No se pudo contactar con el servidor.';
+  }
+}
+
+async function refreshServerStatus() {
+  state.lastServerCheck = Date.now();
+  try {
+    paintServer(await api.serverStatus());
+  } catch {
+    paintServer({ online: false, players: { online: 0, max: 0 } });
+  }
+}
+
+function stopServerPolling() {
+  if (!state.serverTimer) return;
+  clearInterval(state.serverTimer);
+  state.serverTimer = null;
+}
+
+function startServerPolling() {
+  if (state.windowPaused || document.hidden) return;
+  if (!state.lastServerCheck || Date.now() - state.lastServerCheck >= 20000) {
+    refreshServerStatus();
+  }
+  if (!state.serverTimer) {
+    state.serverTimer = setInterval(refreshServerStatus, 60000);
+  }
+}
+
+/* =========================================================
+   PERFILES
+   ========================================================= */
+
+function activeProfile() {
+  return (
+    state.config.profiles.find((profile) => profile.id === state.config.activeProfile) ||
+    state.config.profiles[0] ||
+    null
+  );
+}
+
+/* ---------- Skins ---------- */
+
+function drawHead(canvas, dataUrl) {
+  if (!canvas || !dataUrl) return;
+
+  const image = new Image();
+  image.onload = () => {
+    const context = canvas.getContext('2d');
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Cara en (8,8) de la textura.
+    context.drawImage(image, 8, 8, 8, 8, 0, 0, canvas.width, canvas.height);
+
+    // La capa de sombrero solo existe en skins modernas (64x64). En las
+    // antiguas (64x32) esa zona está vacía y suele venir pintada de negro.
+    if (image.naturalHeight >= 64) {
+      context.drawImage(image, 40, 8, 8, 8, 0, 0, canvas.width, canvas.height);
+    }
+  };
+  image.src = dataUrl;
+}
+
+function paintSkins() {
+  for (const canvas of document.querySelectorAll('canvas[data-skin-id]')) {
+    const dataUrl = state.skins[canvas.dataset.skinId];
+    if (dataUrl) drawHead(canvas, dataUrl);
+  }
+
+  const profile = activeProfile();
+  const skin = profile ? state.skins[profile.id] : null;
+
+  if (profile?.type === 'microsoft' && skin) {
+    drawHead(els.avatarCanvas, skin);
+    els.avatarCanvas.hidden = false;
+    els.avatarDefault.hidden = true;
+  } else {
+    els.avatarCanvas.hidden = true;
+    els.avatarDefault.hidden = false;
+  }
+}
+
+async function ensureSkin(profile) {
+  if (!profile || profile.type !== 'microsoft') return;
+  const id = profile.id;
+  if (state.skins[id] || state.skinPending.has(id)) return;
+
+  state.skinPending.add(id);
+  try {
+    const dataUrl = await api.profileSkin(id);
+    if (dataUrl) {
+      state.skins[id] = dataUrl;
+      paintSkins();
+      if (activeMicrosoft()?.id === id) drawHead(els.accountSkin, dataUrl);
+    }
+  } catch {
+    // Sin skin: se mantiene el avatar por defecto.
+  } finally {
+    state.skinPending.delete(id);
+  }
+}
+
+/* ---------- Panel de skins ---------- */
+
+function drawSkinBody(canvas, dataUrl) {
+  if (!canvas) return;
+
+  const context = canvas.getContext('2d');
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  if (!dataUrl) return;
+
+  const image = new Image();
+  image.onload = () => {
+    const scale = canvas.width / 16;
+    const modern = image.naturalHeight >= 64;
+
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dibuja una región de la textura en la rejilla de 16 x 32 texeles.
+    const part = (sx, sy, sw, sh, x, y, flip = false) => {
+      context.save();
+      if (flip) {
+        context.translate((x + sw) * scale, y * scale);
+        context.scale(-1, 1);
+        context.drawImage(image, sx, sy, sw, sh, 0, 0, sw * scale, sh * scale);
+      } else {
+        context.drawImage(image, sx, sy, sw, sh, x * scale, y * scale, sw * scale, sh * scale);
+      }
+      context.restore();
+    };
+
+    part(8, 8, 8, 8, 4, 0); // cabeza
+    part(20, 20, 8, 12, 4, 8); // torso
+    part(44, 20, 4, 12, 0, 8); // brazo derecho
+
+    if (modern) {
+      part(36, 52, 4, 12, 12, 8); // brazo izquierdo
+      part(20, 52, 4, 12, 8, 20); // pierna izquierda
+    } else {
+      // En skins antiguas (64x32) brazos y piernas se reflejan.
+      part(44, 20, 4, 12, 12, 8, true);
+      part(4, 20, 4, 12, 8, 20, true);
+    }
+
+    part(4, 20, 4, 12, 4, 20); // pierna derecha
+
+    if (modern) {
+      part(40, 8, 8, 8, 4, 0); // sombrero
+      part(20, 36, 8, 12, 4, 8); // chaqueta
+      part(44, 36, 4, 12, 0, 8); // manga derecha
+      part(52, 52, 4, 12, 12, 8); // manga izquierda
+      part(0, 36, 4, 12, 4, 20); // pantalón derecho
+      part(4, 52, 4, 12, 8, 20); // pantalón izquierdo
+    }
+  };
+  image.src = dataUrl;
+}
+
+function paintSkinPreview(dataUrl, label) {
+  drawSkinBody(els.skinPreview, dataUrl);
+  if (label) els.skinPreviewLabel.textContent = label;
+}
+
+const SKIN_HINT_DEFAULT = 'Ningún archivo elegido. PNG de 64×64 (o 64×32).';
+
+function setSkinBusy(busy, message) {
+  state.skinBusy = Boolean(busy);
+  els.skinPlayerInput.disabled = state.skinBusy;
+  els.skinLookupButton.disabled = state.skinBusy;
+  els.skinPickButton.disabled = state.skinBusy;
+  els.skinResetButton.disabled = state.skinBusy;
+  els.skinApplyButton.disabled = state.skinBusy || !state.skinDraft;
+  els.skinApplyButton.textContent = state.skinBusy ? 'Procesando…' : 'Aplicar skin';
+  for (const radio of els.skinVariants) radio.disabled = state.skinBusy;
+  if (message) els.skinNote.textContent = message;
+}
+
+function selectSkinVariant(variant) {
+  const model = variant === 'slim' ? 'slim' : 'classic';
+  for (const radio of els.skinVariants) radio.checked = radio.value === model;
+}
+
+function applySkinResult(profile, result, noteMessage, toastMessage) {
+  if (result.skin) state.skins[profile.id] = result.skin;
+  else delete state.skins[profile.id];
+
+  state.skinDraft = null;
+  els.skinPlayerInput.value = '';
+  paintSkins();
+  if (activeMicrosoft()?.id === profile.id) drawHead(els.accountSkin, state.skins[profile.id]);
+  paintSkinPreview(state.skins[profile.id] || null, 'SKIN ACTUAL');
+  selectSkinVariant(result.variant);
+
+  els.skinFile.textContent = SKIN_HINT_DEFAULT;
+  els.skinNote.textContent = noteMessage;
+  toast(toastMessage);
+}
+
+async function openSkinsPanel() {
+  state.skinDraft = null;
+  els.skinPlayerInput.value = '';
+  els.skinFile.textContent = SKIN_HINT_DEFAULT;
+  els.skinNote.textContent = 'Se aplica al instante en tu cuenta de Minecraft.';
+  els.skinApplyButton.disabled = true;
+  setSkinBusy(false);
+
+  const profile = activeMicrosoft();
+  els.skinLayout.hidden = !profile;
+  els.skinOffline.hidden = Boolean(profile);
+  openPanel(els.skinsOverlay);
+
+  if (!profile) {
+    paintSkinPreview(null, 'SKIN ACTUAL');
+    return;
+  }
+
+  els.skinAccount.textContent = profile.name;
+
+  try {
+    const info = await api.skinInfo(profile.id);
+    selectSkinVariant(info?.variant);
+  } catch {
+    // Si falla, se queda el modelo clásico.
+  }
+
+  let dataUrl = state.skins[profile.id] || null;
+
+  if (!dataUrl) {
+    try {
+      dataUrl = await api.profileSkin(profile.id);
+      if (dataUrl) {
+        state.skins[profile.id] = dataUrl;
+        paintSkins();
+      }
+    } catch {
+      dataUrl = null;
+    }
+  }
+
+  paintSkinPreview(dataUrl, 'SKIN ACTUAL');
+}
+
+async function lookupPlayerSkin() {
+  const profile = activeMicrosoft();
+  if (!profile || state.skinBusy) return;
+
+  const username = els.skinPlayerInput.value.trim();
+  if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+    toast('Escribe un nombre válido de Minecraft (3–16 caracteres: letras, números o _).', 'error');
+    els.skinPlayerInput.focus();
+    return;
+  }
+
+  setSkinBusy(true, 'Buscando skin en Mojang…');
+
+  try {
+    const found = await api.lookupSkin(username);
+    els.skinPlayerInput.value = found.name;
+    selectSkinVariant(found.variant);
+
+    state.skinDraft = {
+      mode: 'url',
+      url: found.url,
+      name: found.name,
+      dataUrl: found.dataUrl,
+    };
+
+    els.skinFile.textContent = `Jugador: ${found.name} (${found.variant === 'slim' ? 'Slim' : 'Clásica'})`;
+    els.skinNote.textContent = 'Vista previa lista. Pulsa «Aplicar skin» para usarla en tu cuenta.';
+    paintSkinPreview(found.dataUrl, `VISTA PREVIA · ${found.name.toUpperCase()}`);
+  } catch (error) {
+    els.skinNote.textContent = 'No se pudo cargar la skin del jugador.';
+    toast(cleanError(error), 'error', 7000);
+  } finally {
+    setSkinBusy(false);
+  }
+}
+
+async function pickSkinFile() {
+  if (state.skinBusy) return;
+
+  try {
+    const picked = await api.pickSkin();
+    if (!picked) return;
+
+    els.skinPlayerInput.value = '';
+    state.skinDraft = { mode: 'file', ...picked };
+    els.skinFile.textContent = `${picked.name} · ${picked.width}×${picked.height}`;
+    els.skinNote.textContent = 'Vista previa del archivo. Pulsa «Aplicar skin» para subirla.';
+    els.skinApplyButton.disabled = false;
+    paintSkinPreview(picked.dataUrl, 'VISTA PREVIA');
+  } catch (error) {
+    toast(cleanError(error), 'error', 7000);
+  }
+}
+
+async function applySkinChanges() {
+  const profile = activeMicrosoft();
+  if (!profile || !state.skinDraft || state.skinBusy) return;
+
+  const variant = [...els.skinVariants].find((radio) => radio.checked)?.value || 'classic';
+  const fromUrl = state.skinDraft.mode === 'url';
+
+  setSkinBusy(true, fromUrl ? 'Aplicando la skin en Mojang…' : 'Subiendo la skin a Mojang…');
+
+  try {
+    const result = fromUrl
+      ? await api.applySkinUrl(profile.id, state.skinDraft.url, variant)
+      : await api.applySkin(profile.id, variant);
+
+    applySkinResult(
+      profile,
+      result,
+      'Skin actualizada. Ya se ve en tu cuenta de Minecraft.',
+      'Skin actualizada.',
+    );
+  } catch (error) {
+    els.skinNote.textContent = 'No se pudo aplicar la skin.';
+    toast(cleanError(error), 'error', 8000);
+  } finally {
+    setSkinBusy(false);
+  }
+}
+
+async function resetActiveSkin() {
+  const profile = activeMicrosoft();
+  if (!profile || state.skinBusy) return;
+
+  if (!window.confirm('¿Restaurar la skin predeterminada de tu cuenta de Minecraft?')) return;
+
+  setSkinBusy(true, 'Restaurando la skin predeterminada…');
+
+  try {
+    const result = await api.resetSkin(profile.id);
+    applySkinResult(
+      profile,
+      result,
+      'Skin predeterminada restaurada.',
+      'Skin predeterminada restaurada.',
+    );
+  } catch (error) {
+    els.skinNote.textContent = 'No se pudo restaurar la skin.';
+    toast(cleanError(error), 'error', 8000);
+  } finally {
+    setSkinBusy(false);
+  }
+}
+
+/* ---------- Panel de mods ---------- */
+
+function renderMods() {
+  const data = state.mods;
+  if (!data) return;
+
+  const query = els.modsSearch.value.trim().toLowerCase();
+  const visible = data.mods.filter((mod) => {
+    if (!query) return true;
+    return `${mod.name} ${mod.author} ${mod.version} ${mod.description}`
+      .toLowerCase()
+      .includes(query);
+  });
+
+  const size = formatBytes(data.size);
+  els.modsSummary.textContent = `${data.count} MODS${size ? ` · ${size}` : ''} · ${data.channelLabel}`;
+  els.modsList.innerHTML = '';
+
+  if (visible.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'mods-empty';
+
+    const title = document.createElement('strong');
+    title.textContent = data.count === 0
+      ? 'Todavía no hay mods publicados.'
+      : 'Ningún mod coincide con la búsqueda.';
+
+    const hint = document.createElement('p');
+    hint.textContent = data.count === 0
+      ? `Cuando el canal ${data.channelLabel} tenga mods, aparecerán aquí con su descripción.`
+      : 'Prueba con otro nombre.';
+
+    empty.append(title, hint);
+    els.modsList.appendChild(empty);
+    return;
+  }
+
+  for (const mod of visible) {
+    const row = document.createElement('article');
+    row.className = 'mod-row';
+
+    const head = document.createElement('div');
+    head.className = 'mod-head';
+
+    const name = document.createElement('strong');
+    name.className = 'mod-name';
+    name.textContent = mod.name;
+    head.appendChild(name);
+
+    if (mod.version) {
+      const version = document.createElement('span');
+      version.className = 'mod-version';
+      version.textContent = mod.version;
+      head.appendChild(version);
+    }
+
+    const modSize = formatBytes(mod.size);
+    if (modSize) {
+      const sizeNode = document.createElement('span');
+      sizeNode.className = 'mod-size';
+      sizeNode.textContent = modSize;
+      head.appendChild(sizeNode);
+    }
+
+    if (mod.file) {
+      const status = document.createElement('span');
+      status.className = `mod-status${mod.installed ? ' installed' : ''}`;
+      status.textContent = mod.installed ? 'INSTALADO' : 'SE DESCARGA';
+      head.appendChild(status);
+    }
+
+    row.appendChild(head);
+
+    if (mod.author) {
+      const author = document.createElement('span');
+      author.className = 'mod-author';
+      author.textContent = `por ${mod.author}`;
+      row.appendChild(author);
+    }
+
+    const description = document.createElement('p');
+    description.className = 'mod-desc';
+    description.textContent = mod.description || 'Sin descripción todavía.';
+    row.appendChild(description);
+
+    els.modsList.appendChild(row);
+  }
+}
+
+async function openModsPanel() {
+  els.modsSearch.value = '';
+  els.modsSummary.textContent = 'Cargando…';
+  els.modsList.innerHTML = '';
+  openPanel(els.modsOverlay);
+
+  try {
+    state.mods = await api.modsInfo(state.config.channel);
+  } catch (error) {
+    state.mods = null;
+    els.modsSummary.textContent = '—';
+    const node = document.createElement('div');
+    node.className = 'mods-empty';
+    node.textContent = cleanError(error) || 'No se pudo leer el modpack.';
+    els.modsList.appendChild(node);
+    return;
+  }
+
+  renderMods();
+}
+
+/* ---------- Perfiles ---------- */
+
+function renderProfile() {
+  const profile = activeProfile();
+  els.profileName.textContent = profile?.name || 'Sin cuenta';
+
+  const label = els.profileButton.querySelector('.profile-label');
+  if (label) {
+    label.textContent = !profile
+      ? 'ELEGIR CUENTA ▾'
+      : profile.type === 'microsoft'
+        ? 'PREMIUM ▾'
+        : 'NO PREMIUM ▾';
+  }
+
+  els.profileButton.classList.toggle('no-account', !profile);
+
+  if (profile) ensureSkin(profile);
+  paintSkins();
+}
+
+function renderProfileList() {
+  els.profileList.innerHTML = '';
+
+  const empty = state.config.profiles.length === 0;
+  els.profilesIntro.hidden = !empty;
+  els.listHead.hidden = empty;
+
+  for (const profile of state.config.profiles) {
+    const row = document.createElement('div');
+    row.className = `profile-row${profile.id === state.config.activeProfile ? ' active' : ''}`;
+
+    if (profile.type === 'microsoft') {
+      const skin = document.createElement('canvas');
+      skin.className = 'row-skin';
+      skin.width = 64;
+      skin.height = 64;
+      skin.dataset.skinId = profile.id;
+      row.appendChild(skin);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'row-name';
+    name.textContent = profile.name;
+
+    const type = document.createElement('span');
+    type.className = 'row-type';
+
+    if (profile.type === 'microsoft') {
+      const connected = state.auth[profile.id] !== false;
+      type.textContent = connected ? 'PREMIUM' : 'PREMIUM · SIN SESIÓN';
+      type.classList.toggle('ms', connected);
+    } else {
+      type.textContent = 'NO PREMIUM';
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'row-badge';
+    badge.textContent = profile.id === state.config.activeProfile ? 'ACTIVO' : '';
+
+    row.append(name, type, badge);
+
+    const remove = document.createElement('button');
+    remove.className = 'row-remove';
+    remove.textContent = '×';
+    remove.title =
+      profile.type === 'microsoft' ? 'Quitar cuenta Microsoft' : 'Eliminar cuenta no premium';
+    remove.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      try {
+        const result = await api.removeProfile(profile.id);
+        state.config = result.config;
+        state.auth = result.auth || {};
+        delete state.skins[profile.id];
+        renderProfile();
+        renderProfileList();
+        renderAccount();
+        toast(`Cuenta "${profile.name}" eliminada.`);
+      } catch (error) {
+        toast(cleanError(error), 'error');
+      }
+    });
+    row.appendChild(remove);
+
+    row.addEventListener('click', async () => {
+      try {
+        state.config = await api.selectProfile(profile.id);
+        renderProfile();
+        renderProfileList();
+        renderAccount();
+        els.profilesNote.textContent = `Cuenta activa: ${profile.name}`;
+      } catch (error) {
+        toast(cleanError(error), 'error');
+      }
+    });
+
+    els.profileList.appendChild(row);
+  }
+
+  paintSkins();
+  for (const profile of state.config.profiles) ensureSkin(profile);
+}
+
+/* ---------- Cuenta Microsoft ---------- */
+
+function activeMicrosoft() {
+  const profile = activeProfile();
+  return profile && profile.type === 'microsoft' ? profile : null;
+}
+
+function renderAccount() {
+  const profile = activeMicrosoft();
+  const connected = profile ? state.auth[profile.id] !== false : false;
+
+  els.accountFlag.classList.toggle('connected', Boolean(profile) && connected);
+
+  if (!profile) {
+    els.accountFlag.textContent = 'SIN CONECTAR';
+    els.accountHint.textContent = 'Usa tu cuenta de Microsoft con Minecraft: Java Edition.';
+    els.msLoginButton.textContent = 'Iniciar sesión con Microsoft';
+    els.msLoginButton.hidden = false;
+    els.accountUser.hidden = true;
+    return;
+  }
+
+  els.msLoginButton.hidden = false;
+  els.accountName.textContent = profile.name;
+
+  if (connected) {
+    els.accountFlag.textContent = 'CONECTADO';
+    els.accountHint.textContent = 'Esta cuenta entra sin contraseña a servidores mixtos.';
+    els.msLoginButton.textContent = 'Iniciar sesión con otra cuenta';
+    els.accountUser.hidden = false;
+    ensureSkin(profile);
+  } else {
+    els.accountFlag.textContent = 'SESIÓN CADUCADA';
+    els.accountHint.textContent =
+      'La sesión de Microsoft caducó. Vuelve a conectar la cuenta para jugar.';
+    els.msLoginButton.textContent = 'Reconectar Microsoft';
+    els.accountUser.hidden = true;
+  }
+}
+
+async function signInMicrosoft() {
+  if (state.signingIn) return;
+
+  state.signingIn = true;
+  els.msLoginButton.disabled = true;
+  els.msLoginButton.textContent = 'Conectando…';
+  els.deviceBox.hidden = true;
+
+  try {
+    const result = await api.signInMicrosoft();
+    state.config = result.config;
+    state.auth = result.auth || {};
+    toast(`Sesión iniciada como ${result.profile.name}.`);
+    renderProfile();
+    renderProfileList();
+    renderAccount();
+  } catch (error) {
+    const message = cleanError(error);
+    if (!/cancelad/i.test(message)) toast(message, 'error', 9000);
+  } finally {
+    state.signingIn = false;
+    els.msLoginButton.disabled = false;
+    els.deviceBox.hidden = true;
+    renderAccount();
+  }
+}
+
+/* ---------- Actualizaciones ---------- */
+
+const UPDATE_TEXT = {
+  idle: 'Sin comprobar',
+  checking: 'Buscando actualizaciones…',
+  available: 'Actualización disponible',
+  downloading: 'Descargando actualización',
+  ready: 'Actualización lista para instalar',
+  current: 'Launcher actualizado',
+  error: 'No se pudo comprobar la actualización',
+  disabled: 'Solo en la versión instalada',
+};
+
+function renderUpdate(update) {
+  if (!update) return;
+  state.update = update;
+
+  els.updateVersion.textContent = update.currentVersion || '';
+  els.updateState.value = UPDATE_TEXT[update.status] || update.status;
+
+  const visible = ['available', 'downloading', 'ready'].includes(update.status);
+  els.updateBar.hidden = !visible;
+  els.updateBar.dataset.state = update.status;
+
+  if (update.status === 'downloading') {
+    const percent = Math.max(0, Math.min(100, Number(update.percent) || 0));
+    els.updateText.textContent = `Descargando ${update.version || 'actualización'} … ${percent}%`;
+    els.updateFill.style.width = `${percent}%`;
+  } else if (update.status === 'ready') {
+    els.updateText.textContent = `Actualización ${update.version || ''} lista. Se aplicará al reiniciar.`;
+    els.updateFill.style.width = '100%';
+  } else if (update.status === 'available') {
+    els.updateText.textContent = `Actualización ${update.version || ''} encontrada, preparando descarga…`;
+    els.updateFill.style.width = '6%';
+  }
+
+  els.updateAction.hidden = update.status !== 'ready';
+
+  if (state.manualUpdateCheck && ['current', 'error', 'disabled'].includes(update.status)) {
+    state.manualUpdateCheck = false;
+    if (update.status === 'current') {
+      toast(`Estás al día (v${update.currentVersion}).`);
+    } else if (update.status === 'disabled') {
+      toast('Las actualizaciones automáticas solo funcionan con el launcher instalado.');
+    } else {
+      toast(`No se pudo comprobar: ${update.error || 'error de red'}`, 'error', 7000);
+    }
+  }
+}
+
+async function addProfile() {
+  const name = els.newProfileName.value.trim();
+  if (!name) {
+    toast('Escribe un nombre para el perfil.', 'error');
+    return;
+  }
+
+  try {
+    state.config = await api.addProfile(name);
+    els.newProfileName.value = '';
+    renderProfile();
+    renderProfileList();
+    renderAccount();
+    toast(`Cuenta no premium "${activeProfile()?.name}" activada.`);
+  } catch (error) {
+    toast(cleanError(error), 'error');
+  }
+}
+
+/* =========================================================
+   AJUSTES
+   ========================================================= */
+
+function normalizeDirCompare(value) {
+  const trimmed = String(value || '').trim().replace(/[\\/]+$/, '');
+  return state.boot?.system?.platform === 'win32' ? trimmed.toLowerCase() : trimmed;
+}
+
+function renderGameDirField() {
+  const defaultDir = state.boot?.system?.defaultGameDir || state.boot?.system?.gameDir || '';
+  const activeDir = state.boot?.system?.gameDir || defaultDir;
+  const isCustom = Boolean(state.gameDirDraft);
+  const usingFallback = Boolean(
+    state.boot?.system?.gameDirFallback
+    && isCustom
+    && state.gameDirDraft === state.config?.gameDir,
+  );
+
+  els.gameDirPath.value = usingFallback ? activeDir : (state.gameDirDraft || defaultDir);
+  els.gameDirPath.title = els.gameDirPath.value;
+  els.resetGameDirButton.disabled = !isCustom;
+
+  if (usingFallback) {
+    els.gameDirNote.textContent =
+      `La carpeta configurada (${state.config.gameDir}) no está accesible; usando la ruta por defecto.`;
+    els.gameDirNote.classList.add('warning');
+  } else if (isCustom) {
+    els.gameDirNote.textContent = 'Carpeta personalizada. Minecraft, mods y mundos se guardarán aquí.';
+    els.gameDirNote.classList.remove('warning');
+  } else {
+    els.gameDirNote.textContent = 'Usando la carpeta por defecto del launcher (userData/game).';
+    els.gameDirNote.classList.remove('warning');
+  }
+}
+
+async function pickGameDir() {
+  try {
+    const picked = await api.pickFolder();
+    if (!picked) return;
+
+    const defaultDir = state.boot?.system?.defaultGameDir || '';
+    const sameAsDefault = defaultDir && normalizeDirCompare(picked) === normalizeDirCompare(defaultDir);
+    state.gameDirDraft = sameAsDefault ? null : picked;
+    renderGameDirField();
+  } catch (error) {
+    toast(cleanError(error) || 'No se pudo seleccionar la carpeta.', 'error');
+  }
+}
+
+function resetGameDir() {
+  state.gameDirDraft = null;
+  renderGameDirField();
+}
+
+function renderSettings() {
+  const config = state.config;
+  const systemMb = Number(state.boot?.system?.totalMemoryMb) || 0;
+  const safeMax = systemMb > 0
+    ? Math.max(2048, Math.floor((systemMb * 0.75) / 512) * 512)
+    : 12288;
+  const maxMemory = Math.min(12288, safeMax);
+
+  els.memoryRange.max = String(Math.max(maxMemory, Math.min(16384, config.memory)));
+  els.memoryRange.value = String(config.memory);
+  els.memoryValue.textContent = `${config.memory} MB`;
+
+  const resolution = `${config.resolution.width}x${config.resolution.height}`;
+  if (![...els.resolutionSelect.options].some((option) => option.value === resolution)) {
+    const option = document.createElement('option');
+    option.value = resolution;
+    option.textContent = `${config.resolution.width} × ${config.resolution.height}`;
+    els.resolutionSelect.appendChild(option);
+  }
+  els.resolutionSelect.value = resolution;
+
+  els.fullscreenToggle.checked = config.resolution.fullscreen;
+  els.closeOnLaunchToggle.checked = config.closeOnLaunch;
+  els.effectsToggle.checked = config.effects !== false;
+  els.musicToggle.checked = config.music === true;
+  els.javaPath.value = config.javaPath || '';
+  state.gameDirDraft = config.gameDir || null;
+
+  renderGameDirField();
+  updateMemoryHint();
+  paintJava();
+  renderPack();
+}
+
+function renderPack() {
+  const hasRemote = Boolean(state.modpack.manifestUrl);
+  els.packField.hidden = !hasRemote;
+  if (!hasRemote) return;
+
+  els.packRevision.textContent = `rev. ${state.modpack.revision || 1}`;
+  els.packState.value = state.modpack.source === 'remote'
+    ? 'Manifiesto remoto'
+    : 'Manifiesto incluido';
+}
+
+function paintJava() {
+  if (state.java) {
+    els.javaState.textContent = `Java ${state.java.raw}`;
+    els.javaState.style.color = 'var(--green)';
+  } else {
+    els.javaState.textContent = 'No detectado (se descargará)';
+    els.javaState.style.color = '#d96a4d';
+  }
+}
+
+async function detectJava(explicitPath) {
+  els.javaState.textContent = 'Detectando…';
+  els.javaState.style.color = 'var(--muted)';
+  try {
+    state.java = await api.detectJava(explicitPath || null);
+    paintJava();
+    return state.java;
+  } catch {
+    state.java = null;
+    paintJava();
+    return null;
+  }
+}
+
+function closeSettings() {
+  closePanel(els.settingsOverlay);
+  applyEffects(state.config.effects !== false);
+  applyMusic(state.config.music === true);
+}
+
+async function saveSettings() {
+  const [width, height] = els.resolutionSelect.value.split('x').map(Number);
+  const patch = {
+    memory: Number(els.memoryRange.value),
+    resolution: {
+      width,
+      height,
+      fullscreen: els.fullscreenToggle.checked,
+    },
+    closeOnLaunch: els.closeOnLaunchToggle.checked,
+    effects: els.effectsToggle.checked,
+    music: els.musicToggle.checked,
+    javaPath: els.javaPath.value.trim() || null,
+  };
+
+  if (state.gameDirDraft !== state.config.gameDir) {
+    patch.gameDir = state.gameDirDraft;
+  }
+
+  try {
+    state.config = await api.saveSettings(patch);
+    state.gameDirDraft = state.config.gameDir || null;
+
+    if (state.boot?.system && 'gameDir' in patch) {
+      state.boot.system.gameDir = state.config.gameDir || state.boot.system.defaultGameDir;
+      state.boot.system.gameDirFallback = false;
+    }
+
+    applyEffects(state.config.effects !== false);
+    applyMusic(state.config.music === true);
+    renderProfile();
+    closePanel(els.settingsOverlay);
+    toast('Ajustes guardados.');
+  } catch (error) {
+    toast(cleanError(error) || 'No se pudieron guardar los ajustes.', 'error');
+  }
+}
+
+/* =========================================================
+   CONSOLA
+   ========================================================= */
+
+function appendLog(line) {
+  state.logBuffer.push(line);
+  if (state.logBuffer.length > 400) state.logBuffer.shift();
+
+  if (els.consoleOverlay.classList.contains('open')) {
+    renderConsole();
+  }
+}
+
+function renderConsole() {
+  els.consoleOutput.textContent = state.logBuffer.length
+    ? state.logBuffer.join('\n')
+    : 'Sin actividad todavía.';
+  els.consoleOutput.scrollTop = els.consoleOutput.scrollHeight;
+}
+
+async function openConsole() {
+  try {
+    const logs = await api.logs();
+    if (Array.isArray(logs) && logs.length) state.logBuffer = logs.slice(-400);
+  } catch {
+    /* sin logs */
+  }
+  renderConsole();
+  openPanel(els.consoleOverlay);
+}
+
+/* =========================================================
+   LANZAMIENTO
+   ========================================================= */
+
+function setLaunchState(mode) {
+  const button = els.playButton;
+
+  state.launching = mode === 'launching';
+  state.syncing = mode === 'syncing';
+  state.running = mode === 'running';
+
+  els.body.dataset.state = mode;
+  els.syncButton.disabled = mode !== 'idle';
+
+  button.classList.remove('is-busy', 'is-running');
+  button.disabled = false;
+
+  if (mode === 'launching') {
+    button.textContent = 'CANCELAR';
+    button.classList.add('is-busy');
+    els.status.textContent = 'Preparando el juego...';
+  } else if (mode === 'syncing') {
+    button.textContent = 'CANCELAR';
+    button.classList.add('is-busy');
+    els.status.textContent = 'Sincronizando archivos...';
+  } else if (mode === 'running') {
+    button.textContent = 'JUGANDO';
+    button.classList.add('is-running');
+    button.disabled = true;
+  } else {
+    button.textContent = 'JUGAR';
+    els.percentage.textContent = '—';
+    els.progress.style.width = '0%';
+    els.status.textContent = 'Listo para jugar';
+  }
+}
+
+function setProgress(percent, detail) {
+  const value = Math.min(1, Math.max(0, Number(percent) || 0));
+  els.progress.style.width = `${value * 100}%`;
+  els.percentage.textContent = value > 0 && value < 1 ? formatPercent(value) : value >= 1 ? '' : '—';
+  if (detail) els.progress.title = detail;
+}
+
+function clearHideTimer() {
+  if (!state.hideTimer) return;
+  clearTimeout(state.hideTimer);
+  state.hideTimer = null;
+}
+
+async function startGame() {
+  if (state.launching || state.syncing) {
+    await api.cancel();
+    return;
+  }
+  if (state.running) return;
+
+  if (!state.launching) {
+    if (!activeProfile()) {
+      toast('Elige una cuenta premium o no premium para jugar.');
+      renderProfileList();
+      renderAccount();
+      openPanel(els.profilesOverlay);
+      return;
+    }
+  }
+
+  clearHideTimer();
+  setLaunchState('launching');
+  setProgress(0, null);
+
+  try {
+    await api.launch();
+  } catch (error) {
+    setLaunchState('idle');
+    toast(error.message || 'No se pudo iniciar el juego.', 'error');
+  }
+}
+
+async function startSync() {
+  if (state.syncing || state.launching) {
+    await api.cancel();
+    return;
+  }
+  if (state.running) return;
+
+  clearHideTimer();
+  setLaunchState('syncing');
+  setProgress(0, null);
+
+  try {
+    await api.syncFiles();
+  } catch (error) {
+    setLaunchState('idle');
+    toast(error.message || 'No se pudieron sincronizar los archivos.', 'error');
+  }
+}
+
+/* =========================================================
+   EVENTOS IPC
+   ========================================================= */
+
+function bindEvents() {
+  api.onStatus(({ text, phase }) => {
+    els.status.textContent = text;
+    els.status.title = text;
+    if (phase) els.body.dataset.state = phase;
+  });
+
+  api.onProgress(({ percent, detail }) => setProgress(percent, detail));
+
+  api.onLog(({ line }) => appendLog(line));
+
+  api.onReady(() => {
+    setLaunchState('running');
+    setProgress(1, 'Jugando');
+    els.status.textContent = 'Jugando';
+    els.body.dataset.state = 'running';
+
+    clearHideTimer();
+    if (state.config.closeOnLaunch) {
+      state.hideTimer = setTimeout(() => {
+        state.hideTimer = null;
+        api.hideWindow();
+      }, 1500);
+    }
+  });
+
+  api.onSynced(({ files, downloaded }) => {
+    clearHideTimer();
+    setLaunchState('idle');
+    setProgress(0, null);
+    toast(`Archivos sincronizados: ${files} verificados, ${downloaded} descargados.`, 'success');
+  });
+
+  api.onExit(({ code, crashed, crashReportLocation }) => {
+    clearHideTimer();
+    setLaunchState('idle');
+
+    if (crashed) {
+      toast(
+        `El juego se cerró con un error (código ${code}).${crashReportLocation ? ' Revisa la consola.' : ''}`,
+        'error',
+        8000,
+      );
+      els.body.dataset.state = 'error';
+      els.status.textContent = 'El juego se cerró inesperadamente';
+    } else {
+      els.status.textContent = 'Listo para jugar';
+    }
+  });
+
+  api.onError(({ message, operation }) => {
+    clearHideTimer();
+    const syncing = operation === 'sync' || state.syncing;
+    setLaunchState('idle');
+    els.body.dataset.state = 'error';
+    els.status.textContent = syncing ? 'Error al sincronizar' : 'Error al iniciar el juego';
+    toast(message || (syncing ? 'Error desconocido al sincronizar.' : 'Error desconocido al iniciar el juego.'), 'error', 9000);
+  });
+
+  api.onCancelled(() => {
+    clearHideTimer();
+    const syncing = state.syncing;
+    setLaunchState('idle');
+    toast(syncing ? 'Sincronización cancelada.' : 'Inicio cancelado.');
+  });
+
+  // Cuenta Microsoft
+  api.onDeviceCode(({ userCode, verificationUri }) => {
+    els.deviceBox.hidden = false;
+    els.deviceCode.textContent = userCode;
+    els.deviceLink.textContent = 'microsoft.com/link';
+    els.deviceLink.dataset.url = verificationUri || 'https://www.microsoft.com/link';
+    if (verificationUri) api.open(verificationUri);
+  });
+
+  api.onSignedIn((payload) => {
+    state.config = payload.config;
+    state.auth = payload.auth || {};
+    renderProfile();
+    renderProfileList();
+    renderAccount();
+  });
+
+  api.onAuthError(({ message }) => {
+    els.deviceBox.hidden = true;
+    if (message) toast(message, 'error', 9000);
+  });
+
+  // Actualizaciones
+  api.onUpdateState((update) => renderUpdate(update));
+
+  // Ventana
+  els.minimizeButton.addEventListener('click', () => api.minimize());
+  els.maximizeButton.addEventListener('click', () => api.toggleMaximize());
+  els.closeButton.addEventListener('click', () => api.closeWindow());
+  api.onWindowVisibility(({ hidden }) => setWindowPaused(hidden));
+  document.addEventListener('visibilitychange', () => setWindowPaused(document.hidden));
+
+  // Menús
+  els.versionButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const opened = els.versionMenu.classList.toggle('open');
+    els.versionArrow.classList.toggle('open', opened);
+    els.profileMenu.classList.remove('open');
+  });
+
+  els.profileButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    els.profileMenu.classList.toggle('open');
+    els.versionMenu.classList.remove('open');
+    els.versionArrow.classList.remove('open');
+  });
+
+  document.addEventListener('click', closeAllMenu);
+
+  // Enlaces sociales
+  document.querySelectorAll('[data-link]').forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      const url = state.links[link.dataset.link];
+
+      if (!url || !/^https?:\/\//i.test(url)) {
+        toast(`Configura el enlace "${link.dataset.link}" en resources/links.json.`);
+        return;
+      }
+
+      api.open(url);
+    });
+  });
+
+  // Modal de noticias
+  els.modalClose.addEventListener('click', () => els.overlay.classList.remove('open'));
+  els.overlay.addEventListener('click', (event) => {
+    if (event.target === els.overlay) els.overlay.classList.remove('open');
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+
+    if (els.overlay.classList.contains('open')) els.overlay.classList.remove('open');
+    else if (els.settingsOverlay.classList.contains('open')) closeSettings();
+    else if (els.profilesOverlay.classList.contains('open')) closePanel(els.profilesOverlay);
+    else if (els.skinsOverlay.classList.contains('open')) closePanel(els.skinsOverlay);
+    else if (els.modsOverlay.classList.contains('open')) closePanel(els.modsOverlay);
+    else if (els.consoleOverlay.classList.contains('open')) closePanel(els.consoleOverlay);
+    else closeAllMenu();
+  });
+
+  // Jugar
+  els.playButton.addEventListener('click', startGame);
+  els.syncButton.addEventListener('click', startSync);
+
+  // Cuenta Microsoft
+  els.msLoginButton.addEventListener('click', signInMicrosoft);
+
+  els.deviceLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    api.open(els.deviceLink.dataset.url || 'https://www.microsoft.com/link');
+  });
+
+  els.deviceCopy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(els.deviceCode.textContent.trim());
+      toast('Código copiado.');
+    } catch {
+      toast('No se pudo copiar el código.', 'error');
+    }
+  });
+
+  els.deviceCancel.addEventListener('click', () => {
+    api.cancelSignIn();
+    els.deviceBox.hidden = true;
+  });
+
+  // Actualizaciones
+  els.updateCheckButton.addEventListener('click', async () => {
+    state.manualUpdateCheck = true;
+    renderUpdate(await api.checkUpdates());
+  });
+
+  els.updateAction.addEventListener('click', () => api.installUpdate());
+
+  els.packCheckButton.addEventListener('click', async () => {
+    els.packCheckButton.disabled = true;
+    els.packState.value = 'Comprobando...';
+
+    try {
+      const result = await api.checkPack();
+
+      if (result.updated) {
+        state.modpack = result.modpack;
+        renderChannels();
+        renderPack();
+        toast(`Pack actualizado a la revisión ${result.revision}. Se descargará al jugar.`, 'success');
+        return;
+      }
+      if (result.reason === 'sin-cambios') {
+        toast(`El pack ya está al día (revisión ${result.revision || state.modpack.revision || 1}).`);
+      } else if (result.reason === 'sin-url') {
+        toast('No hay manifiesto remoto configurado.', 'error');
+      } else {
+        toast(`No se pudo comprobar el pack: ${result.error || result.reason || 'error'}.`, 'error');
+      }
+    } catch (error) {
+      toast(`No se pudo comprobar el pack: ${error?.message || error}.`, 'error');
+    } finally {
+      els.packCheckButton.disabled = false;
+      renderPack();
+    }
+  });
+
+  // Ajustes
+  els.openSettings.addEventListener('click', () => {
+    closeAllMenu();
+    renderSettings();
+    openPanel(els.settingsOverlay);
+  });
+
+  els.settingsClose.addEventListener('click', closeSettings);
+  els.settingsCancel.addEventListener('click', closeSettings);
+  els.settingsSave.addEventListener('click', saveSettings);
+  els.pickGameDirButton.addEventListener('click', pickGameDir);
+  els.resetGameDirButton.addEventListener('click', resetGameDir);
+
+  els.effectsToggle.addEventListener('change', () => {
+    applyEffects(els.effectsToggle.checked);
+  });
+
+  els.musicToggle.addEventListener('change', () => {
+    applyMusic(els.musicToggle.checked);
+  });
+
+  els.settingsOverlay.addEventListener('click', (event) => {
+    if (event.target === els.settingsOverlay) closeSettings();
+  });
+
+  els.memoryRange.addEventListener('input', () => {
+    els.memoryValue.textContent = `${els.memoryRange.value} MB`;
+    updateMemoryHint();
+  });
+
+  els.javaDetectButton.addEventListener('click', async () => {
+    const java = await detectJava(null);
+    toast(java ? `Java ${java.raw} detectado.` : 'No se encontró Java 17 en el sistema.', java ? 'info' : 'error');
+  });
+
+  els.javaBrowseButton.addEventListener('click', async () => {
+    const result = await api.pickJava();
+    if (!result) return;
+
+    if (!result.version || result.version.major < 17) {
+      toast('Ese Java es anterior a la versión 17.', 'error');
+      return;
+    }
+
+    els.javaPath.value = result.path;
+    state.java = result.version;
+    paintJava();
+    toast(`Java ${result.version.raw} seleccionado.`);
+  });
+
+  els.openGameFolder.addEventListener('click', () => api.open('game'));
+
+  // Perfiles
+  els.openProfiles.addEventListener('click', () => {
+    closeAllMenu();
+    renderProfileList();
+    renderAccount();
+    els.profilesNote.textContent = '';
+    openPanel(els.profilesOverlay);
+  });
+
+  els.profilesClose.addEventListener('click', () => closePanel(els.profilesOverlay));
+  els.profilesDone.addEventListener('click', () => closePanel(els.profilesOverlay));
+  els.addProfileButton.addEventListener('click', addProfile);
+  els.newProfileName.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') addProfile();
+  });
+
+  els.profilesOverlay.addEventListener('click', (event) => {
+    if (event.target === els.profilesOverlay) closePanel(els.profilesOverlay);
+  });
+
+  // Consola
+  els.openConsole.addEventListener('click', () => {
+    closeAllMenu();
+    openConsole();
+  });
+
+  els.consoleClose.addEventListener('click', () => closePanel(els.consoleOverlay));
+  els.consoleDone.addEventListener('click', () => closePanel(els.consoleOverlay));
+  els.openLogsFolder.addEventListener('click', () => api.open('logs'));
+
+  els.consoleOverlay.addEventListener('click', (event) => {
+    if (event.target === els.consoleOverlay) closePanel(els.consoleOverlay);
+  });
+
+  // Skins
+  els.openSkins.addEventListener('click', () => {
+    closeAllMenu();
+    openSkinsPanel();
+  });
+
+  els.skinsClose.addEventListener('click', () => closePanel(els.skinsOverlay));
+  els.skinsDone.addEventListener('click', () => closePanel(els.skinsOverlay));
+
+  els.skinLookupButton.addEventListener('click', lookupPlayerSkin);
+  els.skinPlayerInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') lookupPlayerSkin();
+  });
+  els.skinPickButton.addEventListener('click', pickSkinFile);
+  els.skinApplyButton.addEventListener('click', applySkinChanges);
+  els.skinResetButton.addEventListener('click', resetActiveSkin);
+
+  els.skinGoAccounts.addEventListener('click', () => {
+    closePanel(els.skinsOverlay);
+    renderProfileList();
+    renderAccount();
+    els.profilesNote.textContent = '';
+    openPanel(els.profilesOverlay);
+  });
+
+  els.skinsOverlay.addEventListener('click', (event) => {
+    if (event.target === els.skinsOverlay) closePanel(els.skinsOverlay);
+  });
+
+  // Mods
+  els.openMods.addEventListener('click', () => {
+    closeAllMenu();
+    openModsPanel();
+  });
+
+  els.modsClose.addEventListener('click', () => closePanel(els.modsOverlay));
+  els.modsDone.addEventListener('click', () => closePanel(els.modsOverlay));
+  els.modsSearch.addEventListener('input', renderMods);
+
+  els.modsOverlay.addEventListener('click', (event) => {
+    if (event.target === els.modsOverlay) closePanel(els.modsOverlay);
+  });
+
+  // Salir
+  els.quitLauncher.addEventListener('click', () => api.closeWindow());
+}
+
+/* =========================================================
+   ARRANQUE
+   ========================================================= */
+
+async function init() {
+  if (typeof api.onNewsUpdated === 'function') {
+    api.onNewsUpdated((items) => {
+      if (!Array.isArray(items)) return;
+      state.news = items;
+      renderNews();
+    });
+  }
+
+  try {
+    const boot = await api.bootstrap();
+    state.boot = boot;
+    state.config = boot.config;
+    state.modpack = boot.modpack;
+    state.news = boot.news || [];
+    state.links = boot.links || {};
+    state.auth = boot.auth || {};
+    state.update = boot.update || null;
+
+    els.brandVersion.textContent = boot.launcherVersion;
+    els.launcherVersion.textContent = `LAUNCHER ${boot.launcherVersion}`;
+
+    renderProfile();
+    renderNews();
+    renderChannels();
+    renderSettings();
+    renderAccount();
+    renderUpdate(boot.update);
+    applyEffects(boot.config.effects !== false);
+    applyMusic(boot.config.music === true);
+    armMusicUnlock();
+
+    setLaunchState('idle');
+    setProgress(0, null);
+
+    startServerPolling();
+
+    detectJava(null);
+
+    if (boot.system?.gameDirFallback) {
+      toast('La carpeta personalizada del juego no está accesible; usando userData/game.', 'error', 8000);
+    }
+  } catch (error) {
+    toast(`No se pudo iniciar el launcher: ${cleanError(error)}`, 'error', 12000);
+  }
+
+  bindEvents();
+
+  // Primer inicio sin cuentas: elegir premium o no premium directamente.
+  if (state.config && !activeProfile()) {
+    renderProfileList();
+    renderAccount();
+    openPanel(els.profilesOverlay);
+    setTimeout(() => els.newProfileName.focus(), 150);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);

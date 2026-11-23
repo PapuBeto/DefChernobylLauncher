@@ -1,0 +1,27 @@
+{
+  "_guia": {
+    "como_editar": "Para publicar o cambiar noticias sin recompilar el launcher, edita la lista 'items' y sube este archivo como 'news.json' al Release 'modpack-assets' en GitHub.",
+    "campos": {
+      "id": "Identificador corto único (ej: 'apertura-1-0').",
+      "title": "Titular visible en la lista lateral y en el modal.",
+      "date": "Fecha corta (ej: '21 NOV' o '2026-11-22').",
+      "tag": "Etiqueta superior derecha (ej: 'OFICIAL', 'NUEVO', 'ACTUALIZACIÓN', 'EVENTO', 'SERVIDOR', 'HOTFIX').",
+      "body": "Texto completo de la noticia que aparece al hacer clic.",
+      "type": "Color del punto indicador: 'update'/'info' (verde), 'fix' (rojo) o 'server' (gris). Opcional.",
+      "featured": "Pon true en una sola noticia (o se destacará automáticamente la primera). Opcional."
+    }
+  },
+  "version": 1,
+  "updatedAt": "2026-11-22T00:00:00.000Z",
+  "items": [
+    {
+      "id": "bienvenida-beta-testers",
+      "type": "info",
+      "date": "2026-11-22",
+      "tag": "OFICIAL",
+      "title": "BIENVENIDOS BETA TESTERS",
+      "body": "¡Gracias por sumarte como Beta Tester de Chernobyl Z! Tu apoyo probando el launcher, reportando errores y ayudando a pulir la experiencia es clave para dejar el servidor al cien. Selecciona la versión PRUEBAS si vas a testear las últimas novedades y comparte cualquier detalle con el equipo.",
+      "featured": true
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.jar binary
+*.zip binary
+*.exe binary
+package-lock.json -diff

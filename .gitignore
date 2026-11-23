@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+release/
+build/*.exe
+build/*.msi
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data
+.game/
+cache/
+tmp/
+tmp-*/
+pack-sources/
+pack-tmp*/
+*.pack.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.swp
+
+# Local admin docs
+GUIA-ADMIN.md
+
+# Electron
+*.tsbuildinfo

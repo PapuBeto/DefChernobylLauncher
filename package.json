@@ -1,0 +1,99 @@
+{
+  "name": "chernobyl-z-launcher",
+  "productName": "Chernobyl Z",
+  "version": "1.0.1",
+  "description": "Launcher oficial de Chernobyl Z - Minecraft 1.20.1 Forge",
+  "main": "src/main/main.js",
+  "author": {
+    "name": "Chernobyl Z",
+    "email": "contacto@chernobyl-z.com"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win",
+    "test:install": "electron scripts/test-install.js",
+    "test:download": "electron scripts/test-download.js",
+    "test:manifest": "electron scripts/test-manifest.js",
+    "test:launch": "electron scripts/test-launch.js",
+    "manifest": "node scripts/generate-manifest.js",
+    "manifest:packs": "node scripts/generate-manifest.js --completa ./pack-sources/COMPLETA --lite ./pack-sources/LITE --write resources/modpack.json",
+    "manifest:release": "node scripts/generate-manifest.js --completa ./pack-sources/COMPLETA --lite ./pack-sources/LITE --pruebas ./pack-sources/PRUEBAS --skip-missing --release-url https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets --write resources/modpack.json",
+    "icon": "node scripts/generate-icon.js"
+  },
+  "dependencies": {
+    "@xmcl/core": "^2.16.2",
+    "@xmcl/installer": "5.4.0",
+    "adm-zip": "^0.6.1",
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "overrides": {
+    "@xmcl/unzip": "2.1.2",
+    "undici": "6.29.1"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  },
+  "build": {
+    "appId": "com.chernobylz.launcher",
+    "productName": "Chernobyl Z",
+    "copyright": "Copyright © 2026 Chernobyl Z",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!**/*.map",
+      "!**/node_modules/**/{test,docs,example,examples}/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "app-resources"
+      },
+      {
+        "from": "build",
+        "to": "app-resources",
+        "filter": [
+          "icon.png"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "ChernobylZ-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Chernobyl Z",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "PapuBeto",
+        "repo": "DefChernobylLauncher",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self';">
+
+  <title>Chernobyl Z — Launcher</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/launcher.css">
+</head>
+
+<body>
+
+  <div class="app" id="app">
+
+    <!-- FONDO REACTIVO -->
+
+    <div class="bg-fx" id="bgFx" aria-hidden="true">
+      <span class="bg-orb bg-orb-a"><i></i></span>
+      <span class="bg-orb bg-orb-b"><i></i></span>
+      <div class="bg-spores" id="bgSpores"></div>
+    </div>
+
+    <!-- HEADER -->
+
+    <header id="titlebar">
+
+      <div class="brand">
+        <span class="brand-symbol">☢</span>
+        <span class="brand-name">CHERNOBYL Z</span>
+        <span class="brand-version" id="brandVersion">1.0.1</span>
+      </div>
+
+      <nav class="socials">
+
+        <a class="social" href="#" data-link="discord" title="Discord">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19.54 5.04A16.84 16.84 0 0 0 15.5 3.8l-.49 1.02a15.5 15.5 0 0 0-6.02 0L8.5 3.8c-1.4.24-2.75.65-4.04 1.24C1.9 9.08 1.2 13.03 1.55 16.92a16.7 16.7 0 0 0 4.98 2.52l1.2-1.63c-.65-.24-1.27-.54-1.86-.9l.45-.34c3.58 1.68 7.7 1.68 11.28 0l.45.34c-.59.36-1.21.66-1.86.9l1.2 1.63a16.7 16.7 0 0 0 4.98-2.52c.4-4.51-.68-8.42-2.83-11.88ZM8.45 15.1c-1.05 0-1.91-.96-1.91-2.13s.84-2.14 1.91-2.14 1.92.96 1.92 2.14-.86 2.13-1.92 2.13Zm7.1 0c-1.06 0-1.92-.96-1.92-2.13s.85-2.14 1.92-2.14 1.91.96 1.91 2.14-.85 2.13-1.91 2.13Z" />
+          </svg>
+          <span>DISCORD</span>
+        </a>
+
+        <a class="social store" href="#" data-link="store" title="Tienda">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 4h16l1.5 5H2.5L4 4Zm-.5 7h17v9h-17v-9Zm3 2v4h2v-4h-2Zm4 0v4h2v-4h-2Zm4 0v4h2v-4h-2Z" />
+          </svg>
+          <span>TIENDA</span>
+        </a>
+
+        <a class="social" href="#" data-link="youtube" title="YouTube">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M23.5 6.2a3 3 0 0 0-2.12-2.12C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.38.58A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.12 2.12C4.5 20.5 12 20.5 12 20.5s7.5 0 9.38-.58a3 3 0 0 0 2.12-2.12A31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8ZM9.6 15.7V8.3l6.3 3.7-6.3 3.7Z" />
+          </svg>
+          <span>YOUTUBE</span>
+        </a>
+
+        <a class="social" href="#" data-link="tiktok" title="TikTok">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M15.4 3h3.1c.18 1.02.69 1.93 1.46 2.6.7.62 1.6 1.02 2.54 1.12v3.12a8.3 8.3 0 0 1-4-1.28v6.05A6.39 6.39 0 1 1 13 8.25v3.2a3.2 3.2 0 1 0 2.3 3.07V3Z" />
+          </svg>
+          <span>TIKTOK</span>
+        </a>
+
+        <a class="social" href="#" data-link="instagram" title="Instagram">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 3.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5Zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5ZM17.5 6.25a1.25 1.25 0 1 1-1.25 1.25Z" />
+          </svg>
+          <span>INSTAGRAM</span>
+        </a>
+
+      </nav>
+
+      <div class="server-status" id="serverStatus">
+        <span class="server-dot" id="serverDot"></span>
+        <strong id="playerCount">—</strong>
+        <span id="serverLabel">COMPROBANDO</span>
+      </div>
+
+      <div class="profile">
+
+        <button class="profile-button" id="profileButton" title="Perfil">
+
+          <span class="avatar-frame">
+            <svg class="avatar" id="avatarDefault" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">
+              <rect width="8" height="2" fill="#6b4226" />
+              <rect y="2" width="8" height="6" fill="#c4836d" />
+              <rect x="0" y="2" width="1" height="6" fill="#6b4226" />
+              <rect x="7" y="2" width="1" height="6" fill="#6b4226" />
+              <rect x="1" y="3" width="2" height="1" fill="#3c2b1f" />
+              <rect x="5" y="3" width="2" height="1" fill="#3c2b1f" />
+              <rect x="3" y="4" width="2" height="1" fill="#b07865" />
+              <rect x="2" y="6" width="1" height="1" fill="#8b3232" />
+              <rect x="3" y="6" width="2" height="1" fill="#3c2b1f" />
+              <rect x="5" y="6" width="1" height="1" fill="#8b3232" />
+            </svg>
+
+            <canvas class="avatar avatar-canvas" id="avatarCanvas" width="64" height="64" hidden></canvas>
+          </span>
+
+          <div class="profile-info">
+            <span class="profile-name" id="profileName">Sin cuenta</span>
+            <span class="profile-label">ELEGIR CUENTA ▾</span>
+          </div>
+
+        </button>
+
+        <div class="profile-menu" id="profileMenu">
+          <div class="profile-option" id="openProfiles">Gestionar cuentas</div>
+          <div class="profile-option" id="openSkins">Cambiar skin</div>
+          <div class="profile-option" id="openMods">Mods del modpack</div>
+          <div class="profile-option" id="openSettings">Ajustes</div>
+          <div class="profile-option" id="openConsole">Consola</div>
+          <div class="profile-option separator" id="quitLauncher">Salir del launcher</div>
+        </div>
+
+      </div>
+
+      <div class="window-controls">
+        <button class="window-btn" id="minimizeButton" title="Minimizar">
+          <svg viewBox="0 0 10 10"><path d="M1 5h8" /></svg>
+        </button>
+        <button class="window-btn" id="maximizeButton" title="Maximizar">
+          <svg viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" /></svg>
+        </button>
+        <button class="window-btn close" id="closeButton" title="Cerrar">
+          <svg viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" /></svg>
+        </button>
+      </div>
+
+    </header>
+
+
+    <!-- MAIN -->
+
+    <main>
+
+      <!-- NEWS -->
+
+      <aside class="news">
+
+        <div class="section-label">
+          ÚLTIMAS NOTICIAS
+        </div>
+
+        <div id="newsList"></div>
+
+      </aside>
+
+
+      <!-- HERO -->
+
+      <section class="hero">
+
+        <div class="hero-content">
+
+          <div class="eyebrow">
+            <span>●</span>
+            ZONA DE EXCLUSIÓN • SERVIDOR OFICIAL
+          </div>
+
+          <h1 class="title">
+            CHERNOBYL <span>Z</span>
+          </h1>
+
+
+          <div class="play-section">
+
+            <div class="launch-controls">
+
+              <button class="play-button" id="playButton">
+                JUGAR
+              </button>
+
+              <div class="version">
+
+                <button class="version-button" id="versionButton">
+                  <span class="version-label">VERSIÓN</span>
+                  <span class="version-current" id="currentVersion">
+                    COMPLETA
+                  </span>
+                  <span class="version-arrow" id="versionArrow">
+                    ▾
+                  </span>
+                </button>
+
+                <div class="version-menu" id="versionMenu"></div>
+
+              </div>
+
+            </div>
+
+            <p class="channel-warning" id="channelWarning" hidden>
+              ⚠ Versión de pruebas: puede presentar fallos, tirones o falta de optimización.
+            </p>
+
+            <button class="sync-button" id="syncButton">Sincronizar archivos</button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+
+    <!-- CHANGELOG MODAL -->
+
+    <div class="overlay" id="overlay">
+
+      <div class="modal">
+
+        <button class="modal-close" id="modalClose">
+          ×
+        </button>
+
+        <div class="modal-image"></div>
+
+        <div class="modal-content">
+
+          <div class="modal-meta">
+            <span class="modal-dot" id="modalDot"></span>
+            <span id="modalTag">ACTUALIZACIÓN</span>
+            <span>/</span>
+            <span id="modalDate">15 ENE</span>
+          </div>
+
+          <h2 class="modal-title" id="modalTitle">
+            Zona Irradiada añadida al mapa
+          </h2>
+
+          <p class="modal-description" id="modalDescription">
+          </p>
+
+          <div class="modal-footer">
+            CHERNOBYL Z · REGISTRO DE ACTUALIZACIÓN
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- SETTINGS MODAL -->
+
+    <div class="panel-overlay" id="settingsOverlay">
+      <div class="panel">
+
+        <button class="modal-close" id="settingsClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / CONFIGURACIÓN</span>
+          <h2 class="panel-title">Ajustes</h2>
+        </div>
+
+        <div class="panel-body">
+
+          <div class="field">
+            <div class="field-head">
+              <label for="memoryRange">Memoria asignada</label>
+              <span class="field-value" id="memoryValue">4096 MB</span>
+            </div>
+            <input type="range" id="memoryRange" min="1024" max="12288" step="512" value="4096">
+            <p class="field-hint" id="memoryHint">Recomendado para el canal actual: 6 GB.</p>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="resolutionSelect">Resolución</label>
+              <select id="resolutionSelect">
+                <option value="1280x720">1280 × 720</option>
+                <option value="1366x768">1366 × 768</option>
+                <option value="1600x900">1600 × 900</option>
+                <option value="1920x1080">1920 × 1080</option>
+                <option value="2560x1440">2560 × 1440</option>
+              </select>
+            </div>
+
+            <div class="field field-toggle">
+              <label for="fullscreenToggle">Pantalla completa</label>
+              <label class="switch">
+                <input type="checkbox" id="fullscreenToggle">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-head">
+              <label>Java</label>
+              <span class="field-value" id="javaState">Detectando…</span>
+            </div>
+            <div class="field-inline">
+              <input type="text" id="javaPath" placeholder="Auto (detectar Java 17)" readonly>
+              <button class="ghost-button" id="javaDetectButton">Detectar</button>
+              <button class="ghost-button" id="javaBrowseButton">Elegir</button>
+            </div>
+            <p class="field-hint">Minecraft 1.20.1 necesita Java 17 o superior. Si no existe, se descarga automáticamente al jugar.</p>
+          </div>
+
+          <div class="field">
+            <label>Carpeta del juego</label>
+            <div class="field-inline">
+              <input type="text" id="gameDirPath" readonly>
+              <button class="ghost-button" id="pickGameDirButton">Elegir</button>
+              <button class="ghost-button" id="resetGameDirButton">Por defecto</button>
+              <button class="ghost-button" id="openGameFolder">Abrir</button>
+            </div>
+            <p class="field-hint" id="gameDirNote">Ubicación donde se descargan Minecraft, Forge y el modpack.</p>
+          </div>
+
+          <div class="field">
+            <div class="field-head">
+              <label>Launcher</label>
+              <span class="field-value" id="updateVersion">1.0.1</span>
+            </div>
+            <div class="field-inline">
+              <input type="text" id="updateState" readonly>
+              <button class="ghost-button" id="updateCheckButton">Buscar</button>
+            </div>
+            <p class="field-hint">Se actualiza solo desde GitHub. Tus mods, mundos y ajustes se conservan.</p>
+          </div>
+
+          <div class="field" id="packField" hidden>
+            <div class="field-head">
+              <label>Modpack</label>
+              <span class="field-value" id="packRevision">rev. 1</span>
+            </div>
+            <div class="field-inline">
+              <input type="text" id="packState" readonly>
+              <button class="ghost-button" id="packCheckButton">Buscar</button>
+            </div>
+            <p class="field-hint">El pack se actualiza desde su manifiesto remoto; los archivos nuevos se descargan al jugar.</p>
+          </div>
+
+          <div class="field">
+            <label class="switch-line">
+              <span>Cerrar el launcher al entrar al juego</span>
+              <label class="switch">
+                <input type="checkbox" id="closeOnLaunchToggle">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </label>
+          </div>
+
+          <div class="field">
+            <label class="switch-line">
+              <span>Fondo reactivo</span>
+              <label class="switch">
+                <input type="checkbox" id="effectsToggle">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </label>
+            <p class="field-hint">Iluminación verde que sigue al ratón. Desactívala si prefieres un fondo estático.</p>
+          </div>
+
+          <div class="field">
+            <label class="switch-line">
+              <span>Música</span>
+              <label class="switch">
+                <input type="checkbox" id="musicToggle">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </label>
+            <p class="field-hint">Reproduce <code>src/renderer/assets/music.mp3</code> en bucle. Si no existe el archivo, no suena.</p>
+          </div>
+
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note">Memoria, carpeta y resolución se aplican al iniciar el juego.</span>
+          <div class="panel-actions">
+            <button class="ghost-button" id="settingsCancel">Cancelar</button>
+            <button class="primary-button" id="settingsSave">Guardar</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- PROFILES MODAL -->
+
+    <div class="panel-overlay" id="profilesOverlay">
+      <div class="panel panel-narrow">
+
+        <button class="modal-close" id="profilesClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / CUENTAS</span>
+          <h2 class="panel-title">Cuentas</h2>
+        </div>
+
+        <div class="panel-body">
+          <p class="panel-intro" id="profilesIntro" hidden>
+            Elige cómo quieres jugar. Puedes tener cuenta premium y cuenta no premium a la vez,
+            y cambiar entre ellas cuando quieras.
+          </p>
+
+          <div class="account-card">
+            <div class="account-top">
+              <span class="panel-kicker">CUENTA PREMIUM · MICROSOFT</span>
+              <span class="account-flag" id="accountFlag">SIN CONECTAR</span>
+            </div>
+
+            <div class="account-user" id="accountUser" hidden>
+              <canvas class="account-skin" id="accountSkin" width="64" height="64"></canvas>
+              <div class="account-user-info">
+                <strong id="accountName">—</strong>
+                <span>Entra sin contraseña en servidores mixtos</span>
+              </div>
+            </div>
+
+            <p class="field-hint" id="accountHint">
+              Usa tu cuenta de Microsoft con Minecraft: Java Edition.
+            </p>
+            <button class="ghost-button" id="msLoginButton">Iniciar sesión con Microsoft</button>
+
+            <div class="device-box" id="deviceBox" hidden>
+              <p class="device-text">
+                Abre <a href="#" id="deviceLink">microsoft.com/link</a> e introduce este código:
+              </p>
+              <div class="device-row">
+                <strong class="device-code" id="deviceCode">--------</strong>
+                <button class="ghost-button small" id="deviceCopy">Copiar</button>
+              </div>
+              <p class="field-hint">Esperando confirmación en el navegador…</p>
+              <button class="ghost-button small" id="deviceCancel">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="account-card offline-card">
+            <div class="account-top">
+              <span class="panel-kicker">CUENTA NO PREMIUM</span>
+              <span class="account-flag">OFFLINE</span>
+            </div>
+            <p class="field-hint">
+              Solo necesitas un nombre. El servidor te pedirá <code>/register</code> y
+              <code>/login</code> dentro del juego.
+            </p>
+            <div class="field-inline">
+              <input type="text" id="newProfileName" maxlength="16" placeholder="Nombre en el juego">
+              <button class="ghost-button" id="addProfileButton">Añadir</button>
+            </div>
+          </div>
+
+          <div class="list-head" id="listHead" hidden>
+            <span class="panel-kicker">TUS CUENTAS</span>
+          </div>
+          <div class="profile-list" id="profileList"></div>
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note" id="profilesNote"></span>
+          <div class="panel-actions">
+            <button class="primary-button" id="profilesDone">Listo</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- SKINS MODAL -->
+
+    <div class="panel-overlay" id="skinsOverlay">
+      <div class="panel panel-narrow">
+
+        <button class="modal-close" id="skinsClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / SKINS</span>
+          <h2 class="panel-title">Tu skin</h2>
+        </div>
+
+        <div class="panel-body">
+          <div class="skin-layout" id="skinLayout">
+            <div class="skin-preview">
+              <canvas id="skinPreview" width="128" height="256"></canvas>
+              <span class="skin-preview-label" id="skinPreviewLabel">SKIN ACTUAL</span>
+            </div>
+
+            <div class="skin-side">
+              <div class="field">
+                <div class="field-head">
+                  <label>Cuenta premium</label>
+                  <span class="field-value" id="skinAccount">—</span>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="skinPlayerInput">Buscar por jugador</label>
+                <div class="field-inline">
+                  <input type="text" id="skinPlayerInput" maxlength="16" placeholder="Buscar skin por jugador…" autocomplete="off" spellcheck="false">
+                  <button class="ghost-button" id="skinLookupButton">Buscar</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Modelo</label>
+                <div class="skin-variants">
+                  <label class="skin-variant">
+                    <input type="radio" name="skinVariant" value="classic" checked>
+                    <span>Clásica <em>Steve</em></span>
+                  </label>
+                  <label class="skin-variant">
+                    <input type="radio" name="skinVariant" value="slim">
+                    <span>Slim <em>Alex</em></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field-inline">
+                <button class="ghost-button" id="skinPickButton">Elegir PNG…</button>
+                <button class="ghost-button" id="skinResetButton">Restaurar</button>
+              </div>
+              <p class="field-hint" id="skinFile">
+                Ningún archivo elegido. PNG de 64×64 (o 64×32).
+              </p>
+
+              <button class="primary-button skin-apply" id="skinApplyButton" disabled>
+                Aplicar skin
+              </button>
+              <p class="field-hint" id="skinNote">Se aplica al instante en tu cuenta de Minecraft.</p>
+            </div>
+          </div>
+
+          <div class="skin-offline" id="skinOffline" hidden>
+            <span class="panel-kicker">SOLO PREMIUM</span>
+            <p>
+              Cambiar la skin requiere una cuenta premium de Microsoft activa.
+              Las cuentas no premium usan la skin por defecto del servidor.
+            </p>
+            <button class="ghost-button" id="skinGoAccounts">Ir a cuentas</button>
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note">La skin se sube a Mojang, no solo a este launcher.</span>
+          <div class="panel-actions">
+            <button class="primary-button" id="skinsDone">Listo</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- MODS MODAL -->
+
+    <div class="panel-overlay" id="modsOverlay">
+      <div class="panel panel-wide">
+
+        <button class="modal-close" id="modsClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / MODPACK</span>
+          <h2 class="panel-title">Mods</h2>
+        </div>
+
+        <div class="panel-body">
+          <div class="mods-toolbar">
+            <input type="search" id="modsSearch" placeholder="Buscar mod…" autocomplete="off" spellcheck="false">
+            <span class="mods-summary" id="modsSummary">—</span>
+          </div>
+          <div class="mods-list" id="modsList"></div>
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note">Los mods se descargan solos al pulsar JUGAR.</span>
+          <div class="panel-actions">
+            <button class="primary-button" id="modsDone">Listo</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- CONSOLE MODAL -->
+
+    <div class="panel-overlay" id="consoleOverlay">
+      <div class="panel panel-wide">
+
+        <button class="modal-close" id="consoleClose">×</button>
+
+        <div class="panel-header">
+          <span class="panel-kicker">LAUNCHER / DIAGNÓSTICO</span>
+          <h2 class="panel-title">Consola</h2>
+        </div>
+
+        <div class="panel-body">
+          <pre class="console" id="consoleOutput">Sin actividad todavía.</pre>
+        </div>
+
+        <div class="panel-footer">
+          <span class="panel-note">Últimas 400 líneas del launcher y del juego.</span>
+          <div class="panel-actions">
+            <button class="ghost-button" id="openLogsFolder">Abrir logs</button>
+            <button class="primary-button" id="consoleDone">Cerrar</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- FOOTER -->
+
+    <div class="update-bar" id="updateBar" hidden>
+      <span class="server-dot" id="updateDot"></span>
+      <span class="update-text" id="updateText">Buscando actualizaciones…</span>
+      <div class="update-track"><div class="update-fill" id="updateFill"></div></div>
+      <button class="update-action" id="updateAction" hidden>Reiniciar e instalar</button>
+    </div>
+
+    <footer>
+
+      <span class="footer-status" id="status">
+        Listo para jugar
+      </span>
+
+      <div class="progress">
+        <div class="progress-fill" id="progress"></div>
+      </div>
+
+      <span class="percentage" id="percentage">
+        —
+      </span>
+
+      <span class="launcher-version" id="launcherVersion">
+        LAUNCHER 1.0.1
+      </span>
+
+    </footer>
+
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+  <audio id="musicAudio" loop preload="auto" hidden>
+    <source src="assets/music.mp3" type="audio/mpeg">
+  </audio>
+
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>

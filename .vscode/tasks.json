@@ -1,0 +1,51 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: start",
+      "detail": "Abre el launcher (equivalente a dotnet run)",
+      "type": "shell",
+      "command": "npm",
+      "windows": { "command": "npm.cmd" },
+      "args": ["start"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: dist",
+      "detail": "Compila el instalador NSIS en dist/ (equivalente a dotnet publish)",
+      "type": "shell",
+      "command": "npm",
+      "windows": { "command": "npm.cmd" },
+      "args": ["run", "dist"],
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: pack",
+      "detail": "Carpeta desempaquetada en dist/win-unpacked",
+      "type": "shell",
+      "command": "npm",
+      "windows": { "command": "npm.cmd" },
+      "args": ["run", "pack"],
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: install",
+      "detail": "Instala/actualiza dependencias",
+      "type": "shell",
+      "command": "npm",
+      "windows": { "command": "npm.cmd" },
+      "args": ["install"],
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: icon",
+      "detail": "Regenera build/icon.png e icon.ico",
+      "type": "shell",
+      "command": "npm",
+      "windows": { "command": "npm.cmd" },
+      "args": ["run", "icon"],
+      "problemMatcher": []
+    }
+  ]
+}
