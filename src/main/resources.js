@@ -114,6 +114,7 @@ function validateManifest(raw) {
     if (!isAllowedUrl(file.url)) return null;
     if (file.size != null && (!Number.isFinite(Number(file.size)) || Number(file.size) < 0)) return null;
     if (file.sha1 != null && !/^[a-f0-9]{40}$/i.test(String(file.sha1))) return null;
+    if (file.extract != null && typeof file.extract !== 'boolean') return null;
     if (file.channels != null) {
       if (!Array.isArray(file.channels) || !file.channels.every((channel) => typeof channel === 'string')) {
         return null;

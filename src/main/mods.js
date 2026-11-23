@@ -5,12 +5,15 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
+const AdmZip = require('adm-zip');
 const { paths } = require('./paths');
 
 const CONCURRENCY = 4;
 const DOWNLOAD_ATTEMPTS = 3;
 const STALL_TIMEOUT_MS = 45000;
 const DISK_RESERVE_BYTES = 256 * 1024 * 1024;
+const MAX_EXTRACT_BYTES = 4 * 1024 * 1024 * 1024;
+const BUNDLE_MARKER_FILE = '.chernobylz-bundles.json';
 const PROTECTED_DIRS = new Set(['saves', 'screenshots', 'logs', 'crash-reports', 'backups']);
 
 function sleep(ms) {
@@ -45,6 +48,120 @@ function writeState(state) {
   const temporary = `${paths.state}.tmp`;
   fs.writeFileSync(temporary, JSON.stringify(state, null, 2), 'utf8');
   fs.renameSync(temporary, paths.state);
+}
+
+function readBundleMarkers(root) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(root, BUNDLE_MARKER_FILE), 'utf8'));
+    if (raw && typeof raw === 'object' && raw.bundles && typeof raw.bundles === 'object') {
+      return raw;
+    }
+  } catch {
+    /* sin marcador previo */
+  }
+  return { bundles: {} };
+}
+
+function writeBundleMarkers(root, markers) {
+  const file = path.join(root, BUNDLE_MARKER_FILE);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(markers, null, 2), 'utf8');
+  fs.renameSync(temporary, file);
+}
+
+function sanitizeZipEntryPath(rawName) {
+  const normalized = String(rawName || '').replace(/\\/g, '/');
+  if (!normalized || normalized.includes('\0') || normalized.startsWith('/') || /^[a-z]:/i.test(normalized)) {
+    throw new Error(`Entrada inválida en paquete zip: ${rawName}`);
+  }
+  const trimmed = normalized.replace(/\/+$/, '');
+  if (!trimmed) return '';
+  if (trimmed.split('/').includes('..')) {
+    throw new Error(`Ruta peligrosa en paquete zip: ${rawName}`);
+  }
+  return trimmed;
+}
+
+function extractBundle(zipPath, root, signal) {
+  if (signal?.aborted) throw new Error('Descarga cancelada.');
+  const zip = new AdmZip(zipPath);
+  const entries = zip.getEntries();
+  const base = path.resolve(root);
+  const safeEntries = [];
+  let totalUncompressed = 0;
+
+  for (const entry of entries) {
+    const rawName = String(entry.entryName || '');
+    if (!rawName || rawName.startsWith('__MACOSX/')) continue;
+
+    // Rechaza enlaces simbólicos Unix dentro del archivo comprimido.
+    if (((entry.header.attr >>> 16) & 0o170000) === 0o120000) {
+      throw new Error(`Enlace simbólico no permitido en paquete zip: ${rawName}`);
+    }
+
+    const relative = sanitizeZipEntryPath(rawName);
+    if (!relative) continue;
+
+    const topDir = relative.split('/')[0].toLowerCase();
+    if (PROTECTED_DIRS.has(topDir)) {
+      throw new Error(`El paquete intenta escribir en una carpeta protegida: ${relative}`);
+    }
+
+    const target = safeJoin(base, relative);
+    if (target === base || !target.startsWith(base + path.sep)) {
+      throw new Error(`Ruta fuera de la carpeta del juego: ${relative}`);
+    }
+
+    if (!entry.isDirectory) {
+      totalUncompressed += Number(entry.header.size) || 0;
+      if (totalUncompressed > MAX_EXTRACT_BYTES) {
+        throw new Error('El paquete comprimido supera el límite máximo permitido al extraerse.');
+      }
+    }
+
+    safeEntries.push({ entry, relative, target });
+  }
+
+  const extractedFiles = [];
+  let writtenBytes = 0;
+
+  for (const item of safeEntries) {
+    if (signal?.aborted) throw new Error('Descarga cancelada.');
+
+    if (item.entry.isDirectory) {
+      fs.mkdirSync(item.target, { recursive: true });
+      continue;
+    }
+
+    const content = item.entry.getData();
+    writtenBytes += content.length;
+    if (writtenBytes > MAX_EXTRACT_BYTES) {
+      throw new Error('El paquete comprimido supera el límite máximo permitido al extraerse.');
+    }
+
+    fs.mkdirSync(path.dirname(item.target), { recursive: true });
+    fs.writeFileSync(item.target, content);
+    extractedFiles.push(item.relative);
+  }
+
+  return extractedFiles;
+}
+
+function isBundleExtracted(marker, root, file) {
+  if (!marker || !file.sha1 || !marker.sha1) return false;
+  if (String(marker.sha1).toLowerCase() !== String(file.sha1).toLowerCase()) return false;
+  if (!Array.isArray(marker.files) || marker.files.length === 0) return false;
+
+  try {
+    for (const relative of marker.files) {
+      const target = safeJoin(root, relative);
+      if (!fs.existsSync(target)) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function sha1File(file) {
@@ -282,11 +399,38 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
   const managed = new Set(Array.isArray(state.managedFiles) ? state.managedFiles : []);
   const channelChanged = Boolean(state.channel && state.channel !== channel);
   const nextManaged = new Set();
+  const bundleMarkers = readBundleMarkers(root);
+  const bundlesDir = path.join(paths.cache, 'bundles');
+  const activeBundleKeys = new Set();
+  const extractedFromBundles = [];
 
   const pending = [];
 
   for (const file of files) {
     if (!file || !file.path || !file.url) continue;
+
+    if (file.extract) {
+      const markerKey = file.path;
+      activeBundleKeys.add(markerKey);
+      const marker = bundleMarkers.bundles[markerKey];
+
+      if (isBundleExtracted(marker, root, file)) {
+        for (const rel of marker.files) nextManaged.add(rel);
+        continue;
+      }
+
+      const safeChannel = String(channel || 'pack').replace(/[^a-zA-Z0-9._-]+/g, '_');
+      const shortSha = String(file.sha1 || 'nohash').slice(0, 12);
+      const cacheName = `${safeChannel}-${shortSha}-${path.basename(file.path)}`;
+      const destination = path.join(bundlesDir, cacheName);
+
+      if (channelChanged) {
+        fs.rmSync(`${destination}.part`, { force: true });
+      }
+
+      pending.push({ file, destination, isArchive: true, markerKey });
+      continue;
+    }
 
     const destination = safeJoin(root, file.path);
     nextManaged.add(file.path);
@@ -296,7 +440,13 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
     }
 
     if (await isValid(destination, file)) continue;
-    pending.push({ file, destination });
+    pending.push({ file, destination, isArchive: false });
+  }
+
+  for (const key of Object.keys(bundleMarkers.bundles)) {
+    if (!activeBundleKeys.has(key)) {
+      delete bundleMarkers.bundles[key];
+    }
   }
 
   const pendingBytes = pending.reduce((total, item) => total + (Number(item.file.size) || 0), 0);
@@ -383,6 +533,21 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
             allowResume: Boolean(item.file.sha1),
           });
 
+          if (item.isArchive) {
+            try {
+              const extracted = extractBundle(item.destination, root, signal);
+              extractedFromBundles.push(...extracted);
+              bundleMarkers.bundles[item.markerKey] = {
+                sha1: item.file.sha1 || null,
+                channel,
+                files: extracted,
+              };
+              writeBundleMarkers(root, bundleMarkers);
+            } finally {
+              fs.rmSync(item.destination, { force: true });
+            }
+          }
+
           completed.set(item.destination, expected > 0 ? expected : 1);
           finished.add(item.destination);
           emit(item.file, true);
@@ -402,6 +567,13 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker));
 
   if (signal?.aborted) throw new Error('Sincronización cancelada.');
+
+  for (const rel of extractedFromBundles) {
+    nextManaged.add(rel);
+  }
+  if (Object.keys(bundleMarkers.bundles).length > 0 || fs.existsSync(path.join(root, BUNDLE_MARKER_FILE))) {
+    writeBundleMarkers(root, bundleMarkers);
+  }
 
   // Elimina archivos gestionados que ya no forman parte del canal actual.
   const removedFiles = [];

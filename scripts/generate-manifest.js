@@ -41,19 +41,31 @@
  */
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const AdmZip = require('adm-zip');
 
-const PACK_DIRS = [
+const INDIVIDUAL_DIRS = [
   'mods',
+  'resourcepacks',
+  'shaderpacks',
+];
+
+const BUNDLE_DIRS = [
   'config',
   'defaultconfigs',
   'kubejs',
   'tacz',
   'scripts',
-  'resourcepacks',
-  'shaderpacks',
 ];
+
+const PACK_DIRS = [
+  ...INDIVIDUAL_DIRS,
+  ...BUNDLE_DIRS,
+];
+
+const DETERMINISTIC_ZIP_TIME = new Date(Date.UTC(2020, 0, 1, 0, 0, 0));
 
 const EXCLUDED_DIRS = new Set([
   '.git',
@@ -415,13 +427,20 @@ function collectRoot(root, includeOptions, excludes) {
   }
 
   const files = [];
+  const bundleFiles = [];
   const skippedLinks = [];
 
   if (isPackRoot) {
-    for (const dir of PACK_DIRS) {
+    for (const dir of INDIVIDUAL_DIRS) {
       const full = path.join(base, dir);
       if (!fs.existsSync(full) || !fs.statSync(full).isDirectory()) continue;
       walkAll(full, base, excludes, files, skippedLinks);
+    }
+
+    for (const dir of BUNDLE_DIRS) {
+      const full = path.join(base, dir);
+      if (!fs.existsSync(full) || !fs.statSync(full).isDirectory()) continue;
+      walkAll(full, base, excludes, bundleFiles, skippedLinks);
     }
 
     if (includeOptions) {
@@ -439,7 +458,26 @@ function collectRoot(root, includeOptions, excludes) {
     }
   }
 
-  return { files, skippedLinks, isPackRoot, base };
+  return { files, bundleFiles, skippedLinks, isPackRoot, base };
+}
+
+function buildDeterministicBundle(bundleFiles, destZipPath) {
+  const sorted = [...bundleFiles].sort((a, b) => (
+    a.relative < b.relative ? -1 : a.relative > b.relative ? 1 : 0
+  ));
+  const zip = new AdmZip();
+
+  for (const file of sorted) {
+    const entryPath = file.relative.replace(/\\/g, '/');
+    zip.addFile(entryPath, fs.readFileSync(file.full));
+  }
+
+  for (const entry of zip.getEntries()) {
+    entry.header.time = DETERMINISTIC_ZIP_TIME;
+  }
+
+  fs.mkdirSync(path.dirname(destZipPath), { recursive: true });
+  zip.writeZip(destZipPath);
 }
 
 function channelPrefix(channels) {
@@ -491,203 +529,225 @@ async function main() {
     }
   }
 
-  for (const root of roots) {
-    rootCache.set(root, collectRoot(root, includeOptions, excludeRegexes));
-  }
+  const tempBundlesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chernobyl-bundles-'));
 
-  const byPathAndHash = new Map();
-  const fileCache = new Map();
-  let processed = 0;
-  let totalFiles = 0;
-  for (const root of roots) totalFiles += rootCache.get(root).files.length;
-
-  for (const channel of channels) {
-    const name = normalizeChannel(channel.name);
-    const root = rootCache.get(path.resolve(channel.root));
-    const origin = releaseUrl
-      ? releaseUrl
-      : `${path.resolve(channel.root)}\0${channel.base.replace(/\/+$/, '')}`;
-
-    for (const file of root.files) {
-      let info = fileCache.get(file.full);
-      if (!info) {
-        info = { sha1: await hashFile(file.full), size: fs.statSync(file.full).size };
-        fileCache.set(file.full, info);
+  try {
+    let bundleIdx = 0;
+    for (const root of roots) {
+      const collected = collectRoot(root, includeOptions, excludeRegexes);
+      if (collected.bundleFiles.length > 0) {
+        bundleIdx += 1;
+        const bundleZip = path.join(tempBundlesDir, `bundle-${bundleIdx}.zip`);
+        console.error(`Empaquetando datos/configs de ${path.basename(root)} (${collected.bundleFiles.length} archivos)...`);
+        buildDeterministicBundle(collected.bundleFiles, bundleZip);
+        collected.files.push({
+          full: bundleZip,
+          relative: 'bundle.zip',
+          manifestPath: 'bundle.zip',
+          extract: true,
+        });
       }
+      rootCache.set(root, collected);
+    }
 
-      const manifestPath = file.manifestPath || file.relative;
-      const key = `${origin}\0${manifestPath}\0${info.sha1}`;
-      let entry = byPathAndHash.get(key);
+    const byPathAndHash = new Map();
+    const fileCache = new Map();
+    let processed = 0;
+    let totalFiles = 0;
+    for (const root of roots) totalFiles += rootCache.get(root).files.length;
 
-      if (!entry) {
-        entry = {
-          path: manifestPath,
-          url: releaseUrl ? '' : joinUrl(channel.base, file.relative),
-          sha1: info.sha1,
-          size: info.size,
-          channels: new Set(),
-          sourceFile: file.full,
+    for (const channel of channels) {
+      const name = normalizeChannel(channel.name);
+      const root = rootCache.get(path.resolve(channel.root));
+      const origin = releaseUrl
+        ? releaseUrl
+        : `${path.resolve(channel.root)}\0${channel.base.replace(/\/+$/, '')}`;
+
+      for (const file of root.files) {
+        let info = fileCache.get(file.full);
+        if (!info) {
+          info = { sha1: await hashFile(file.full), size: fs.statSync(file.full).size };
+          fileCache.set(file.full, info);
+        }
+
+        const manifestPath = file.manifestPath || file.relative;
+        const key = `${origin}\0${manifestPath}\0${info.sha1}`;
+        let entry = byPathAndHash.get(key);
+
+        if (!entry) {
+          entry = {
+            path: manifestPath,
+            url: releaseUrl ? '' : joinUrl(channel.base, file.relative),
+            sha1: info.sha1,
+            size: info.size,
+            extract: Boolean(file.extract),
+            channels: new Set(),
+            sourceFile: file.full,
+          };
+          byPathAndHash.set(key, entry);
+        }
+
+        if (name) entry.channels.add(name);
+        processed += 1;
+        if (processed % 100 === 0 || processed === totalFiles) {
+          console.error(`\rProcesando ${processed}/${totalFiles} archivos...`);
+        }
+      }
+    }
+
+    if (totalFiles > 0) console.error('');
+
+    const sourceByEntry = new WeakMap();
+    const entries = [...byPathAndHash.values()]
+      .map((entry) => {
+        const output = {
+          path: entry.path,
+          url: entry.url,
+          sha1: entry.sha1,
+          size: entry.size,
         };
-        byPathAndHash.set(key, entry);
-      }
+        if (entry.extract) output.extract = true;
+        if (entry.channels.size > 0) output.channels = [...entry.channels].sort();
+        sourceByEntry.set(output, entry.sourceFile);
+        return output;
+      })
+      .sort((a, b) => (
+        a.path.localeCompare(b.path)
+        || (a.channels?.join(',') || '').localeCompare(b.channels?.join(',') || '')
+        || a.url.localeCompare(b.url)
+      ));
 
-      if (name) entry.channels.add(name);
-      processed += 1;
-      if (processed % 100 === 0 || processed === totalFiles) {
-        console.error(`\rProcesando ${processed}/${totalFiles} archivos...`);
-      }
-    }
-  }
+    const duplicateErrors = [];
+    const duplicateWarnings = [];
+    const grouped = new Map();
 
-  if (totalFiles > 0) console.error('');
-
-  const sourceByEntry = new WeakMap();
-  const entries = [...byPathAndHash.values()]
-    .map((entry) => {
-      const output = {
-        path: entry.path,
-        url: entry.url,
-        sha1: entry.sha1,
-        size: entry.size,
-      };
-      if (entry.channels.size > 0) output.channels = [...entry.channels].sort();
-      sourceByEntry.set(output, entry.sourceFile);
-      return output;
-    })
-    .sort((a, b) => (
-      a.path.localeCompare(b.path)
-      || (a.channels?.join(',') || '').localeCompare(b.channels?.join(',') || '')
-      || a.url.localeCompare(b.url)
-    ));
-
-  const duplicateErrors = [];
-  const duplicateWarnings = [];
-  const grouped = new Map();
-
-  for (const entry of entries) {
-    const group = grouped.get(entry.path) || [];
-    group.push(entry);
-    grouped.set(entry.path, group);
-  }
-
-  for (const [relative, group] of grouped) {
-    if (group.length < 2) continue;
-
-    const overlaps = [];
-    for (let i = 0; i < group.length; i += 1) {
-      for (let j = i + 1; j < group.length; j += 1) {
-        const a = group[i];
-        const b = group[j];
-        const aAll = !Array.isArray(a.channels) || a.channels.length === 0;
-        const bAll = !Array.isArray(b.channels) || b.channels.length === 0;
-        const shared = aAll || bAll
-          || (Array.isArray(a.channels) && Array.isArray(b.channels) && a.channels.some((channel) => b.channels.includes(channel)));
-        if (shared) overlaps.push({ a, b });
-      }
-    }
-
-    if (overlaps.length === 0) continue;
-
-    const uniqueHashes = new Set(group.map((entry) => entry.sha1)).size;
-    const labels = group
-      .map((entry) => `(${entry.channels?.length ? entry.channels.join('+') : 'todos los canales'})`)
-      .join(' vs ');
-
-    if (uniqueHashes > 1) {
-      duplicateErrors.push(`${relative}: contenido distinto para ${labels}. Los dos se descargarían con la misma ruta; separa los canales.`);
-    } else {
-      duplicateWarnings.push(`${relative}: ${overlaps.length > 1 ? 'varias entradas' : 'dos entradas'} idénticas para ${labels}; elimina la duplicada.`);
-    }
-  }
-
-  for (const warning of duplicateWarnings) console.error(`Aviso: ${warning}`);
-  for (const message of duplicateErrors) console.error(`ERROR: ${message}`);
-  if (duplicateErrors.length > 0) {
-    fail('Manifiesto no generado: hay rutas duplicadas con contenido distinto para canales solapados.');
-  }
-
-  const assetByEntry = new Map();
-  if (releaseUrl) {
-    const usedNames = new Set();
     for (const entry of entries) {
-      const prefix = channelPrefix(entry.channels || []);
-      const assetName = toFlatAssetName(prefix, entry.path, entry.sha1, usedNames);
-      entry.url = `${releaseUrl}/${assetName}`;
-      assetByEntry.set(entry, assetName);
-    }
-  }
-
-  const json = JSON.stringify(entries, null, 2);
-
-  if (outputFile) {
-    const destination = path.resolve(outputFile);
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.writeFileSync(destination, `${json}\n`, 'utf8');
-    console.error(`Guardado: ${destination}`);
-  }
-
-  if (writeFile) {
-    const destination = path.resolve(writeFile);
-    let modpack;
-    try {
-      modpack = JSON.parse(fs.readFileSync(destination, 'utf8'));
-    } catch (error) {
-      fail(`No se pudo leer ${destination}: ${error.message}`);
-    }
-    if (revision !== null) modpack.revision = revision;
-    modpack.files = entries;
-    fs.writeFileSync(destination, `${JSON.stringify(modpack, null, 2)}\n`, 'utf8');
-    console.error(`Actualizado: ${destination} (${entries.length} entradas)`);
-    if (Number.isInteger(modpack.revision)) {
-      console.error(`Revisión del manifiesto: ${modpack.revision}`);
-    } else {
-      console.error('Aviso: el manifiesto no tiene "revision"; usa --revision <n> para el manifiesto remoto.');
+      const group = grouped.get(entry.path) || [];
+      group.push(entry);
+      grouped.set(entry.path, group);
     }
 
-    const paths = new Set(entries.map((entry) => entry.path));
-    for (const mod of Array.isArray(modpack.mods) ? modpack.mods : []) {
-      if (mod.file && !paths.has(mod.file)) {
-        console.error(`Aviso: mods[] apunta a "${mod.file}", que no está en files.`);
+    for (const [relative, group] of grouped) {
+      if (group.length < 2) continue;
+
+      const overlaps = [];
+      for (let i = 0; i < group.length; i += 1) {
+        for (let j = i + 1; j < group.length; j += 1) {
+          const a = group[i];
+          const b = group[j];
+          const aAll = !Array.isArray(a.channels) || a.channels.length === 0;
+          const bAll = !Array.isArray(b.channels) || b.channels.length === 0;
+          const shared = aAll || bAll
+            || (Array.isArray(a.channels) && Array.isArray(b.channels) && a.channels.some((channel) => b.channels.includes(channel)));
+          if (shared) overlaps.push({ a, b });
+        }
+      }
+
+      if (overlaps.length === 0) continue;
+
+      const uniqueHashes = new Set(group.map((entry) => entry.sha1)).size;
+      const labels = group
+        .map((entry) => `(${entry.channels?.length ? entry.channels.join('+') : 'todos los canales'})`)
+        .join(' vs ');
+
+      if (uniqueHashes > 1) {
+        duplicateErrors.push(`${relative}: contenido distinto para ${labels}. Los dos se descargarían con la misma ruta; separa los canales.`);
+      } else {
+        duplicateWarnings.push(`${relative}: ${overlaps.length > 1 ? 'varias entradas' : 'dos entradas'} idénticas para ${labels}; elimina la duplicada.`);
       }
     }
-  }
 
-  if (releaseDir) {
-    fs.rmSync(releaseDir, { recursive: true, force: true });
-    fs.mkdirSync(releaseDir, { recursive: true });
-    for (const entry of entries) {
-      const assetName = assetByEntry.get(entry);
-      const sourceFile = sourceByEntry.get(entry);
-      fs.copyFileSync(sourceFile, path.join(releaseDir, assetName));
+    for (const warning of duplicateWarnings) console.error(`Aviso: ${warning}`);
+    for (const message of duplicateErrors) console.error(`ERROR: ${message}`);
+    if (duplicateErrors.length > 0) {
+      fail('Manifiesto no generado: hay rutas duplicadas con contenido distinto para canales solapados.');
     }
+
+    const assetByEntry = new Map();
+    if (releaseUrl) {
+      const usedNames = new Set();
+      for (const entry of entries) {
+        const prefix = channelPrefix(entry.channels || []);
+        const assetName = toFlatAssetName(prefix, entry.path, entry.sha1, usedNames);
+        entry.url = `${releaseUrl}/${assetName}`;
+        assetByEntry.set(entry, assetName);
+      }
+    }
+
+    const json = JSON.stringify(entries, null, 2);
+
+    if (outputFile) {
+      const destination = path.resolve(outputFile);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.writeFileSync(destination, `${json}\n`, 'utf8');
+      console.error(`Guardado: ${destination}`);
+    }
+
     if (writeFile) {
-      fs.copyFileSync(path.resolve(writeFile), path.join(releaseDir, 'modpack.json'));
+      const destination = path.resolve(writeFile);
+      let modpack;
+      try {
+        modpack = JSON.parse(fs.readFileSync(destination, 'utf8'));
+      } catch (error) {
+        fail(`No se pudo leer ${destination}: ${error.message}`);
+      }
+      if (revision !== null) modpack.revision = revision;
+      modpack.files = entries;
+      fs.writeFileSync(destination, `${JSON.stringify(modpack, null, 2)}\n`, 'utf8');
+      console.error(`Actualizado: ${destination} (${entries.length} entradas)`);
+      if (Number.isInteger(modpack.revision)) {
+        console.error(`Revisión del manifiesto: ${modpack.revision}`);
+      } else {
+        console.error('Aviso: el manifiesto no tiene "revision"; usa --revision <n> para el manifiesto remoto.');
+      }
+
+      const paths = new Set(entries.map((entry) => entry.path));
+      for (const mod of Array.isArray(modpack.mods) ? modpack.mods : []) {
+        if (mod.file && !paths.has(mod.file)) {
+          console.error(`Aviso: mods[] apunta a "${mod.file}", que no está en files.`);
+        }
+      }
     }
-    const totalAssets = entries.length + (writeFile ? 1 : 0);
-    const rawRelative = (path.relative(process.cwd(), releaseDir) || releaseDir).replace(/\\/g, '/');
-    const displayDir = rawRelative.startsWith('.') ? rawRelative : `./${rawRelative}`;
-    console.error(`Carpeta de release preparada: ${releaseDir} (${totalAssets} archivos)`);
-    console.error(`Súbelos con: gh release upload modpack-assets ${displayDir}/* --clobber`);
-  }
 
-  if (!outputFile && !writeFile) {
-    console.log(json);
-  } else {
-    console.log(JSON.stringify({ entries: entries.length, bytes: entries.reduce((sum, entry) => sum + entry.size, 0) }));
-  }
+    if (releaseDir) {
+      fs.rmSync(releaseDir, { recursive: true, force: true });
+      fs.mkdirSync(releaseDir, { recursive: true });
+      for (const entry of entries) {
+        const assetName = assetByEntry.get(entry);
+        const sourceFile = sourceByEntry.get(entry);
+        fs.copyFileSync(sourceFile, path.join(releaseDir, assetName));
+      }
+      if (writeFile) {
+        fs.copyFileSync(path.resolve(writeFile), path.join(releaseDir, 'modpack.json'));
+      }
+      const totalAssets = entries.length + (writeFile ? 1 : 0);
+      const rawRelative = (path.relative(process.cwd(), releaseDir) || releaseDir).replace(/\\/g, '/');
+      const displayDir = rawRelative.startsWith('.') ? rawRelative : `./${rawRelative}`;
+      console.error(`Carpeta de release preparada: ${releaseDir} (${totalAssets} archivos)`);
+      console.error(`Súbelos con: gh release upload modpack-assets ${displayDir}/* --clobber`);
+    }
 
-  const totalBytes = entries.reduce((sum, entry) => sum + entry.size, 0);
-  console.error(`${entries.length} entradas · ${(totalBytes / 1048576).toFixed(2)} MB`);
-  const channelNames = [...new Set(channels.map((channel) => normalizeChannel(channel.name)).filter(Boolean))];
-  printChannelSummary(entries, channelNames);
+    if (!outputFile && !writeFile) {
+      console.log(json);
+    } else {
+      console.log(JSON.stringify({ entries: entries.length, bytes: entries.reduce((sum, entry) => sum + entry.size, 0) }));
+    }
 
-  if (roots.length === 1 && rootCache.get(roots[0]).files.length > 0 && !rootCache.get(roots[0]).isPackRoot) {
-    console.error('Modo antiguo: carpeta tratada como mods/ (solo .jar).');
-  }
+    const totalBytes = entries.reduce((sum, entry) => sum + entry.size, 0);
+    console.error(`${entries.length} entradas · ${(totalBytes / 1048576).toFixed(2)} MB`);
+    const channelNames = [...new Set(channels.map((channel) => normalizeChannel(channel.name)).filter(Boolean))];
+    printChannelSummary(entries, channelNames);
 
-  for (const root of roots) {
-    const links = rootCache.get(root).skippedLinks;
-    if (links.length) console.error(`Aviso: ${links.length} enlaces simbólicos ignorados en ${root}.`);
+    if (roots.length === 1 && rootCache.get(roots[0]).files.length > 0 && !rootCache.get(roots[0]).isPackRoot) {
+      console.error('Modo antiguo: carpeta tratada como mods/ (solo .jar).');
+    }
+
+    for (const root of roots) {
+      const links = rootCache.get(root).skippedLinks;
+      if (links.length) console.error(`Aviso: ${links.length} enlaces simbólicos ignorados en ${root}.`);
+    }
+  } finally {
+    fs.rmSync(tempBundlesDir, { recursive: true, force: true });
   }
 }
 
