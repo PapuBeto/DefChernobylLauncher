@@ -501,11 +501,19 @@ class LaunchManager extends EventEmitter {
     const isCancelled = () => this.cancelled;
 
     try {
-      await refreshModpack().catch(() => {});
+      await refreshModpack('', { force: true }).catch(() => {});
       const config = configStore.load();
       const modpack = loadModpack();
       const channel = getChannel(config.channel);
       const gameDir = configStore.gameDir();
+      const channelFiles = filesForChannel(channel.id);
+
+      if (modpack.server?.host && (!Array.isArray(channelFiles) || channelFiles.length === 0)) {
+        throw new Error(
+          `El canal ${channel.label || channel.id} todavía no tiene archivos publicados. ` +
+          'Selecciona una versión disponible (como PRUEBAS) o revisa tu conexión.',
+        );
+      }
       const profile =
         config.profiles.find((item) => item.id === config.activeProfile) || config.profiles[0];
 
@@ -744,11 +752,18 @@ class LaunchManager extends EventEmitter {
       const config = configStore.load();
       const channel = getChannel(config.channel);
       const gameDir = configStore.gameDir();
+      const syncFilesList = filesForChannel(channel.id);
+
+      if (!Array.isArray(syncFilesList) || syncFilesList.length === 0) {
+        throw new Error(
+          `El canal ${channel.label || channel.id} todavía no tiene archivos publicados.`,
+        );
+      }
 
       this.status('Sincronizando archivos del modpack...', 'mods', 0);
       this.progress(0, channel.label);
 
-      const sync = await syncFiles(gameDir, filesForChannel(channel.id), channel.id, ({
+      const sync = await syncFiles(gameDir, syncFilesList, channel.id, ({
         percent,
         file,
         completed,
