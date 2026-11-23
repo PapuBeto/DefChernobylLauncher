@@ -6,9 +6,18 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const AdmZip = require('adm-zip');
+const { Agent } = require('undici');
+const { DownloadAgent, DefaultRangePolicy, DownloadAbortError } = require('@xmcl/file-transfer');
 
 const { MinecraftFolder, Version, launch, createMinecraftProcessWatcher, createQuickPlayMultiplayer } = require('@xmcl/core');
-const { getVersionList, installTask } = require('@xmcl/installer');
+const {
+  getVersionList,
+  installVersionTask,
+  installResolvedLibrariesTask,
+  InstallAssetIndexTask,
+  installResolvedAssetsTask,
+  DownloadTask,
+} = require('@xmcl/installer');
 
 const { paths } = require('./paths');
 const configStore = require('./config');
@@ -72,37 +81,322 @@ async function withRetries(operation, attempts = 3, onRetry = () => {}, isCancel
   throw lastError;
 }
 
-async function ensureVanilla(folder, minecraftVersion, report, context = {}) {
-  const isCancelled = context.isCancelled || (() => false);
-  const list = await withRetries(() => getVersionList(), 3, () => {}, isCancelled);
-  const meta = list.versions.find((version) => version.id === minecraftVersion);
+const RETRYABLE_NET_CODES = new Set([
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'ECONNABORTED',
+  'ETIMEDOUT',
+  'EPIPE',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_SOCKET',
+]);
 
-  if (!meta) {
-    throw new Error(`No se encontró Minecraft ${minecraftVersion} en el manifiesto de Mojang.`);
+const RETRYABLE_ERROR_NAMES = new Set([
+  'ChecksumNotMatchError',
+  'HeadersTimeoutError',
+  'BodyTimeoutError',
+  'ConnectTimeoutError',
+  'SocketError',
+]);
+
+function isRetryableDownloadError(error) {
+  if (!error) return false;
+  if (RETRYABLE_ERROR_NAMES.has(error.name)) return true;
+  const status = Number(error.statusCode);
+  if (status === 408 || status === 425 || status === 429 || status >= 500) return true;
+  if (error.name === 'UnexpectedStatusCodeError' && /\b(408|425|429|5\d\d)\b/.test(String(error.message))) {
+    return true;
+  }
+  return RETRYABLE_NET_CODES.has(error.code) || RETRYABLE_NET_CODES.has(error.cause?.code);
+}
+
+function collectInnerErrors(error, out = [], depth = 0, seen = new Set()) {
+  if (!error || depth > 4 || out.length >= 12 || seen.has(error)) return out;
+  if (typeof error === 'object') seen.add(error);
+  if (Array.isArray(error.errors)) {
+    for (const inner of error.errors) collectInnerErrors(inner, out, depth + 1, seen);
+  }
+  if (error.cause) collectInnerErrors(error.cause, out, depth + 1, seen);
+  out.push(error);
+  return out;
+}
+
+function formatLauncherError(error) {
+  const raw = String(error?.message || error || 'Error desconocido.');
+  const all = collectInnerErrors(error);
+  const hintEntry = all.find((item) => item !== error && (item?.code || item?.statusCode || item?.name))
+    || all.find((item) => item?.code || item?.statusCode);
+
+  let hint = '';
+  if (hintEntry?.statusCode) hint = `HTTP ${hintEntry.statusCode}`;
+  else if (hintEntry?.code) hint = String(hintEntry.code);
+  else if (hintEntry?.name && hintEntry.name !== 'Error' && hintEntry.name !== 'DownloadAggregateError') {
+    hint = String(hintEntry.name);
   }
 
-  return withRetries(
-    async () => {
-      const task = installTask(meta, folder, {
-        side: 'client',
-        assetsDownloadConcurrency: 8,
-        librariesDownloadConcurrency: 8,
-      });
-      context.onTask?.(task);
-      const stop = trackProgress(task, report);
+  if (
+    error?.name === 'DownloadAggregateError'
+    || error instanceof AggregateError
+    || /DownloadAggregateError|Errors during install/i.test(raw)
+  ) {
+    return (
+      `No se pudieron descargar los archivos de Minecraft${hint ? ` (${hint})` : ''}. ` +
+      'Comprueba tu conexión a internet o desactiva temporalmente VPN/antivirus e inténtalo de nuevo.'
+    );
+  }
 
+  if (/ENOSPC|no space/i.test(raw)) {
+    return 'No hay espacio suficiente en el disco para completar la instalación.';
+  }
+
+  const singleLine = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^at\s+/.test(line))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!singleLine) return 'Ocurrió un error inesperado.';
+  return singleLine.length > 260 ? `${singleLine.slice(0, 257)}...` : singleLine;
+}
+
+class ThrottledDownloadAgent extends DownloadAgent {
+  constructor(retryHandler, rangePolicy, dispatcher, maxConcurrent = 8) {
+    super(retryHandler, rangePolicy, dispatcher);
+    this.maxConcurrent = maxConcurrent;
+    this.active = 0;
+    this.queue = [];
+  }
+
+  acquire(destination, signal) {
+    if (signal?.aborted) {
+      return Promise.reject(new DownloadAbortError('Download is aborted by user.', [], {}, destination, []));
+    }
+    if (this.active < this.maxConcurrent) {
+      this.active += 1;
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        const idx = this.queue.indexOf(entry);
+        if (idx >= 0) this.queue.splice(idx, 1);
+        reject(new DownloadAbortError('Download is aborted by user.', [], {}, destination, []));
+      };
+      const entry = {
+        resolve: () => {
+          signal?.removeEventListener('abort', onAbort);
+          resolve();
+        },
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+      this.queue.push(entry);
+    });
+  }
+
+  release() {
+    const next = this.queue.shift();
+    if (next) {
+      next.resolve();
+      return;
+    }
+    this.active = Math.max(0, this.active - 1);
+  }
+
+  async dispatch(url, method, headers, destination, handle, progressController, abortSignal) {
+    let attempt = 0;
+    while (true) {
+      let lastError;
+      await this.acquire(destination, abortSignal);
       try {
-        await task.startAndWait();
+        return await super.dispatch(url, method, headers, destination, handle, progressController, abortSignal);
+      } catch (error) {
+        lastError = error;
       } finally {
-        stop();
+        this.release();
       }
 
-      return task.get();
+      if (
+        abortSignal?.aborted
+        || lastError?.name === 'DownloadAbortError'
+        || lastError?.name === 'RequestAbortedError'
+      ) {
+        throw lastError;
+      }
+      const canRetry = await this.retryHandler.retry(url, attempt, lastError);
+      if (!canRetry) throw lastError;
+      attempt += 1;
+      await handle.truncate(0).catch(() => {});
+    }
+  }
+}
+
+function createDownloadEnvironment(isCancelled) {
+  const dispatcher = new Agent({
+    connections: 8,
+    pipelining: 1,
+    connectTimeout: 20000,
+    headersTimeout: 30000,
+    bodyTimeout: 60000,
+  });
+
+  const retryHandler = {
+    async retry(_url, attempt, error) {
+      if (isCancelled() || attempt >= 6 || !isRetryableDownloadError(error)) {
+        return false;
+      }
+      const delay = Math.min(8000, 600 * (attempt + 1)) + Math.floor(Math.random() * 250);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return !isCancelled();
     },
-    3,
-    () => report(0),
-    isCancelled,
+  };
+
+  const agent = new ThrottledDownloadAgent(
+    retryHandler,
+    new DefaultRangePolicy(2 * 1024 * 1024, 4),
+    dispatcher,
+    8,
   );
+
+  return { dispatcher, agent };
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+async function runManagedTask(task, reportFraction, context = {}) {
+  if (context.isCancelled?.() || context.signal?.aborted) {
+    throw new Error('Instalación cancelada.');
+  }
+
+  let abortHook = null;
+  if (context.signal) {
+    abortHook = () => {
+      task.cancel().catch(() => {});
+    };
+    context.signal.addEventListener('abort', abortHook, { once: true });
+  }
+
+  context.onTask?.(task);
+  const stop = trackProgress(task, reportFraction);
+  try {
+    return await task.startAndWait();
+  } finally {
+    stop();
+    if (abortHook) context.signal?.removeEventListener('abort', abortHook);
+  }
+}
+
+async function ensureVanilla(folder, minecraftVersion, report, context = {}) {
+  const isCancelled = context.isCancelled || (() => false);
+  const { dispatcher, agent } = createDownloadEnvironment(isCancelled);
+
+  try {
+    const list = await withRetries(() => getVersionList({ dispatcher }), 3, () => {}, isCancelled);
+    const meta = list.versions.find((version) => version.id === minecraftVersion);
+
+    if (!meta) {
+      throw new Error(`No se encontró Minecraft ${minecraftVersion} en el manifiesto de Mojang.`);
+    }
+
+    const version = await withRetries(
+      () =>
+        runManagedTask(
+          installVersionTask(meta, folder, { side: 'client', agent, throwErrorImmediately: false }),
+          (fraction) => report(within([0, 0.15], fraction)),
+          context,
+        ),
+      3,
+      () => report(0),
+      isCancelled,
+    );
+
+    if (version.logging?.client?.file?.url) {
+      const logFile = version.logging.client.file;
+      await withRetries(
+        () =>
+          runManagedTask(
+            new DownloadTask({
+              url: logFile.url,
+              validator: { algorithm: 'sha1', hash: logFile.sha1 },
+              destination: folder.getLogConfig(logFile.id),
+              agent,
+            }).setName('asset', { name: logFile.id, hash: logFile.sha1, size: logFile.size }),
+            () => report(0.16),
+            context,
+          ),
+        3,
+        () => {},
+        isCancelled,
+      );
+    }
+
+    const libChunks = chunkArray(version.libraries || [], 16);
+    for (let i = 0; i < libChunks.length; i += 1) {
+      await withRetries(
+        () =>
+          runManagedTask(
+            installResolvedLibrariesTask(libChunks[i], folder, { agent, throwErrorImmediately: false }),
+            (fraction) => report(within([0.16, 0.42], (i + fraction) / libChunks.length)),
+            context,
+          ),
+        3,
+        () => {},
+        isCancelled,
+      );
+    }
+
+    if (version.assetIndex) {
+      await withRetries(
+        () =>
+          runManagedTask(
+            new InstallAssetIndexTask(version, { agent }),
+            (fraction) => report(within([0.42, 0.45], fraction)),
+            context,
+          ),
+        3,
+        () => {},
+        isCancelled,
+      );
+    }
+
+    const indexPath = folder.getPath('assets', 'indexes', `${version.assets}.json`);
+    if (fs.existsSync(indexPath)) {
+      const { objects } = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+      const objectArray = Object.keys(objects || {}).map((name) => ({ name, ...objects[name] }));
+      const assetChunks = chunkArray(objectArray, 64);
+
+      for (let i = 0; i < assetChunks.length; i += 1) {
+        await withRetries(
+          () =>
+            runManagedTask(
+              installResolvedAssetsTask(assetChunks[i], folder, { agent, throwErrorImmediately: false }),
+              (fraction) => report(within([0.45, 1], (i + fraction) / assetChunks.length)),
+              context,
+            ),
+          3,
+          () => {},
+          isCancelled,
+        );
+      }
+    }
+
+    report(1);
+    return version;
+  } finally {
+    await dispatcher.close().catch(() => {});
+  }
 }
 
 const FORGE_MAVEN = 'https://maven.minecraftforge.net/net/minecraftforge/forge';
@@ -427,6 +721,36 @@ async function verifyInstanceFiles(folder, minecraftVersion, forgeVersion, versi
 
   if (forgeArtifactsBroken) {
     removeFile(folder.getVersionJson(versionId));
+  }
+
+  const assetId = resolved.assetIndex?.id || resolved.assets;
+  if (assetId) {
+    const indexPath = folder.getPath('assets', 'indexes', `${assetId}.json`);
+    let indexData = null;
+    try {
+      indexData = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    } catch {
+      removeFile(indexPath);
+      broken += 1;
+    }
+
+    const objects = indexData?.objects;
+    if (objects && typeof objects === 'object') {
+      for (const entry of Object.values(objects)) {
+        if (!entry?.hash) continue;
+        const head = entry.hash.substring(0, 2);
+        const objPath = folder.getPath('assets', 'objects', head, entry.hash);
+        try {
+          const stat = fs.statSync(objPath);
+          if (!stat.isFile() || (Number.isFinite(entry.size) && stat.size !== entry.size)) {
+            removeFile(objPath);
+            broken += 1;
+          }
+        } catch {
+          broken += 1;
+        }
+      }
+    }
   }
 
   return broken === 0;
@@ -821,9 +1145,10 @@ class LaunchManager extends EventEmitter {
         }
         this.running = false;
         this.resetProgress();
-        const message = String(error?.message || error);
+        const message = formatLauncherError(error);
         this.status('Error al iniciar el juego', 'error', 0);
         this.log(`[launcher] ERROR: ${message}`);
+        this.appendLogFile(`[launcher] ERROR DETAIL: ${error?.stack || error?.message || error}`);
         this.emit('error', { message });
       };
 
@@ -865,11 +1190,13 @@ class LaunchManager extends EventEmitter {
 
       if (this.cancelled) return this.finishCancelled();
 
-      const message = error?.message || String(error);
+      const rawDetail = error?.stack || error?.message || String(error);
+      const message = formatLauncherError(error);
       this.status(`Error: ${message}`, 'error', 0);
       this.log(`[launcher] ERROR: ${message}`);
+      this.appendLogFile(`[launcher] ERROR DETAIL: ${rawDetail}`);
       this.emit('error', { message });
-      throw error;
+      throw new Error(message);
     }
   }
 
@@ -946,11 +1273,13 @@ class LaunchManager extends EventEmitter {
 
       if (this.cancelled) return this.finishCancelled();
 
-      const message = error?.message || String(error);
+      const rawDetail = error?.stack || error?.message || String(error);
+      const message = formatLauncherError(error);
       this.status(`Error al sincronizar: ${message}`, 'error', 0);
       this.log(`[launcher] ERROR (sync): ${message}`);
+      this.appendLogFile(`[launcher] ERROR DETAIL (sync): ${rawDetail}`);
       this.emit('error', { message, operation: 'sync' });
-      throw error;
+      throw new Error(message);
     }
   }
 
@@ -985,4 +1314,4 @@ class LaunchManager extends EventEmitter {
   }
 }
 
-module.exports = { LaunchManager, ensureInstance };
+module.exports = { LaunchManager, ensureInstance, formatLauncherError, ThrottledDownloadAgent, createDownloadEnvironment };

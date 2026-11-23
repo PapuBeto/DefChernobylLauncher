@@ -1547,8 +1547,11 @@ async function startGame() {
   try {
     await api.launch();
   } catch (error) {
+    const alreadyReported = Date.now() - (state.lastErrorAt || 0) < 1500;
     setLaunchState('idle');
-    toast(error.message || 'No se pudo iniciar el juego.', 'error');
+    if (!alreadyReported) {
+      toast(cleanError(error) || 'No se pudo iniciar el juego.', 'error', 9000);
+    }
   }
 }
 
@@ -1566,8 +1569,11 @@ async function startSync() {
   try {
     await api.syncFiles();
   } catch (error) {
+    const alreadyReported = Date.now() - (state.lastErrorAt || 0) < 1500;
     setLaunchState('idle');
-    toast(error.message || 'No se pudieron sincronizar los archivos.', 'error');
+    if (!alreadyReported) {
+      toast(cleanError(error) || 'No se pudieron sincronizar los archivos.', 'error', 9000);
+    }
   }
 }
 
@@ -1633,11 +1639,12 @@ function bindEvents() {
 
   api.onError(({ message, operation }) => {
     clearHideTimer();
+    state.lastErrorAt = Date.now();
     const syncing = operation === 'sync' || state.syncing;
     setLaunchState('idle');
     els.body.dataset.state = 'error';
     els.status.textContent = syncing ? 'Error al sincronizar' : 'Error al iniciar el juego';
-    toast(message || (syncing ? 'Error desconocido al sincronizar.' : 'Error desconocido al iniciar el juego.'), 'error', 9000);
+    toast(cleanError(message) || (syncing ? 'Error desconocido al sincronizar.' : 'Error desconocido al iniciar el juego.'), 'error', 9000);
   });
 
   api.onCancelled(() => {

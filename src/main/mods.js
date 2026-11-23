@@ -15,6 +15,31 @@ const DISK_RESERVE_BYTES = 256 * 1024 * 1024;
 const MAX_EXTRACT_BYTES = 4 * 1024 * 1024 * 1024;
 const BUNDLE_MARKER_FILE = '.chernobylz-bundles.json';
 const PROTECTED_DIRS = new Set(['saves', 'screenshots', 'logs', 'crash-reports', 'backups']);
+const PRESERVED_PLAYER_FILES = new Set([
+  'options.txt',
+  'config/embeddium-options.json',
+  'config/sodium-extra-options.json',
+  'config/sodium-extra.properties',
+]);
+
+function normalizeRelativePath(value) {
+  return String(value || '').replace(/\\/g, '/').replace(/^\/+/, '');
+}
+
+function isPreservedPlayerFile(relativePath, explicitPreserve = false) {
+  if (explicitPreserve) return true;
+  return PRESERVED_PLAYER_FILES.has(normalizeRelativePath(relativePath).toLowerCase());
+}
+
+function hasExistingPlayerFile(filePath, relativePath) {
+  try {
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) return false;
+    return normalizeRelativePath(relativePath).toLowerCase().endsWith('.properties') || stat.size > 0;
+  } catch {
+    return false;
+  }
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -131,6 +156,11 @@ function extractBundle(zipPath, root, signal) {
 
     if (item.entry.isDirectory) {
       fs.mkdirSync(item.target, { recursive: true });
+      continue;
+    }
+
+    if (isPreservedPlayerFile(item.relative) && hasExistingPlayerFile(item.target, item.relative)) {
+      extractedFiles.push(item.relative);
       continue;
     }
 
@@ -433,12 +463,16 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
     }
 
     const destination = safeJoin(root, file.path);
-    nextManaged.add(file.path);
+    const preserveExisting = isPreservedPlayerFile(file.path, Boolean(file.preserve));
+    if (!preserveExisting) {
+      nextManaged.add(file.path);
+    }
 
     if (channelChanged) {
       fs.rmSync(`${destination}.part`, { force: true });
     }
 
+    if (preserveExisting && hasExistingPlayerFile(destination, file.path)) continue;
     if (await isValid(destination, file)) continue;
     pending.push({ file, destination, isArchive: false });
   }
@@ -569,7 +603,7 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
   if (signal?.aborted) throw new Error('Sincronización cancelada.');
 
   for (const rel of extractedFromBundles) {
-    nextManaged.add(rel);
+    if (!isPreservedPlayerFile(rel)) nextManaged.add(rel);
   }
   if (Object.keys(bundleMarkers.bundles).length > 0 || fs.existsSync(path.join(root, BUNDLE_MARKER_FILE))) {
     writeBundleMarkers(root, bundleMarkers);
@@ -578,7 +612,7 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
   // Elimina archivos gestionados que ya no forman parte del canal actual.
   const removedFiles = [];
   for (const relative of managed) {
-    if (nextManaged.has(relative)) continue;
+    if (nextManaged.has(relative) || isPreservedPlayerFile(relative)) continue;
     try {
       const target = safeJoin(root, relative);
       fs.rmSync(target, { force: true });

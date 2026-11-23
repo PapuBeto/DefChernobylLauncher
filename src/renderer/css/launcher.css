@@ -138,7 +138,11 @@ body[data-state="syncing"] .sync-button {
 }
 
 .toast {
-  max-width: 380px;
+  max-width: 420px;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
   padding: 11px 14px;
 
   background: var(--surface-2);

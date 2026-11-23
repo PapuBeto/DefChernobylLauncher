@@ -446,7 +446,7 @@ function collectRoot(root, includeOptions, excludes) {
     if (includeOptions) {
       const options = path.join(base, 'options.txt');
       if (fs.existsSync(options) && fs.statSync(options).isFile()) {
-        files.push({ full: options, relative: 'options.txt' });
+        files.push({ full: options, relative: 'options.txt', preserve: true });
       }
     }
   } else {
@@ -581,6 +581,7 @@ async function main() {
             sha1: info.sha1,
             size: info.size,
             extract: Boolean(file.extract),
+            preserve: Boolean(file.preserve),
             channels: new Set(),
             sourceFile: file.full,
           };
@@ -607,6 +608,7 @@ async function main() {
           size: entry.size,
         };
         if (entry.extract) output.extract = true;
+        if (entry.preserve) output.preserve = true;
         if (entry.channels.size > 0) output.channels = [...entry.channels].sort();
         sourceByEntry.set(output, entry.sourceFile);
         return output;
