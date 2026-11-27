@@ -2,7 +2,7 @@
   "name": "Chernobyl Z",
   "minecraft": "1.20.1",
   "forge": "47.4.28",
-  "revision": 11,
+  "revision": 12,
   "manifestUrl": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/modpack.json",
   "server": {
     "name": "Chernobyl Z",
@@ -39,8 +39,8 @@
     {
       "path": "bundle.zip",
       "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__bundle.zip",
-      "sha1": "60a03483799e2d2dc4f29cb13b9b791879f730d7",
-      "size": 101119060,
+      "sha1": "3ab37fb4977ba87897f051f937bb733cd1a28081",
+      "size": 102082926,
       "extract": true,
       "channels": [
         "PRUEBAS"

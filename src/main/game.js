@@ -27,6 +27,7 @@ const javaManager = require('./java');
 const authManager = require('./auth');
 const { loadModpack, refreshModpack, getChannel, filesForChannel } = require('./resources');
 const { syncFiles, readState, writeState, sha1File } = require('./mods');
+const { ensureServerEntry } = require('./servers-dat');
 
 const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
 const within = ([from, to], fraction) => from + (to - from) * clamp01(fraction);
@@ -1182,6 +1183,19 @@ class LaunchManager extends EventEmitter {
       const useQuickPlay = Number.isFinite(mcMinor) && mcMinor >= 20;
 
       if (server.host) {
+        try {
+          const saved = ensureServerEntry(gameDir, {
+            name: server.name || modpack.name || 'Chernobyl Z',
+            host: server.host,
+            port: serverPort,
+          });
+          if (saved.updated) {
+            this.log(`[launcher] Servidor guardado en servers.dat: ${saved.name} (${saved.address})`);
+          }
+        } catch (error) {
+          this.log(`[launcher] Aviso: no se pudo actualizar servers.dat (${error?.message || error})`);
+        }
+
         this.log(
           `[launcher] Conexión directa al servidor: ${server.host}:${serverPort}` +
           `${useQuickPlay ? ' (QuickPlay)' : ''}`,
