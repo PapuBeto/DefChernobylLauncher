@@ -2,7 +2,7 @@
   "name": "Chernobyl Z",
   "minecraft": "1.20.1",
   "forge": "47.4.28",
-  "revision": 9,
+  "revision": 10,
   "manifestUrl": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/modpack.json",
   "server": {
     "name": "Chernobyl Z",
@@ -222,6 +222,24 @@
       "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobylinv-1.0.4.jar",
       "sha1": "c2cbddd45d2b99b3f91ae0da4787ccf9cc52a457",
       "size": 654436,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/chernobylz_recycler-1.1.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobylz_recycler-1.1.2.jar",
+      "sha1": "6bac880a7c08028389fc45bcc2cb2db60f665145",
+      "size": 357854,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/chernobylzombies-3.1.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobylzombies-3.1.0.jar",
+      "sha1": "82996deeed82fc44cdbf9133e22d98ab3c62ce68",
+      "size": 1277805,
       "channels": [
         "PRUEBAS"
       ]
@@ -1302,15 +1320,6 @@
       "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__survivors-arsenal-still-alive-0.1.34.jar",
       "sha1": "87d96f4aa26f7b3d1d3408b168b653c7727aa0c3",
       "size": 564567,
-      "channels": [
-        "PRUEBAS"
-      ]
-    },
-    {
-      "path": "mods/tacz_optimization-1.0.2.jar",
-      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__tacz_optimization-1.0.2.jar",
-      "sha1": "3ccc8199aa7fea07e4e6c93b16c773956264f906",
-      "size": 21859,
       "channels": [
         "PRUEBAS"
       ]
