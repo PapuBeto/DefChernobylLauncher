@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self';">
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
 
   <title>Chernobyl Z — Launcher</title>
 
@@ -38,7 +38,7 @@
       <div class="brand">
         <span class="brand-symbol">☢</span>
         <span class="brand-name">CHERNOBYL Z</span>
-        <span class="brand-version" id="brandVersion">1.0.6</span>
+        <span class="brand-version" id="brandVersion">1.0.7</span>
       </div>
 
       <nav class="socials">
@@ -328,7 +328,7 @@
           <div class="field">
             <div class="field-head">
               <label>Launcher</label>
-              <span class="field-value" id="updateVersion">1.0.6</span>
+              <span class="field-value" id="updateVersion">1.0.7</span>
             </div>
             <div class="field-inline">
               <input type="text" id="updateState" readonly>
@@ -372,13 +372,13 @@
 
           <div class="field">
             <label class="switch-line">
-              <span>Música</span>
+              <span>Música ambiental</span>
               <label class="switch">
                 <input type="checkbox" id="musicToggle">
                 <span class="switch-track"><span class="switch-thumb"></span></span>
               </label>
             </label>
-            <p class="field-hint">Reproduce <code>src/renderer/assets/music.mp3</code> en bucle. Si no existe el archivo, no suena.</p>
+            <p class="field-hint">Activa o desactiva la música ambiental oficial del launcher. Se pausa automáticamente al minimizar o entrar al juego.</p>
           </div>
 
         </div>
@@ -645,7 +645,7 @@
       </span>
 
       <span class="launcher-version" id="launcherVersion">
-        LAUNCHER 1.0.6
+        LAUNCHER 1.0.7
       </span>
 
     </footer>
@@ -654,9 +654,7 @@
 
   <div class="toast-stack" id="toastStack"></div>
 
-  <audio id="musicAudio" loop preload="auto" hidden>
-    <source src="assets/music.mp3" type="audio/mpeg">
-  </audio>
+  <audio id="musicAudio" preload="none" hidden></audio>
 
   <script src="js/app.js"></script>
 

@@ -27,6 +27,8 @@ const state = {
   mods: null,
   effects: true,
   music: false,
+  musicTrackIndex: 0,
+  musicUnlockArmed: false,
   update: null,
   signingIn: false,
   manualUpdateCheck: false,
@@ -35,6 +37,7 @@ const state = {
   serverTimer: null,
   lastServerCheck: 0,
   windowPaused: false,
+  consoleRaf: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -434,8 +437,13 @@ function applyEffects(enabled) {
   if (glow.active) startGlow();
 }
 
+const MUSIC_TRACKS = Object.freeze([
+  'assets/theme.mp3',
+  'assets/lullaby.mp3',
+]);
+
 function setWindowPaused(paused) {
-  const next = Boolean(paused);
+  const next = Boolean(paused || state.running);
   if (state.windowPaused === next) return;
   state.windowPaused = next;
 
@@ -445,6 +453,7 @@ function setWindowPaused(paused) {
     glow.active = false;
     stopGlow();
     stopServerPolling();
+    els.musicAudio?.pause();
   } else {
     if (state.effects) {
       initGlow();
@@ -452,7 +461,42 @@ function setWindowPaused(paused) {
       startGlow();
     }
     startServerPolling();
+    if (state.music) playMusic();
   }
+}
+
+function loadMusicTrack(index) {
+  const audio = els.musicAudio;
+  if (!audio) return;
+
+  const nextIndex = ((index % MUSIC_TRACKS.length) + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
+  state.musicTrackIndex = nextIndex;
+  audio.loop = false;
+  audio.volume = 0.35;
+  audio.src = MUSIC_TRACKS[nextIndex];
+}
+
+function disarmMusicUnlock() {
+  if (!state.musicUnlockArmed) return;
+  state.musicUnlockArmed = false;
+  window.removeEventListener('pointerdown', unlockMusic);
+  window.removeEventListener('keydown', unlockMusic);
+}
+
+function playMusic() {
+  const audio = els.musicAudio;
+  if (!audio || !state.music || state.windowPaused || state.running) return;
+
+  if (!audio.getAttribute('src')) {
+    loadMusicTrack(state.musicTrackIndex);
+  }
+
+  audio.loop = false;
+  audio.volume = 0.35;
+  audio
+    .play()
+    .then(() => disarmMusicUnlock())
+    .catch(() => armMusicUnlock());
 }
 
 function applyMusic(enabled) {
@@ -461,21 +505,41 @@ function applyMusic(enabled) {
   if (!audio) return;
 
   if (state.music) {
-    audio.volume = 0.35;
-    audio.play().catch(() => {});
+    if (state.windowPaused || state.running) {
+      audio.pause();
+      return;
+    }
+    playMusic();
   } else {
+    disarmMusicUnlock();
     audio.pause();
   }
 }
 
 function unlockMusic() {
-  if (!state.music) return;
-  els.musicAudio?.play().catch(() => {});
+  disarmMusicUnlock();
+  if (!state.music || state.windowPaused || state.running) return;
+  playMusic();
 }
 
 function armMusicUnlock() {
-  window.addEventListener('pointerdown', unlockMusic, { passive: true });
-  window.addEventListener('keydown', unlockMusic);
+  if (state.musicUnlockArmed) return;
+  state.musicUnlockArmed = true;
+  window.addEventListener('pointerdown', unlockMusic, { passive: true, once: true });
+  window.addEventListener('keydown', unlockMusic, { once: true });
+}
+
+function initMusic() {
+  const audio = els.musicAudio;
+  if (!audio) return;
+
+  audio.loop = false;
+  audio.addEventListener('ended', () => {
+    loadMusicTrack(state.musicTrackIndex + 1);
+    if (state.music && !state.windowPaused && !state.running) {
+      playMusic();
+    }
+  });
 }
 
 /* =========================================================
@@ -1446,13 +1510,18 @@ async function saveSettings() {
    CONSOLA
    ========================================================= */
 
+function scheduleRenderConsole() {
+  if (state.consoleRaf || !els.consoleOverlay.classList.contains('open')) return;
+  state.consoleRaf = requestAnimationFrame(() => {
+    state.consoleRaf = null;
+    renderConsole();
+  });
+}
+
 function appendLog(line) {
   state.logBuffer.push(line);
   if (state.logBuffer.length > 400) state.logBuffer.shift();
-
-  if (els.consoleOverlay.classList.contains('open')) {
-    renderConsole();
-  }
+  scheduleRenderConsole();
 }
 
 function renderConsole() {
@@ -1594,12 +1663,13 @@ function bindEvents() {
 
   api.onReady(() => {
     setLaunchState('running');
+    setWindowPaused(true);
     setProgress(1, 'Jugando');
     els.status.textContent = 'Jugando';
     els.body.dataset.state = 'running';
 
     clearHideTimer();
-    if (state.config.closeOnLaunch) {
+    if (state.config?.closeOnLaunch) {
       state.hideTimer = setTimeout(() => {
         state.hideTimer = null;
         api.hideWindow();
@@ -1623,6 +1693,7 @@ function bindEvents() {
   api.onExit(({ code, crashed, crashReportLocation }) => {
     clearHideTimer();
     setLaunchState('idle');
+    setWindowPaused(document.hidden);
 
     if (crashed) {
       toast(
@@ -1642,6 +1713,7 @@ function bindEvents() {
     state.lastErrorAt = Date.now();
     const syncing = operation === 'sync' || state.syncing;
     setLaunchState('idle');
+    setWindowPaused(document.hidden);
     els.body.dataset.state = 'error';
     els.status.textContent = syncing ? 'Error al sincronizar' : 'Error al iniciar el juego';
     toast(cleanError(message) || (syncing ? 'Error desconocido al sincronizar.' : 'Error desconocido al iniciar el juego.'), 'error', 9000);
@@ -1651,6 +1723,7 @@ function bindEvents() {
     clearHideTimer();
     const syncing = state.syncing;
     setLaunchState('idle');
+    setWindowPaused(document.hidden);
     toast(syncing ? 'Sincronización cancelada.' : 'Inicio cancelado.');
   });
 
@@ -1945,6 +2018,8 @@ async function init() {
     });
   }
 
+  bindEvents();
+
   try {
     const boot = await api.bootstrap();
     state.boot = boot;
@@ -1965,8 +2040,8 @@ async function init() {
     renderAccount();
     renderUpdate(boot.update);
     applyEffects(boot.config.effects !== false);
+    initMusic();
     applyMusic(boot.config.music === true);
-    armMusicUnlock();
 
     setLaunchState('idle');
     setProgress(0, null);
@@ -1981,8 +2056,6 @@ async function init() {
   } catch (error) {
     toast(`No se pudo iniciar el launcher: ${cleanError(error)}`, 'error', 12000);
   }
-
-  bindEvents();
 
   // Primer inicio sin cuentas: elegir premium o no premium directamente.
   if (state.config && !activeProfile()) {

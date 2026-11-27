@@ -977,10 +977,11 @@ body.no-effects .bg-fx {
 
 .bg-orb {
   position: absolute;
-  left: var(--mx, 62%);
-  top: var(--my, 42%);
+  left: 0;
+  top: 0;
 
-  transform: translate(-50%, -50%);
+  transform: translate3d(calc(var(--mx, 62vw) - 50%), calc(var(--my, 42vh) - 50%), 0);
+  will-change: transform;
 }
 
 .bg-orb i {
@@ -1003,8 +1004,7 @@ body.no-effects .bg-fx {
 }
 
 .bg-orb-b {
-  left: var(--mx2, 58%);
-  top: var(--my2, 40%);
+  transform: translate3d(calc(var(--mx2, 58vw) - 50%), calc(var(--my2, 40vh) - 50%), 0);
 }
 
 .bg-orb-b i {
@@ -1092,7 +1092,9 @@ body.no-effects .bg-fx {
 }
 
 body.is-paused .bg-orb i,
-body.is-paused .bg-spore {
+body.is-paused .bg-spore,
+body[data-state="running"] .bg-orb i,
+body[data-state="running"] .bg-spore {
   animation-play-state: paused;
 }
 

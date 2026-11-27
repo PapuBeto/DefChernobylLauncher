@@ -5,8 +5,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
-const AdmZip = require('adm-zip');
+const { open: openZip, readAllEntries, openEntryReadStream } = require('@xmcl/unzip');
 const { paths } = require('./paths');
+const { isAllowedUrl } = require('./resources');
 
 const CONCURRENCY = 4;
 const DOWNLOAD_ATTEMPTS = 3;
@@ -14,7 +15,16 @@ const STALL_TIMEOUT_MS = 45000;
 const DISK_RESERVE_BYTES = 256 * 1024 * 1024;
 const MAX_EXTRACT_BYTES = 4 * 1024 * 1024 * 1024;
 const BUNDLE_MARKER_FILE = '.chernobylz-bundles.json';
-const PROTECTED_DIRS = new Set(['saves', 'screenshots', 'logs', 'crash-reports', 'backups']);
+const PROTECTED_DIRS = new Set([
+  'saves',
+  'screenshots',
+  'logs',
+  'crash-reports',
+  'backups',
+  'xaero',
+  'xaerowaypoints',
+  'xaeroworldmap',
+]);
 const PRESERVED_PLAYER_FILES = new Set([
   'options.txt',
   'config/embeddium-options.json',
@@ -28,7 +38,20 @@ function normalizeRelativePath(value) {
 
 function isPreservedPlayerFile(relativePath, explicitPreserve = false) {
   if (explicitPreserve) return true;
-  return PRESERVED_PLAYER_FILES.has(normalizeRelativePath(relativePath).toLowerCase());
+  const norm = normalizeRelativePath(relativePath).toLowerCase();
+  if (PRESERVED_PLAYER_FILES.has(norm)) return true;
+  if (
+    norm === 'xaero' ||
+    norm.startsWith('xaero/') ||
+    norm.startsWith('xaerowaypoints/') ||
+    norm.startsWith('xaeroworldmap/')
+  ) {
+    return true;
+  }
+  if (norm.startsWith('config/xaero') || /^config\/xaero(minimap|worldmap).*\.txt$/.test(norm)) {
+    return true;
+  }
+  return false;
 }
 
 function hasExistingPlayerFile(filePath, relativePath) {
@@ -108,74 +131,138 @@ function sanitizeZipEntryPath(rawName) {
   return trimmed;
 }
 
-function extractBundle(zipPath, root, signal) {
-  if (signal?.aborted) throw new Error('Descarga cancelada.');
-  const zip = new AdmZip(zipPath);
-  const entries = zip.getEntries();
-  const base = path.resolve(root);
-  const safeEntries = [];
-  let totalUncompressed = 0;
+function normalizeCasePath(value) {
+  return process.platform === 'win32' ? value.toLowerCase() : value;
+}
 
-  for (const entry of entries) {
-    const rawName = String(entry.entryName || '');
-    if (!rawName || rawName.startsWith('__MACOSX/')) continue;
-
-    // Rechaza enlaces simbólicos Unix dentro del archivo comprimido.
-    if (((entry.header.attr >>> 16) & 0o170000) === 0o120000) {
-      throw new Error(`Enlace simbólico no permitido en paquete zip: ${rawName}`);
-    }
-
-    const relative = sanitizeZipEntryPath(rawName);
-    if (!relative) continue;
-
-    const topDir = relative.split('/')[0].toLowerCase();
-    if (PROTECTED_DIRS.has(topDir)) {
-      throw new Error(`El paquete intenta escribir en una carpeta protegida: ${relative}`);
-    }
-
-    const target = safeJoin(base, relative);
-    if (target === base || !target.startsWith(base + path.sep)) {
-      throw new Error(`Ruta fuera de la carpeta del juego: ${relative}`);
-    }
-
-    if (!entry.isDirectory) {
-      totalUncompressed += Number(entry.header.size) || 0;
-      if (totalUncompressed > MAX_EXTRACT_BYTES) {
-        throw new Error('El paquete comprimido supera el límite máximo permitido al extraerse.');
+function assertWithinRealBase(baseReal, targetPath, label) {
+  const baseCmp = normalizeCasePath(baseReal);
+  let probe = targetPath;
+  while (probe && !fs.existsSync(probe)) {
+    const parent = path.dirname(probe);
+    if (parent === probe) break;
+    probe = parent;
+  }
+  if (probe && fs.existsSync(probe)) {
+    if (probe === targetPath) {
+      try {
+        if (fs.lstatSync(targetPath).isSymbolicLink()) {
+          throw new Error(`Enlace simbólico no permitido en destino: ${label}`);
+        }
+      } catch (error) {
+        if (error?.message?.includes('Enlace simbólico')) throw error;
       }
     }
-
-    safeEntries.push({ entry, relative, target });
+    const resolvedReal = fs.realpathSync(probe);
+    const resolvedCmp = normalizeCasePath(resolvedReal);
+    if (resolvedCmp !== baseCmp && !resolvedCmp.startsWith(baseCmp + path.sep)) {
+      throw new Error(`Ruta fuera de la carpeta del juego: ${label}`);
+    }
   }
+}
 
-  const extractedFiles = [];
-  let writtenBytes = 0;
+async function extractBundle(zipPath, root, signal) {
+  if (signal?.aborted) throw new Error('Descarga cancelada.');
+  const base = path.resolve(root);
+  fs.mkdirSync(base, { recursive: true });
+  const baseReal = fs.realpathSync(base);
+  const baseCmp = normalizeCasePath(baseReal);
 
-  for (const item of safeEntries) {
-    if (signal?.aborted) throw new Error('Descarga cancelada.');
+  const zip = await openZip(zipPath, { lazyEntries: true, autoClose: false });
 
-    if (item.entry.isDirectory) {
-      fs.mkdirSync(item.target, { recursive: true });
-      continue;
+  try {
+    const entries = await readAllEntries(zip);
+    const safeEntries = [];
+    let totalUncompressed = 0;
+
+    for (const entry of entries) {
+      const rawName = String(entry.fileName || '');
+      if (!rawName || rawName.startsWith('__MACOSX/')) continue;
+
+      // Rechaza enlaces simbólicos Unix dentro del archivo comprimido.
+      if (((entry.externalFileAttributes >>> 16) & 0o170000) === 0o120000) {
+        throw new Error(`Enlace simbólico no permitido en paquete zip: ${rawName}`);
+      }
+
+      const relative = sanitizeZipEntryPath(rawName);
+      if (!relative) continue;
+
+      const topDir = relative.split('/')[0].toLowerCase();
+      if (PROTECTED_DIRS.has(topDir)) {
+        throw new Error(`El paquete intenta escribir en una carpeta protegida: ${relative}`);
+      }
+
+      const target = safeJoin(baseReal, relative);
+      const targetCmp = normalizeCasePath(target);
+      if (targetCmp === baseCmp || !targetCmp.startsWith(baseCmp + path.sep)) {
+        throw new Error(`Ruta fuera de la carpeta del juego: ${relative}`);
+      }
+
+      const isDirectory = rawName.endsWith('/') || rawName.endsWith('\\');
+      if (!isDirectory) {
+        totalUncompressed += Number(entry.uncompressedSize) || 0;
+        if (totalUncompressed > MAX_EXTRACT_BYTES) {
+          throw new Error('El paquete comprimido supera el límite máximo permitido al extraerse.');
+        }
+      }
+
+      safeEntries.push({ entry, relative, target, isDirectory });
     }
 
-    if (isPreservedPlayerFile(item.relative) && hasExistingPlayerFile(item.target, item.relative)) {
+    const extractedFiles = [];
+    let writtenBytes = 0;
+
+    for (const item of safeEntries) {
+      if (signal?.aborted) throw new Error('Descarga cancelada.');
+
+      assertWithinRealBase(baseReal, item.target, item.relative);
+
+      if (item.isDirectory) {
+        fs.mkdirSync(item.target, { recursive: true });
+        continue;
+      }
+
+      if (isPreservedPlayerFile(item.relative) && hasExistingPlayerFile(item.target, item.relative)) {
+        extractedFiles.push(item.relative);
+        continue;
+      }
+
+      fs.mkdirSync(path.dirname(item.target), { recursive: true });
+      assertWithinRealBase(baseReal, path.dirname(item.target), item.relative);
+
+      const tmpTarget = `${item.target}.tmp`;
+      const readStream = await openEntryReadStream(zip, item.entry);
+      const writeStream = fs.createWriteStream(tmpTarget);
+      const limiter = new Transform({
+        transform(chunk, _encoding, callback) {
+          if (signal?.aborted) {
+            callback(new Error('Descarga cancelada.'));
+            return;
+          }
+          writtenBytes += chunk.length;
+          if (writtenBytes > MAX_EXTRACT_BYTES) {
+            callback(new Error('El paquete comprimido supera el límite máximo permitido al extraerse.'));
+            return;
+          }
+          callback(null, chunk);
+        },
+      });
+
+      try {
+        await pipeline(readStream, limiter, writeStream, { signal });
+        fs.renameSync(tmpTarget, item.target);
+      } catch (error) {
+        fs.rmSync(tmpTarget, { force: true });
+        throw error;
+      }
+
       extractedFiles.push(item.relative);
-      continue;
     }
 
-    const content = item.entry.getData();
-    writtenBytes += content.length;
-    if (writtenBytes > MAX_EXTRACT_BYTES) {
-      throw new Error('El paquete comprimido supera el límite máximo permitido al extraerse.');
-    }
-
-    fs.mkdirSync(path.dirname(item.target), { recursive: true });
-    fs.writeFileSync(item.target, content);
-    extractedFiles.push(item.relative);
+    return extractedFiles;
+  } finally {
+    zip.close();
   }
-
-  return extractedFiles;
 }
 
 function isBundleExtracted(marker, root, file) {
@@ -205,10 +292,15 @@ function sha1File(file) {
 }
 
 function safeJoin(root, relative) {
-  const target = path.resolve(root, relative);
   const base = path.resolve(root);
-  if (target !== base && !target.startsWith(base + path.sep)) {
+  const target = path.resolve(base, relative);
+  const baseCmp = normalizeCasePath(base);
+  const targetCmp = normalizeCasePath(target);
+  if (targetCmp !== baseCmp && !targetCmp.startsWith(baseCmp + path.sep)) {
     throw new Error(`Ruta de archivo inválida: ${relative}`);
+  }
+  if (fs.existsSync(base)) {
+    assertWithinRealBase(fs.realpathSync(base), target, relative);
   }
   return target;
 }
@@ -344,6 +436,9 @@ async function download(url, destination, onBytes, signal, options = {}) {
     const headers = start > 0 ? { Range: `bytes=${start}-` } : {};
     const response = await fetch(url, { redirect: 'follow', signal: controller.signal, headers });
 
+    if (!isAllowedUrl(response.url)) {
+      throw new Error(`Redirección no permitida al descargar ${path.basename(destination)}`);
+    }
     if (response.status === 416) {
       fs.rmSync(temporary, { force: true });
       throw new Error(`El servidor rechazó reanudar ${path.basename(destination)}.`);
@@ -569,7 +664,7 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
 
           if (item.isArchive) {
             try {
-              const extracted = extractBundle(item.destination, root, signal);
+              const extracted = await extractBundle(item.destination, root, signal);
               extractedFromBundles.push(...extracted);
               bundleMarkers.bundles[item.markerKey] = {
                 sha1: item.file.sha1 || null,
@@ -623,6 +718,31 @@ async function syncFiles(root, files, channel, report = () => {}, signal) {
   }
   if (removedFiles.length > 0) {
     pruneEmptyParents(root, removedFiles);
+  }
+
+  // Limpia .part/.tmp huérfanos en mods/ y cachés obsoletas en cache/bundles/ tras sincronizar.
+  try {
+    const modsDir = path.join(root, 'mods');
+    if (fs.existsSync(modsDir)) {
+      for (const entry of fs.readdirSync(modsDir, { withFileTypes: true })) {
+        if (entry.isFile() && /\.(part|tmp)$/i.test(entry.name)) {
+          fs.rmSync(path.join(modsDir, entry.name), { force: true });
+        }
+      }
+    }
+  } catch {
+    /* limpieza best-effort */
+  }
+  try {
+    if (fs.existsSync(bundlesDir)) {
+      for (const entry of fs.readdirSync(bundlesDir, { withFileTypes: true })) {
+        if (entry.isFile()) {
+          fs.rmSync(path.join(bundlesDir, entry.name), { force: true });
+        }
+      }
+    }
+  } catch {
+    /* limpieza best-effort */
   }
 
   writeState({ ...state, managedFiles: [...nextManaged], channel, syncedAt: Date.now() });

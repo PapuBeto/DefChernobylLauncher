@@ -39,17 +39,18 @@ function requestPacket() {
   return Buffer.from([0x01, 0x00]);
 }
 
+const MAX_RESPONSE_BYTES = 65536;
+
 function readVarInt(buffer, offset) {
   let result = 0;
   let shift = 0;
   let position = offset;
 
-  while (position < buffer.length) {
+  while (position < buffer.length && shift < 35) {
     const byte = buffer[position++];
     result |= (byte & 0x7f) << shift;
     if ((byte & 0x80) === 0) return { value: result, offset: position };
     shift += 7;
-    if (shift > 35) break;
   }
 
   return null;
@@ -75,9 +76,13 @@ function ping(host, port = 25565, timeout = 5000) {
     let settled = false;
     let latency = null;
 
+    const overallTimer = setTimeout(() => fail('timeout'), timeout);
+    overallTimer.unref?.();
+
     const finish = (result) => {
       if (settled) return;
       settled = true;
+      clearTimeout(overallTimer);
       socket.destroy();
       resolve(result);
     };
@@ -94,18 +99,35 @@ function ping(host, port = 25565, timeout = 5000) {
     });
 
     socket.on('data', (chunk) => {
+      if (buffer.length + chunk.length > MAX_RESPONSE_BYTES) {
+        fail('response-too-large');
+        return;
+      }
       buffer = Buffer.concat([buffer, chunk]);
 
       const length = readVarInt(buffer, 0);
-      if (!length) return;
+      if (!length) {
+        if (buffer.length >= 5) fail('bad-varint');
+        return;
+      }
+      if (length.value <= 0 || length.value > MAX_RESPONSE_BYTES) {
+        fail('bad-length');
+        return;
+      }
       if (buffer.length < length.offset + length.value) return;
 
       const packet = buffer.subarray(length.offset, length.offset + length.value);
       const packetId = readVarInt(packet, 0);
-      if (!packetId || packetId.value !== 0x00) return;
+      if (!packetId || packetId.value !== 0x00) {
+        fail('bad-packet');
+        return;
+      }
 
       const textLength = readVarInt(packet, packetId.offset);
-      if (!textLength) return;
+      if (!textLength || textLength.value <= 0 || textLength.offset + textLength.value > packet.length) {
+        fail('bad-length');
+        return;
+      }
 
       const json = packet
         .subarray(textLength.offset, textLength.offset + textLength.value)

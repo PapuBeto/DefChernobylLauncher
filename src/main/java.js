@@ -3,16 +3,36 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const crypto = require('node:crypto');
+const { Readable, Transform } = require('node:stream');
+const { pipeline } = require('node:stream/promises');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
+const { open: openZip, readAllEntries, openEntryReadStream } = require('@xmcl/unzip');
 const { paths } = require('./paths');
 
 const execFileAsync = promisify(execFile);
 const MIN_JAVA = 17;
 const TARGET_JAVA = 17;
+const STALL_TIMEOUT_MS = 45000;
+const MAX_JRE_EXTRACT_BYTES = 512 * 1024 * 1024;
 
 function javaExecutable(javaHome) {
   return path.join(javaHome, 'bin', os.platform() === 'win32' ? 'java.exe' : 'java');
+}
+
+function isValidJavaExecutablePath(candidate) {
+  try {
+    if (typeof candidate !== 'string') return false;
+    const trimmed = candidate.trim();
+    if (!trimmed || trimmed.startsWith('\\\\') || trimmed.startsWith('//')) return false;
+    if (!path.isAbsolute(trimmed)) return false;
+    const expected = process.platform === 'win32' ? 'java.exe' : 'java';
+    if (path.basename(trimmed).toLowerCase() !== expected) return false;
+    return fs.statSync(trimmed).isFile();
+  } catch {
+    return false;
+  }
 }
 
 async function readJavaVersion(javaPath) {
@@ -116,7 +136,9 @@ async function detect(preferredPath) {
   const seen = new Set();
   const candidates = [];
 
-  if (preferredPath && fs.existsSync(preferredPath)) candidates.push(preferredPath);
+  if (preferredPath && isValidJavaExecutablePath(preferredPath)) {
+    candidates.push(preferredPath);
+  }
   candidates.push(...(await candidatesFromSystem()));
 
   for (const candidate of candidates) {
@@ -131,34 +153,171 @@ async function detect(preferredPath) {
   return null;
 }
 
-async function downloadFile(url, destination, onProgress, signal) {
-  const response = await fetch(url, { redirect: 'follow', signal });
-  if (!response.ok || !response.body) {
-    throw new Error(`No se pudo descargar Java (HTTP ${response.status}).`);
+function isHttpsUrl(raw) {
+  try {
+    return new URL(String(raw)).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+async function resolveAdoptiumRelease(platform, arch, signal) {
+  const metaUrl =
+    `https://api.adoptium.net/v3/assets/latest/${MIN_JAVA}/hotspot` +
+    `?architecture=${encodeURIComponent(arch)}&image_type=jre&os=${encodeURIComponent(platform)}&vendor=eclipse`;
+
+  const timeout = AbortSignal.timeout(15000);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
+  const response = await fetch(metaUrl, {
+    redirect: 'follow',
+    signal: combined,
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(`No se pudieron obtener metadatos de Adoptium (HTTP ${response.status}).`);
+  }
+  if (!isHttpsUrl(response.url)) {
+    throw new Error('Redirección no segura al consultar Adoptium.');
   }
 
-  const total = Number(response.headers.get('content-length')) || 0;
-  let received = 0;
+  const assets = await response.json();
+  if (!Array.isArray(assets) || assets.length === 0) {
+    throw new Error('Adoptium no devolvió ningún paquete de Java 17 disponible.');
+  }
 
+  const pkg = assets[0]?.binary?.package;
+  const link = String(pkg?.link || '');
+  const checksum = String(pkg?.checksum || '').trim().toLowerCase();
+
+  if (!isHttpsUrl(link) || !/^[a-f0-9]{64}$/.test(checksum)) {
+    throw new Error('Metadatos de descarga o SHA-256 de Adoptium inválidos.');
+  }
+
+  return { url: link, sha256: checksum };
+}
+
+async function downloadFile(url, destination, onProgress, signal, expectedSha256) {
+  const temporary = `${destination}.part`;
   fs.mkdirSync(path.dirname(destination), { recursive: true });
-  const handle = fs.createWriteStream(destination);
+
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  }
+
+  let stallTimer = null;
+  const armStallTimer = () => {
+    clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => controller.abort(), STALL_TIMEOUT_MS);
+  };
+  armStallTimer();
 
   try {
-    for await (const chunk of response.body) {
-      if (signal?.aborted) throw new Error('Descarga de Java cancelada.');
-      received += chunk.length;
-      if (!handle.write(chunk)) {
-        await new Promise((resolve) => handle.once('drain', resolve));
-      }
-      if (total && onProgress) onProgress(received / total);
+    const response = await fetch(url, { redirect: 'follow', signal: controller.signal });
+    if (!response.ok || !response.body) {
+      throw new Error(`No se pudo descargar Java (HTTP ${response.status}).`);
     }
-  } catch (error) {
-    await new Promise((resolve) => handle.end(resolve));
-    fs.rmSync(destination, { force: true });
-    throw error;
-  }
+    if (!isHttpsUrl(response.url)) {
+      throw new Error('Redirección no segura al descargar Java (se requiere HTTPS).');
+    }
 
-  await new Promise((resolve) => handle.end(resolve));
+    const total = Number(response.headers.get('content-length')) || 0;
+    let received = 0;
+    const hash = crypto.createHash('sha256');
+    const source = Readable.fromWeb(response.body);
+    const handle = fs.createWriteStream(temporary);
+    const meter = new Transform({
+      transform(chunk, _enc, callback) {
+        armStallTimer();
+        if (signal?.aborted) {
+          callback(new Error('Descarga de Java cancelada.'));
+          return;
+        }
+        hash.update(chunk);
+        received += chunk.length;
+        if (total && onProgress) onProgress(Math.min(1, received / total));
+        callback(null, chunk);
+      },
+    });
+
+    await pipeline(source, meter, handle, { signal: controller.signal });
+
+    const actualSha256 = hash.digest('hex').toLowerCase();
+    if (expectedSha256 && actualSha256 !== expectedSha256.toLowerCase()) {
+      throw new Error('Checksum SHA-256 de Java 17 no coincide.');
+    }
+
+    fs.renameSync(temporary, destination);
+  } catch (error) {
+    fs.rmSync(temporary, { force: true });
+    if (signal?.aborted) throw new Error('Descarga de Java cancelada.');
+    if (controller.signal.aborted) {
+      throw new Error('La descarga de Java 17 se quedó sin datos.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(stallTimer);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
+async function extractZipStream(archivePath, targetDir, signal) {
+  fs.mkdirSync(targetDir, { recursive: true });
+  const baseReal = fs.realpathSync(path.resolve(targetDir));
+  const baseCmp = process.platform === 'win32' ? baseReal.toLowerCase() : baseReal;
+  const zip = await openZip(archivePath, { lazyEntries: true, autoClose: false });
+
+  try {
+    const entries = await readAllEntries(zip);
+    let writtenBytes = 0;
+
+    for (const entry of entries) {
+      if (signal?.aborted) throw new Error('Descarga de Java cancelada.');
+      const rawName = String(entry.fileName || '').replace(/\\/g, '/');
+      if (!rawName || rawName.includes('\0') || rawName.startsWith('/') || /^[a-z]:/i.test(rawName)) {
+        throw new Error(`Entrada inválida en paquete de Java: ${entry.fileName}`);
+      }
+      if (((entry.externalFileAttributes >>> 16) & 0o170000) === 0o120000) {
+        throw new Error(`Enlace simbólico no permitido en paquete de Java: ${entry.fileName}`);
+      }
+      const trimmed = rawName.replace(/\/+$/, '');
+      if (!trimmed) continue;
+      if (trimmed.split('/').includes('..')) {
+        throw new Error(`Ruta peligrosa en paquete de Java: ${entry.fileName}`);
+      }
+
+      const target = path.resolve(baseReal, trimmed);
+      const targetCmp = process.platform === 'win32' ? target.toLowerCase() : target;
+      if (targetCmp !== baseCmp && !targetCmp.startsWith(baseCmp + path.sep)) {
+        throw new Error(`Ruta fuera de la carpeta de Java: ${entry.fileName}`);
+      }
+
+      if (rawName.endsWith('/')) {
+        fs.mkdirSync(target, { recursive: true });
+        continue;
+      }
+
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      const readStream = await openEntryReadStream(zip, entry);
+      const writeStream = fs.createWriteStream(target);
+      const limiter = new Transform({
+        transform(chunk, _enc, callback) {
+          writtenBytes += chunk.length;
+          if (writtenBytes > MAX_JRE_EXTRACT_BYTES) {
+            callback(new Error('El paquete de Java supera el tamaño máximo permitido al extraerse.'));
+            return;
+          }
+          callback(null, chunk);
+        },
+      });
+      await pipeline(readStream, limiter, writeStream, { signal });
+    }
+  } finally {
+    zip.close();
+  }
 }
 
 function findExecutableIn(directory) {
@@ -180,7 +339,7 @@ const ADOPTIUM = {
 
 /**
  * Garantiza un Java 17+. Si no hay ninguno instalado descarga un JRE de
- * Eclipse Temurin dentro de userData.
+ * Eclipse Temurin dentro de userData validando su checksum SHA-256.
  */
 async function ensure(preferredPath, onProgress = () => {}, signal) {
   const existing = await detect(preferredPath);
@@ -190,19 +349,18 @@ async function ensure(preferredPath, onProgress = () => {}, signal) {
   if (!platform) throw new Error('Plataforma no soportada para instalar Java automáticamente.');
 
   const arch = os.arch() === 'arm64' ? 'aarch64' : 'x64';
-  const url = `https://api.adoptium.net/v3/binary/latest/${MIN_JAVA}/ga/${platform}/${arch}/jre/hotspot/normal/eclipse`;
+  const release = await resolveAdoptiumRelease(platform, arch, signal);
   const archive = path.join(paths.cache, `jre-${MIN_JAVA}.zip`);
 
   onProgress(0);
-  await downloadFile(url, archive, (fraction) => onProgress(fraction * 0.8), signal);
+  await downloadFile(release.url, archive, (fraction) => onProgress(fraction * 0.8), signal, release.sha256);
   if (signal?.aborted) throw new Error('Descarga de Java cancelada.');
 
-  const AdmZip = require('adm-zip');
   const target = path.join(paths.java, `temurin-${MIN_JAVA}`);
   fs.rmSync(target, { recursive: true, force: true });
   fs.mkdirSync(target, { recursive: true });
   try {
-    new AdmZip(archive).extractAllTo(target, true);
+    await extractZipStream(archive, target, signal);
   } finally {
     fs.rmSync(archive, { force: true });
   }
@@ -235,4 +393,4 @@ function useInPath(javaPath) {
   process.env.JAVA_HOME = path.dirname(dir);
 }
 
-module.exports = { detect, ensure, useInPath, readJavaVersion, MIN_JAVA };
+module.exports = { detect, ensure, useInPath, readJavaVersion, isValidJavaExecutablePath, MIN_JAVA };

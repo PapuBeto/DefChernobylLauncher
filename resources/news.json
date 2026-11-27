@@ -12,8 +12,17 @@
     }
   },
   "version": 1,
-  "updatedAt": "2026-11-22T00:00:00.000Z",
+  "updatedAt": "2026-11-26T00:00:00.000Z",
   "items": [
+    {
+      "id": "actualizacion-1-0-7",
+      "type": "update",
+      "date": "26 NOV 2026",
+      "tag": "ACTUALIZACIÓN",
+      "title": "NUEVA ACTUALIZACIÓN v1.0.7",
+      "body": "¡Ya está disponible la versión 1.0.7 del launcher! Actualizamos los mods y los recursos visuales del canal PRUEBAS, optimizamos el launcher para reducir el consumo de memoria RAM y CPU al abrir el juego, reforzamos la seguridad protegiendo tus waypoints de mapas al actualizar y añadimos la música ambiental oficial del servidor (puedes encenderla o apagarla en Ajustes).",
+      "featured": true
+    },
     {
       "id": "bienvenida-beta-testers",
       "type": "info",
@@ -21,7 +30,7 @@
       "tag": "OFICIAL",
       "title": "BIENVENIDOS BETA TESTERS",
       "body": "¡Gracias por sumarte como Beta Tester de Chernobyl Z! Tu apoyo probando el launcher, reportando errores y ayudando a pulir la experiencia es clave para dejar el servidor al cien. Selecciona la versión PRUEBAS si vas a testear las últimas novedades y comparte cualquier detalle con el equipo.",
-      "featured": true
+      "featured": false
     }
   ]
 }

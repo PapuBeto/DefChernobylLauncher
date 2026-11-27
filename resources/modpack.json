@@ -2,7 +2,7 @@
   "name": "Chernobyl Z",
   "minecraft": "1.20.1",
   "forge": "47.4.28",
-  "revision": 2,
+  "revision": 9,
   "manifestUrl": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/modpack.json",
   "server": {
     "name": "Chernobyl Z",
@@ -35,5 +35,1646 @@
       }
     }
   },
-  "files": []
+  "files": [
+    {
+      "path": "bundle.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__bundle.zip",
+      "sha1": "60a03483799e2d2dc4f29cb13b9b791879f730d7",
+      "size": 101119060,
+      "extract": true,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/a_good_place-1.20-1.2.8.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__a_good_place-1.20-1.2.8.jar",
+      "sha1": "6880cb588e81d14c7d42a3e36805d3717fff4f30",
+      "size": 260591,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/aceanticheat-forge-1.20.1-1.0.7.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__aceanticheat-forge-1.20.1-1.0.7.jar",
+      "sha1": "17df11505a7b44ba357a4eaf77ca550f428986c6",
+      "size": 212890,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/appleskin-forge-mc1.20.1-2.5.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__appleskin-forge-mc1.20.1-2.5.1.jar",
+      "sha1": "81919356f84eab14258db98924b66c3c38e372b1",
+      "size": 47428,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/architectury-9.2.14-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__architectury-9.2.14-forge.jar",
+      "sha1": "a52918a500ff421180a1cbd1a0cabee712134ec4",
+      "size": 580602,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/asynclogger-2.2.2+1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__asynclogger-2.2.2_1.20.1-forge.jar",
+      "sha1": "284e4b35c312e1cbfc3838404ce66c72e4e6b95f",
+      "size": 1238651,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Atlas Lib-1.20.1-1.1.12.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Atlas_Lib-1.20.1-1.1.12.jar",
+      "sha1": "17534bfd6878afc2da5d990fe6fc348b2606530c",
+      "size": 124436,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/awcapi-neoforge-1.20.1-1.0.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__awcapi-neoforge-1.20.1-1.0.2.jar",
+      "sha1": "77be758a82d72a29affd7fe18b0e05e4a93d630c",
+      "size": 89085,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/BadOptimizations-2.4.1-1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__BadOptimizations-2.4.1-1.20.1.jar",
+      "sha1": "304007dcb0fb15ed1a1bc3771736470dafc5be0f",
+      "size": 460234,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/balm-forge-1.20.1-7.3.43.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__balm-forge-1.20.1-7.3.43.jar",
+      "sha1": "4248e3b8fb20e9b6432d2225325c605f4ad7b211",
+      "size": 561741,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/betterfpsdist-1.20.1-6.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__betterfpsdist-1.20.1-6.0.jar",
+      "sha1": "8e4fe2cd85c08c24ab363b47a63d1c872fc3cc1e",
+      "size": 19917,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/biome_colorizer-1.20.1-1.0.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__biome_colorizer-1.20.1-1.0.0.jar",
+      "sha1": "5d2e15505e32fe0aae7e7340131d4ec79e568b4b",
+      "size": 42115,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/bobby-1.20.1_v5.0.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__bobby-1.20.1_v5.0.1.jar",
+      "sha1": "8c98ee795e2e32189cb1b9bea53a7e310742e19a",
+      "size": 86682,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/bocchium-1.20.1-0.0.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__bocchium-1.20.1-0.0.3.jar",
+      "sha1": "4c74bafb892028c3ec006bd694836e42695b77a0",
+      "size": 10201,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Bookshelf-Forge-1.20.1-20.2.15.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Bookshelf-Forge-1.20.1-20.2.15.jar",
+      "sha1": "9df4908f606c6dc62a358b3e04e3fdedba59a12c",
+      "size": 343925,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/CameraOverhaul-v2.1.2-forge+mc[1.20-1.20.5].jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__CameraOverhaul-v2.1.2-forge_mc_1.20-1.20.5_.jar",
+      "sha1": "2b9e4499b00449e670a9dd399dddbb9cd7c0e531",
+      "size": 139791,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/chatanimation-forge-1.3.3+mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chatanimation-forge-1.3.3_mc1.20.1.jar",
+      "sha1": "c212037fdec51ac9d5c5e326261e7de880785759",
+      "size": 1067270,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/chernobyl_backpacks-1.1.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobyl_backpacks-1.1.1.jar",
+      "sha1": "630406a1087ec8eafc5d43b788155ab8f8a3d637",
+      "size": 115397,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/chernobyl_characters-1.0.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobyl_characters-1.0.2.jar",
+      "sha1": "4795dc403f9486fa020ebd2e54c57451ae89ab53",
+      "size": 119296,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/chernobyl_raid-1.3.16.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobyl_raid-1.3.16.jar",
+      "sha1": "bec12f706d1c9e3f9a0485553dcaa42156697b6b",
+      "size": 2340914,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/chernobylinv-1.0.4.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobylinv-1.0.4.jar",
+      "sha1": "c2cbddd45d2b99b3f91ae0da4787ccf9cc52a457",
+      "size": 654436,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/clientcrafting-1.20.1-2.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__clientcrafting-1.20.1-2.1.jar",
+      "sha1": "8305d002730b5a68364a3daa41d5a33bc7adb02d",
+      "size": 7726,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/cloth-config-11.1.136-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__cloth-config-11.1.136-forge.jar",
+      "sha1": "c65d07748acc57ceb45d53b3964368b84f34d54f",
+      "size": 1181413,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Clumps-forge-1.20.1-12.0.0.4.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Clumps-forge-1.20.1-12.0.0.4.jar",
+      "sha1": "97cc669f68dbe812cb77cc3631339334fc28b877",
+      "size": 20299,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/connectedglass-1.1.14-forge-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__connectedglass-1.1.14-forge-mc1.20.1.jar",
+      "sha1": "2f65edcf4faed33979d5dec81597b472abf17325",
+      "size": 873714,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Controlling-forge-1.20.1-12.0.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Controlling-forge-1.20.1-12.0.2.jar",
+      "sha1": "f6d3cdd3ec68c5590cf5b2e89c38dbf031824bfd",
+      "size": 115280,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Corgilib-Forge-1.20.1-4.0.3.5.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Corgilib-Forge-1.20.1-4.0.3.5.jar",
+      "sha1": "ef71df3c9a3d22432d63957a8db00645353bfe36",
+      "size": 318765,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/coroutil-forge-1.20.1-1.3.7.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__coroutil-forge-1.20.1-1.3.7.jar",
+      "sha1": "7f5f0b62a638b6053c95919cbe8c2bea2e0c93d0",
+      "size": 64187,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/corpse-forge-1.20.1-1.0.23.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__corpse-forge-1.20.1-1.0.23.jar",
+      "sha1": "843b16ca88bc5c390bb22a2a84437e6bffdd43dd",
+      "size": 245644,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/CreativeCore_FORGE_v2.12.39_mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__CreativeCore_FORGE_v2.12.39_mc1.20.1.jar",
+      "sha1": "aef9a8ebdf0be50b6bd8da8ab4153f5085f71a80",
+      "size": 1144128,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/CullLessLeaves-Reforged-1.20.1-1.0.5.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__CullLessLeaves-Reforged-1.20.1-1.0.5.jar",
+      "sha1": "71b1603071461e036a3ba2aaeeb52cc10fa3d348",
+      "size": 22474,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/cupboard-1.20.1-4.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__cupboard-1.20.1-4.2.jar",
+      "sha1": "db25dfc4935b7f1bde62c69f13a7b70e2ecd9f2f",
+      "size": 33422,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/cure-2.0.2-forge-1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__cure-2.0.2-forge-1.20.1.jar",
+      "sha1": "bd383811414a5f161c2b09febff2a8da99679b66",
+      "size": 23575,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/curios-forge-5.14.1+1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__curios-forge-5.14.1_1.20.1.jar",
+      "sha1": "452175b95ad3db6ff58bb8968f6bf7a9d1e0f480",
+      "size": 398066,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/CustomPlayerModels-1.20-0.6.27a.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__CustomPlayerModels-1.20-0.6.27a.jar",
+      "sha1": "4652dee093c796799756f5f6c89314c6d601ae65",
+      "size": 2805930,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/czbounty-1.0.0 (1).jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__czbounty-1.0.0_1_.jar",
+      "sha1": "9381a88e5ddda5f505194ec0e6a1688ef9f271c2",
+      "size": 342556,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/czeconomy-0.1.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__czeconomy-0.1.0.jar",
+      "sha1": "31ae01e656fd6030bb8841a8763c7daa1ee8edc1",
+      "size": 116644,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Data_Anchor-forge-1.20.1-1.0.0.23.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Data_Anchor-forge-1.20.1-1.0.0.23.jar",
+      "sha1": "de56f8e42b7581db17e6c20925c01a59f6dd21ae",
+      "size": 117628,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/DeltaForce Melee Pack-0.2.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__DeltaForce_Melee_Pack-0.2.0.jar",
+      "sha1": "8477f6d8f7c589baa54a7d54d8890da2ae756ac7",
+      "size": 10380850,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Disguise.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Disguise.jar",
+      "sha1": "362b1be6959d9f370955645ee025abeb21ab5fc7",
+      "size": 14189,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/doomsday_decoration-1.1.3-forge-1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__doomsday_decoration-1.1.3-forge-1.20.1.jar",
+      "sha1": "b5250979fb0c79e8ea93742bfab9c67d4a886cad",
+      "size": 9658884,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/doomsday_functionality-1.20.1-0.1.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__doomsday_functionality-1.20.1-0.1.2.jar",
+      "sha1": "3d486fa7f16c1eab766fa502dce638cf2cc2f8b4",
+      "size": 212421,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/DustrialDecor-1.3.5-1.20.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__DustrialDecor-1.3.5-1.20.jar",
+      "sha1": "ef86275625bd43fe6c5a1563b768568384137897",
+      "size": 415067,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/dyairdrop-1.0.0-1.20.1-hotfix3.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__dyairdrop-1.0.0-1.20.1-hotfix3.0.jar",
+      "sha1": "33926a24a79f3864865077fa8d7da383b9e415d6",
+      "size": 1394413,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/dynamic-fps-3.11.4+minecraft-1.20.0-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__dynamic-fps-3.11.4_minecraft-1.20.0-forge.jar",
+      "sha1": "43b3e0766a9e7a30651cc01756476657b865b7a2",
+      "size": 402345,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/easy_npc_bundle-forge-1.20.1-7.12.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__easy_npc_bundle-forge-1.20.1-7.12.1.jar",
+      "sha1": "2286c9b08342f3ec1ceae8304425b39e5301b028",
+      "size": 25441,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/easy_npc_config_ui-forge-1.20.1-7.12.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__easy_npc_config_ui-forge-1.20.1-7.12.1.jar",
+      "sha1": "5b1a31235d6eafbd714f36b9c6e7ede2cdd182ee",
+      "size": 1092567,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/easy_npc-forge-1.20.1-7.12.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__easy_npc-forge-1.20.1-7.12.1.jar",
+      "sha1": "39d2f57946e311920453219e768977afc83f73fb",
+      "size": 2962180,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/eatinganimation-1.20.1-5.1.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__eatinganimation-1.20.1-5.1.0.jar",
+      "sha1": "d80502ca23195814f245bb8a4bffcb778ea4c02a",
+      "size": 294792,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/effortlessbuilding-1.20.1-3.11.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__effortlessbuilding-1.20.1-3.11.jar",
+      "sha1": "8009529f3c3baf1db92049dfffd81ba5813bf829",
+      "size": 2326090,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/embeddium-0.3.31+mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__embeddium-0.3.31_mc1.20.1.jar",
+      "sha1": "bb2fa8f3e493af16af9160d049f96c614a1faf2f",
+      "size": 1320675,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/emotecraft-for-MC1.20.1-2.2.7-b.build.50-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__emotecraft-for-MC1.20.1-2.2.7-b.build.50-forge.jar",
+      "sha1": "fcff067375cfe917cbf235218f49ceb58e598a5c",
+      "size": 680255,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Enhanced-Celestials-2-Config-Editor-Forge-1.20.1-0.0.3.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Enhanced-Celestials-2-Config-Editor-Forge-1.20.1-0.0.3.2.jar",
+      "sha1": "f650bab5c3b5845110cb878ce4832a8b09629157",
+      "size": 541237,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Enhanced-Celestials-2-Core-Forge-1.20.1-1.0.3.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Enhanced-Celestials-2-Core-Forge-1.20.1-1.0.3.3.jar",
+      "sha1": "d52760d46ae0c62d14dcd02932280f6dc04359a5",
+      "size": 1047873,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Enhanced-Celestials-2-Default-Lunar-Events-Forge-1.20.1-1.0.0.6.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Enhanced-Celestials-2-Default-Lunar-Events-Forge-1.20.1-1.0.0.6.jar",
+      "sha1": "8ae67943b9def2f04a98bc53875d532450ce0126",
+      "size": 1515161,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Enhanced-Celestials-2-Shaders-Forge-1.20.1-1.0.0.4.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Enhanced-Celestials-2-Shaders-Forge-1.20.1-1.0.0.4.jar",
+      "sha1": "c08b56a63caabdc68cb740401ec219d74fad6db4",
+      "size": 119897,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/entity_model_features-3.3.12-1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__entity_model_features-3.3.12-1.20.1-forge.jar",
+      "sha1": "adcec598039ec59a805a974de9d23ff5eede8299",
+      "size": 840669,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/entity_texture_features-7.2.6-1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__entity_texture_features-7.2.6-1.20.1-forge.jar",
+      "sha1": "61f8c27ea487064f674a587780f3b6f24f22a74f",
+      "size": 999570,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/entityculling-forge-1.10.5-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__entityculling-forge-1.10.5-mc1.20.1.jar",
+      "sha1": "b818f6d792b79f4ec116c89704e70292bd6f72b5",
+      "size": 1590221,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/epicdeathscreen-forge-1.20.1-1.1.0-beta.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__epicdeathscreen-forge-1.20.1-1.1.0-beta.2.jar",
+      "sha1": "d6090216a841f6ac540a1755a7bdc0ddab0736d4",
+      "size": 1647627,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/fast-ip-ping-v1.0.12-mc1.20.4-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__fast-ip-ping-v1.0.12-mc1.20.4-forge.jar",
+      "sha1": "64414cc4229c909af4095ab5e8a4f3762cd55185",
+      "size": 10409,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/ferritecore-6.0.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__ferritecore-6.0.1-forge.jar",
+      "sha1": "417fb6ce8f52abf40bd9d0390371790f9576f8ba",
+      "size": 123034,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/flerovium-forge-1.20.1-1.2.19-all.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__flerovium-forge-1.20.1-1.2.19-all.jar",
+      "sha1": "6f1536b97ce65a4a0fba2887aa2b1fa46be252b7",
+      "size": 254081,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/ForgeGGTU-1.2.2-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__ForgeGGTU-1.2.2-mc1.20.1.jar",
+      "sha1": "d1937bf0af2d05cb4ff98fe25f2a7984258fed8c",
+      "size": 2925198,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Forgematica-0.1.13-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Forgematica-0.1.13-mc1.20.1.jar",
+      "sha1": "d235d2ac0ce0143425d4d1e3d9a32d32fc994a93",
+      "size": 997501,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/FramedBlocks-9.4.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__FramedBlocks-9.4.3.jar",
+      "sha1": "740c0feaab75455f32df7e137389f77c83fb490c",
+      "size": 4251314,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/framework-forge-1.20.1-0.8.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__framework-forge-1.20.1-0.8.0.jar",
+      "sha1": "27347879f8760a7bc0b4bd71977abc50e498811c",
+      "size": 383868,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/ftb-library-forge-2001.2.13.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__ftb-library-forge-2001.2.13.jar",
+      "sha1": "a5427d5ff07eb044144ed0b54308370d88bce17e",
+      "size": 780558,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/ftb-teams-forge-2001.3.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__ftb-teams-forge-2001.3.2.jar",
+      "sha1": "c49023f5d471aa1ba7fc624d2565fe9e82b7117e",
+      "size": 252579,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/fusion-1.3.16-forge-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__fusion-1.3.16-forge-mc1.20.1.jar",
+      "sha1": "bdaea06e0900a21d01b47389f256c99875f5824e",
+      "size": 972917,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/fwa+1.20.1-forge-1.2.31.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__fwa_1.20.1-forge-1.2.31.jar",
+      "sha1": "01b3dcdb99cb62e7d8e554c4acc5864ce8738c4c",
+      "size": 386623,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/g3project_doors_reborn-1.0.9.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__g3project_doors_reborn-1.0.9.jar",
+      "sha1": "29dd3fabeb281c6bbc607eb59aa5f3c2abc9ab10",
+      "size": 6255731,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/geckolib-forge-1.20.1-4.8.4.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__geckolib-forge-1.20.1-4.8.4.jar",
+      "sha1": "81982cc287f80ffabb2fd36d22cc95e4255c739d",
+      "size": 1038209,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/GlitchCore-forge-1.20.1-0.0.1.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__GlitchCore-forge-1.20.1-0.0.1.1.jar",
+      "sha1": "1a0aaf7c33b9acb26bf75899a43e8941cac1f6e7",
+      "size": 87550,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/gml-4.0.11-all.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__gml-4.0.11-all.jar",
+      "sha1": "1b8899ea5a9fd45f2adf8bbb25651a0a95dc6020",
+      "size": 11125541,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/gnetum-2.5.0+1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__gnetum-2.5.0_1.20.1-forge.jar",
+      "sha1": "bbee09bbcf6500497eead39c585046a737c1866e",
+      "size": 732296,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/gpumemleakfix-1.20.1-1.8.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__gpumemleakfix-1.20.1-1.8.jar",
+      "sha1": "54301c2db5467e0f9f5c504887436f358335331f",
+      "size": 7997,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/gundb-2.2.3-1.20.1-all.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__gundb-2.2.3-1.20.1-all.jar",
+      "sha1": "9bf8813800373b6d8086d40952cc214062e9e9a4",
+      "size": 5550452,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/hourglass-1.20-1.2.1.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__hourglass-1.20-1.2.1.1.jar",
+      "sha1": "d7e6bf68eab1471e27573372a2bcf07d3744987d",
+      "size": 235134,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Iceberg-1.20.1-forge-1.1.25.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Iceberg-1.20.1-forge-1.1.25.jar",
+      "sha1": "d551ff55814cfb01403b812459ee5a02b020d87b",
+      "size": 134551,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/immersive_ballistic-forge-1.4-ALPHA-8+1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__immersive_ballistic-forge-1.4-ALPHA-8_1.20.1.jar",
+      "sha1": "55f9ed76bd9d0e21c88805b702d8df2b05557c48",
+      "size": 8538633,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/immersive_furniture-forge-0.3.3+1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__immersive_furniture-forge-0.3.3_1.20.1.jar",
+      "sha1": "4e7a47513025ab597f5894aa48575a29e686f434",
+      "size": 988737,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/immersive_paintings-0.6.13+1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__immersive_paintings-0.6.13_1.20.1-forge.jar",
+      "sha1": "3f2a668f2235a6a908fde545d140013456b5412f",
+      "size": 4856103,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/InventoryProfilesNext-forge-1.20-1.10.20.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__InventoryProfilesNext-forge-1.20-1.10.20.jar",
+      "sha1": "979e74fa10b24a7d7c4d9aeb5824b80f4f9235cf",
+      "size": 1457354,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Ixeris-4.6.5+1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Ixeris-4.6.5_1.20.1-forge.jar",
+      "sha1": "0481b689f8b71cd92de8fb5eb3d221c66ecb5b80",
+      "size": 1558131,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/jei-1.20.1-forge-15.56.0.205.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__jei-1.20.1-forge-15.56.0.205.jar",
+      "sha1": "7f64b7f8fde7f001ef054dabe3618a8780ba2650",
+      "size": 1778129,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/konkrete_forge_1.8.0_MC_1.20-1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__konkrete_forge_1.8.0_MC_1.20-1.20.1.jar",
+      "sha1": "2019d821bed9071daabed43979433a5473ceee49",
+      "size": 625185,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/kotlinforforge-4.12.0-all.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__kotlinforforge-4.12.0-all.jar",
+      "sha1": "962fdb760409d6d71cbf079235f1ca94e3863a22",
+      "size": 7442998,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/kubejs-forge-2001.6.5-build.26.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__kubejs-forge-2001.6.5-build.26.jar",
+      "sha1": "8b0cc9797d4ed00fd2d1002d58960af8b32012ae",
+      "size": 1658792,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/libIPN-forge-1.20-4.0.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__libIPN-forge-1.20-4.0.2.jar",
+      "sha1": "3e7c7fcdc037a6ae3d9146e718d87fc83f88f6d5",
+      "size": 693301,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/loadmyresources_forge_1.0.4_MC_1.19.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__loadmyresources_forge_1.0.4_MC_1.19.3.jar",
+      "sha1": "c95a7e3b0040d74f53dd7ee986e16ed2e955d4d6",
+      "size": 31801,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/locks_reforged-1.7.5.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__locks_reforged-1.7.5.jar",
+      "sha1": "a17b9ed8b3baca3d3ac1df938826d054eebf50df",
+      "size": 764811,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/lrtactical-forge-1.20.1-0.4.4.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__lrtactical-forge-1.20.1-0.4.4.jar",
+      "sha1": "d70294302315d94c71b245f88d3e46b6ecab1c83",
+      "size": 6623446,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Lucky77_1.20.1_v04.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Lucky77_1.20.1_v04.jar",
+      "sha1": "81993ad3dd053395283f5ad64f7330d531153c52",
+      "size": 231682,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/MaFgLib-0.1.14-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__MaFgLib-0.1.14-mc1.20.1.jar",
+      "sha1": "fd18a3d8a9a72ee27cbb709a88c061b2347d2244",
+      "size": 521709,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/melody_forge_1.0.3_MC_1.20.1-1.20.4.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__melody_forge_1.0.3_MC_1.20.1-1.20.4.jar",
+      "sha1": "e0942d396a70c09038e6c2e5e1da6505178249b8",
+      "size": 37178,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/minevegas-casino-neoforge-1.20.1-1.1.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__minevegas-casino-neoforge-1.20.1-1.1.2.jar",
+      "sha1": "a79ea858940e47e0142aa8204c0b9f8ce47c1b6d",
+      "size": 27163579,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/MOAdecor SCIENCE 1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__MOAdecor_SCIENCE_1.20.1.jar",
+      "sha1": "4ad9e1bb7b28842c8678fc242b8ed71a1f55bfc8",
+      "size": 1040771,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/MoreAnimations-0.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__MoreAnimations-0.1.jar",
+      "sha1": "3c17407009e89a27f83ee67892f15403c8143d82",
+      "size": 33002,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/MouseTweaks-forge-mc1.20.1-2.25.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__MouseTweaks-forge-mc1.20.1-2.25.1.jar",
+      "sha1": "d751153e722a4e014691c83f39f5b07c6ec5333c",
+      "size": 76237,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/MRU-1.0.4+1.20.1+forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__MRU-1.0.4_1.20.1_forge.jar",
+      "sha1": "c92d6d7cf2ffa333d64752edcde2b3c5a3e6edab",
+      "size": 287393,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/music_disc_maker-3.0.4+forge-1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__music_disc_maker-3.0.4_forge-1.20.1.jar",
+      "sha1": "15ceb000c681810f373b0ba01a8aa8e511d854cc",
+      "size": 34673571,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/MyServerIsCompatible-1.20-1.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__MyServerIsCompatible-1.20-1.0.jar",
+      "sha1": "a53abcabc6c3531667049be249b3fb165aad5468",
+      "size": 3482,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Necronomicon-Forge-1.6.0+1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Necronomicon-Forge-1.6.0_1.20.1.jar",
+      "sha1": "2ad4ffa0fb087e4467c6f7496d456fc1ac949ebf",
+      "size": 33251,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/nolijium-0.5.6.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__nolijium-0.5.6.jar",
+      "sha1": "7074fda15f70440eb1e30f74a7dc70feadd49592",
+      "size": 362983,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/notenoughanimations-forge-1.12.4-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__notenoughanimations-forge-1.12.4-mc1.20.1.jar",
+      "sha1": "71484079011f71a37d913b491828412992fd8314",
+      "size": 1944068,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/notenoughcrashes-4.4.9+1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__notenoughcrashes-4.4.9_1.20.1-forge.jar",
+      "sha1": "5d786730c1aee28751d480d497ce893cdff0bb87",
+      "size": 134885,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/oculus-mc1.20.1-1.8.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__oculus-mc1.20.1-1.8.0.jar",
+      "sha1": "984f774e71790deaec674c7587bd24e0711871b2",
+      "size": 2851119,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/open-parties-and-claims-forge-1.20.1-0.31.6.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__open-parties-and-claims-forge-1.20.1-0.31.6.jar",
+      "sha1": "cb5a9d300cdc49b9a7c61d27fbc17d8a7b5c3810",
+      "size": 1830866,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/openpersistence-1.20.1-Forge-1.1.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__openpersistence-1.20.1-Forge-1.1.0.jar",
+      "sha1": "c1b6c143488fb74828c945fc4b4b0fd8e6bfcc97",
+      "size": 37961,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/packetfixer-3.3.2-1.18-1.20.4-merged.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__packetfixer-3.3.2-1.18-1.20.4-merged.jar",
+      "sha1": "79ebc5e66a5ee3ce92afb340e693d506e97361a0",
+      "size": 188661,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/ParCool-1.20.1-3.4.3.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__ParCool-1.20.1-3.4.3.3.jar",
+      "sha1": "55f8b8a9fd9e23cd0dccff56461a8ae88464caed",
+      "size": 1154052,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Pehkui-3.8.2+1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Pehkui-3.8.2_1.20.1-forge.jar",
+      "sha1": "4bc816efdd8e5e2a97423313674401351710e403",
+      "size": 671605,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/perf_tweaks-forge-1.20.1-1.4.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__perf_tweaks-forge-1.20.1-1.4.0.jar",
+      "sha1": "a6c88b991ca43422cd88badc2109081b85cf5af2",
+      "size": 743743,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/physics-mod-3.0.20-mc-1.20.1-forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__physics-mod-3.0.20-mc-1.20.1-forge.jar",
+      "sha1": "ab3e2588e3cf8598e9f48b9f58f4590f9805b746",
+      "size": 60624148,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/player-animation-lib-forge-1.0.2-rc1+1.20.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__player-animation-lib-forge-1.0.2-rc1_1.20.jar",
+      "sha1": "16808f94a41d45d8e986b4e4ea6b02ba57fa058a",
+      "size": 181437,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/playerrevive_compat-1.0.4-daf51f2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__playerrevive_compat-1.0.4-daf51f2.jar",
+      "sha1": "bd7596d7a225dd4d1cc10a020431b51cc1e21de4",
+      "size": 208385,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/PlayerRevive_FORGE_v2.0.31_mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__PlayerRevive_FORGE_v2.0.31_mc1.20.1.jar",
+      "sha1": "84c039f20b8f048c835c429c2c4a9fd82a5e65f6",
+      "size": 5298162,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/PresenceFootsteps-1.20.1-1.9.1-beta.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__PresenceFootsteps-1.20.1-1.9.1-beta.1.jar",
+      "sha1": "6ccb76043763f929a11f1857a57b41bb70ab7512",
+      "size": 7080698,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Prism-1.20.1-forge-1.0.5.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Prism-1.20.1-forge-1.0.5.jar",
+      "sha1": "bcb4bbb1052f49ed4fe6e7d5d7f91f68d45c3fe3",
+      "size": 52205,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/PuzzlesLib-v8.1.33-1.20.1-Forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__PuzzlesLib-v8.1.33-1.20.1-Forge.jar",
+      "sha1": "285b7c7616971338ccbe0022c9ea0f8ad3036aaf",
+      "size": 1342987,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/quantified api-omni-2.2.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__quantified_api-omni-2.2.3.jar",
+      "sha1": "0a4f72b0a7685c99724ffcf2cec69ce0e739c185",
+      "size": 9577892,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/rhino-forge-2001.2.3-build.10.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__rhino-forge-2001.2.3-build.10.jar",
+      "sha1": "c83c9b719a6bab33fbd2b3f2f680eb3adbfc1aa1",
+      "size": 1798244,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/rubidium-extra-0.5.4.4+mc1.20.1-build.131.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__rubidium-extra-0.5.4.4_mc1.20.1-build.131.jar",
+      "sha1": "bb422d5626bf69841e444a3e545c8e71b6928cf8",
+      "size": 568608,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Rummage-1.20.1-forge-1.1.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Rummage-1.20.1-forge-1.1.1.jar",
+      "sha1": "36ea0fe023abf15564a851e568ad6befc890e81b",
+      "size": 964207,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/sa_decor-forge-1.20.1-1.0.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__sa_decor-forge-1.20.1-1.0.3.jar",
+      "sha1": "27b28a576cf0cc1575abab371c3a07600d9c3b3a",
+      "size": 13353633,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/sa_essentials-forge-1.20.1-1.0.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__sa_essentials-forge-1.20.1-1.0.0.jar",
+      "sha1": "202ad5dd71c76e90d20686df0a4700229cebd060",
+      "size": 5373290,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/sa_lib-forge-1.20.1-1.0.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__sa_lib-forge-1.20.1-1.0.1.jar",
+      "sha1": "43c9d314f45221d58b512440cd7c2b5bab0e76b1",
+      "size": 1703021,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Satako-7.0.33-1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Satako-7.0.33-1.20.1.jar",
+      "sha1": "c2389f6a7990f79d6f542daf02310e602222f4c3",
+      "size": 137631,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/screentext-forge-1.20.1-v4.5.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__screentext-forge-1.20.1-v4.5.jar",
+      "sha1": "27c8e78dfdbd47c86b28ed00b2109ceea66fcc50",
+      "size": 176610,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Searchables-forge-1.20.1-1.0.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Searchables-forge-1.20.1-1.0.3.jar",
+      "sha1": "ed5a23ec30c90fd06b3f1d8140614028e1fafaee",
+      "size": 77732,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/SecurityDoor-1.0.0 (3).jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__SecurityDoor-1.0.0_3_.jar",
+      "sha1": "065316a6e5f6569b817baa30c48c1ea8c6e9e615",
+      "size": 44792,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/ShoulderSurfing-Forge-1.20.1-5.0.11.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__ShoulderSurfing-Forge-1.20.1-5.0.11.jar",
+      "sha1": "4315dc096bf22b8003de62fe905a330aae058ec0",
+      "size": 402814,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/simpleenemymod-1.20.1-0.1.6-beta-hotfix.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__simpleenemymod-1.20.1-0.1.6-beta-hotfix.jar",
+      "sha1": "0b164daed3844ef1ed90fb254d7c809f870af7d3",
+      "size": 1333575,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/skinlayers3d-forge-1.11.2-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__skinlayers3d-forge-1.11.2-mc1.20.1.jar",
+      "sha1": "473b49e775f4c9dd746929f20c33f8132b86f235",
+      "size": 2168901,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/smoothmovement-1.20.1-2.9.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__smoothmovement-1.20.1-2.9.jar",
+      "sha1": "a5f811d0542e311aeb51a74c87c2d6a2dcc80528",
+      "size": 47629,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/sodiumoptionsapi-forge-1.0.10-1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__sodiumoptionsapi-forge-1.0.10-1.20.1.jar",
+      "sha1": "7529fbf938787ed13a251cbf40936f8c29ec4b6c",
+      "size": 443978,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/sound-physics-remastered-forge-1.20.1-1.5.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__sound-physics-remastered-forge-1.20.1-1.5.1.jar",
+      "sha1": "aef2c02392624f0a12475ada809366b12ac9ec52",
+      "size": 206984,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Sounds-2.2.1+1.20.1+forge.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Sounds-2.2.1_1.20.1_forge.jar",
+      "sha1": "e75686799054958804d711b1b6ceef4d132764b8",
+      "size": 10974911,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/supermartijn642corelib-1.1.25a-forge-mc1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__supermartijn642corelib-1.1.25a-forge-mc1.20.1.jar",
+      "sha1": "a98686fb8c9cb2725405d18a314df19087c2ff8b",
+      "size": 559829,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/survivors-arsenal-still-alive-0.1.34.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__survivors-arsenal-still-alive-0.1.34.jar",
+      "sha1": "87d96f4aa26f7b3d1d3408b168b653c7727aa0c3",
+      "size": 564567,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/tacz_optimization-1.0.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__tacz_optimization-1.0.2.jar",
+      "sha1": "3ccc8199aa7fea07e4e6c93b16c773956264f906",
+      "size": 21859,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/tacz_presence-1.4.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__tacz_presence-1.4.jar",
+      "sha1": "ac2fdc4c0445e2f1b693de2f77cf0563d7c158f1",
+      "size": 3866215,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/tacz-forge-1.20.1-1.2.0-hotfix.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__tacz-forge-1.20.1-1.2.0-hotfix.jar",
+      "sha1": "32af2ec6ca6d30678e29fa8e632c35123a2971ac",
+      "size": 68740249,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/taczaccel-omni-1.3.6.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__taczaccel-omni-1.3.6.jar",
+      "sha1": "c02815ae5ed6d73b6228d7d0a57b8d44ba1e46cb",
+      "size": 859814,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/taczadditions-forge-1.20.1-1.3.7-hotfix2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__taczadditions-forge-1.20.1-1.3.7-hotfix2.jar",
+      "sha1": "4b2a6d1ccda10e96e4a5cb7cf5a35324f3c404c1",
+      "size": 224818,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/taczblueprints-1.20.1-0.1.3.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__taczblueprints-1.20.1-0.1.3.jar",
+      "sha1": "8af0390f52a7efecdc4f059aac58abe8ac2946b1",
+      "size": 68386,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/tctcore-2.3-forge-1.20.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__tctcore-2.3-forge-1.20.1.jar",
+      "sha1": "ad9915013fed7adc90178e2702ee7f99e7d9d209",
+      "size": 8745411,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/The-Hordes-1.20.1-1.6.3i-all.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__The-Hordes-1.20.1-1.6.3i-all.jar",
+      "sha1": "cb28f5be21577618c05cef203b1eb06ecddb3cb1",
+      "size": 619598,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/ToughAsNails-forge-1.20.1-9.2.0.171.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__ToughAsNails-forge-1.20.1-9.2.0.171.jar",
+      "sha1": "e1caa4a2fb30965913aefe84fe55acffdaaab26e",
+      "size": 459479,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/vinconfig-0.0.4.5.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__vinconfig-0.0.4.5.jar",
+      "sha1": "31589d541c3187066ec451eff91854b80f759615",
+      "size": 736109,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/VIP_Capes-1.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__VIP_Capes-1.1.jar",
+      "sha1": "0bc52b7df8fe005d65f6c0a1ae5e81ea8f604aef",
+      "size": 649460,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/voicechat-forge-1.20.1-2.6.22.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__voicechat-forge-1.20.1-2.6.22.jar",
+      "sha1": "cc94c3eecc325ea3066ee3cd8bf57142d1b11762",
+      "size": 4923439,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Voiceless Survival-forge-1.20.1-2.1.2.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Voiceless_Survival-forge-1.20.1-2.1.2.jar",
+      "sha1": "3801391a186c69e0a4061acc36b5123d4bf46def",
+      "size": 184213,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/wegotrunnners-0.7.1.1.20.1[SPANISH TRANSLATION UPDATE].jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__wegotrunnners-0.7.1.1.20.1_SPANISH_TRANSLATION_UPDATE_.jar",
+      "sha1": "f4c30ae5060c407d514bd342a72b8d8be00db432",
+      "size": 160024,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/worldedit-mod-7.2.15.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__worldedit-mod-7.2.15.jar",
+      "sha1": "9c52765ca56f917ef8cbafc20e9a4f45c346508f",
+      "size": 5825402,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/xaeroworldmap-forge-1.20.1-1.46.0.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__xaeroworldmap-forge-1.20.1-1.46.0.jar",
+      "sha1": "4906476a6a0a7e64772db17b3e707fdd4bbbc0fb",
+      "size": 1425022,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/Zcraft_Decorations-1.0.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__Zcraft_Decorations-1.0.1.jar",
+      "sha1": "6eecfbff66dfb11816fc3d04bd26f1f161209bc3",
+      "size": 77119231,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "mods/zombieawareness-1.20.1-1.13.1.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__zombieawareness-1.20.1-1.13.1.jar",
+      "sha1": "173c30c8918da57be9398b3687ea19a81455c2c1",
+      "size": 291139,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "options.txt",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__options.txt",
+      "sha1": "97c97aa5dd297df8391f8cb0d67eb073a003a040",
+      "size": 12169,
+      "preserve": true,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/-1.21.2 Fresh Moves v3.1 (With Animated Eyes).zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__-1.21.2_Fresh_Moves_v3.1_With_Animated_Eyes_.zip",
+      "sha1": "7049cc12935ff4be20173c908ad946f530861a4c",
+      "size": 321871,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/A Good Place Sample Pack.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__A_Good_Place_Sample_Pack.zip",
+      "sha1": "300672256aaddd8ffbf3d4fc86adc766c02371dd",
+      "size": 14945,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/DoomsdayDecorationInEnglish_v8.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__DoomsdayDecorationInEnglish_v8.zip",
+      "sha1": "46105c52cef0363bfe1201a66ba32d3a80963342",
+      "size": 14335,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/FA+All_Extensions-v1.8.1.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__FA_All_Extensions-v1.8.1.zip",
+      "sha1": "d39eefcb1d3a24debc979bbf7aa3e42b92cc5a80",
+      "size": 425088,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/FA+Player-v1.1.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__FA_Player-v1.1.zip",
+      "sha1": "122e397af111e3dc5fb6b60004aad9464980f13a",
+      "size": 110203,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/FreshAnimations_v1.10.4.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__FreshAnimations_v1.10.4.zip",
+      "sha1": "73db740a6868e043c5e615c036fca2c912615b6e",
+      "size": 850941,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/Stay_True_1.20.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__Stay_True_1.20.zip",
+      "sha1": "e62cef3d46234f8e2b04d5d01c870a6f41f9ae79",
+      "size": 2139266,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/TACZ TAC SPRINT v1.3.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__TACZ_TAC_SPRINT_v1.3.zip",
+      "sha1": "8849e6854d96230ce2fef30f8deb984ba991e20e",
+      "size": 215506,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "resourcepacks/TZP_1.20.1_2.7.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__resourcepacks__TZP_1.20.1_2.7.zip",
+      "sha1": "0f24fbc99e9a6f4d1b9ceb628f9389a901137ec1",
+      "size": 14177090,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__Bliss_v2.1.2__Chocapic13_Shaders_edit_.zip",
+      "sha1": "ded6c8a98305f8aff90ef781e7585b33b8452cfd",
+      "size": 1791406,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/BSL_v10.1.5.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__BSL_v10.1.5.zip",
+      "sha1": "49bed4894881b22fa680b97504f0c3265bafbcbc",
+      "size": 1133936,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/BSL_v10.1.5.zip.txt",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__BSL_v10.1.5.zip.txt",
+      "sha1": "07726e6e4283217085adf9df67da1083f15c7997",
+      "size": 79,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/ComplementaryReimagined_r5.9.3.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__ComplementaryReimagined_r5.9.3.zip",
+      "sha1": "838139b54cddb56b2e83cd260d8efd960ac536d6",
+      "size": 553397,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/ComplementaryUnbound_r5.9.3.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__ComplementaryUnbound_r5.9.3.zip",
+      "sha1": "2ee08300e1d6f039e63eae8484dddf57b3aaaf67",
+      "size": 553400,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/ComplementaryUnbound_r5.9.3.zip.txt",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__ComplementaryUnbound_r5.9.3.zip.txt",
+      "sha1": "8ccbdf01500a758092cbdba4a386d732cb1b1d5f",
+      "size": 238,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/DrDestens MinecraftShaders v2.1.5.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__DrDestens_MinecraftShaders_v2.1.5.zip",
+      "sha1": "361cc5a418ee2b1503fb4ca916553f7e15e81687",
+      "size": 158735,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/MakeUp-UltraFast-9.5e.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__MakeUp-UltraFast-9.5e.zip",
+      "sha1": "84f7f6ddf81f602ff241fb9c576411cdda309f9e",
+      "size": 400417,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/PotatoShaders_v1.0d.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__PotatoShaders_v1.0d.zip",
+      "sha1": "c60b72db0dc0b1aff486a76bfa4bec2704933c35",
+      "size": 393109,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/Sildur's Vibrant Shaders v1.51 Extreme-VL.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__Sildur_s_Vibrant_Shaders_v1.51_Extreme-VL.zip",
+      "sha1": "871e4a5b6aa77f8d6693b63c070f81b8bba62b01",
+      "size": 142239,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/Sildur's Vibrant Shaders v1.51 High.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__Sildur_s_Vibrant_Shaders_v1.51_High.zip",
+      "sha1": "057307b880bed4e77a6753dbfd473657fd5942fd",
+      "size": 142235,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/Sildur's Vibrant Shaders v1.51 Lite.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__Sildur_s_Vibrant_Shaders_v1.51_Lite.zip",
+      "sha1": "7fa1f4d219e0c5b41a11c4206b88d781db8f12cd",
+      "size": 142247,
+      "channels": [
+        "PRUEBAS"
+      ]
+    },
+    {
+      "path": "shaderpacks/superDuperVanilla.zip",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__shaderpacks__superDuperVanilla.zip",
+      "sha1": "f2d6d259368e8b8d8807abb1ac28aaa7cff85b8c",
+      "size": 2851664,
+      "channels": [
+        "PRUEBAS"
+      ]
+    }
+  ]
 }

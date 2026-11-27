@@ -24,10 +24,12 @@ function readAll() {
   }
 }
 
+let warnedPlaintext = false;
+
 function writeAll(data) {
   fs.mkdirSync(paths.data, { recursive: true });
   const tmp = `${file()}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { encoding: 'utf8', mode: 0o600 });
   fs.renameSync(tmp, file());
 }
 
@@ -35,7 +37,11 @@ function encrypt(value) {
   if (safeStorage.isEncryptionAvailable()) {
     return { encrypted: true, value: safeStorage.encryptString(value).toString('base64') };
   }
-  // Sin llavero disponible (raro en Windows): se guarda en claro para no perder la sesión.
+  // Sin llavero disponible (ej. Windows recortados/MiniOS): se guarda con permisos 0o600 sin bloquear al usuario.
+  if (!warnedPlaintext) {
+    warnedPlaintext = true;
+    console.warn('[auth] safeStorage no está disponible; guardando sesión con permisos restringidos (0o600).');
+  }
   return { encrypted: false, value };
 }
 
@@ -91,7 +97,8 @@ function skinVariant(id) {
 }
 
 function has(id) {
-  return Boolean(get(id));
+  const raw = readAll().accounts[id];
+  return Boolean(raw?.token?.value);
 }
 
 function remove(id) {
@@ -102,10 +109,10 @@ function remove(id) {
   return true;
 }
 
-/** Ids con sesión guardada (para marcar la UI). */
+/** Ids con sesión guardada (para marcar la UI sin descifrar tokens). */
 function list() {
   const data = readAll();
-  return Object.keys(data.accounts).filter((id) => Boolean(get(id)));
+  return Object.keys(data.accounts).filter((id) => Boolean(data.accounts[id]?.token?.value));
 }
 
 module.exports = { save, get, has, remove, list, skinUrl, skinVariant };

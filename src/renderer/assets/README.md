@@ -1,4 +1,6 @@
-Pon aquí tu archivo `music.mp3` para que suene en el launcher.
+Pistas ambientales fijas del launcher:
 
-El launcher lo toca en bucle y solo si está activado en **Ajustes → Música**.
-Si el archivo no existe, no suena y el resto del launcher funciona igual.
+- `theme.mp3`
+- `lullaby.mp3`
+
+Se reproducen en rotación continua (`theme.mp3` → `lullaby.mp3` → `theme.mp3`) únicamente cuando **Ajustes → Música ambiental** está activado, y se pausan automáticamente al minimizar/ocultar la ventana o mientras Minecraft está ejecutándose.

@@ -71,7 +71,7 @@ const EXCLUDED_DIRS = new Set([
   '.git',
   '.svn',
   '.hg',
-  '__MACOSX',
+  '__macosx',
   'saves',
   'logs',
   'crash-reports',
@@ -79,6 +79,9 @@ const EXCLUDED_DIRS = new Set([
   'screenshots',
   '.cache',
   'cache',
+  'xaero',
+  'xaerowaypoints',
+  'xaeroworldmap',
 ]);
 
 const EXCLUDED_FILES = new Set([
@@ -375,7 +378,7 @@ function walkAll(directory, root, excludes, files = [], skippedLinks = []) {
     }
 
     if (entry.isDirectory()) {
-      if (EXCLUDED_DIRS.has(entry.name)) continue;
+      if (EXCLUDED_DIRS.has(entry.name.toLowerCase())) continue;
       walkAll(full, root, excludes, files, skippedLinks);
       continue;
     }

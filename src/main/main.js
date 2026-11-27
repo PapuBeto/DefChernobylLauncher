@@ -3,7 +3,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, session } = require('electron');
 
 const configStore = require('./config');
 const { paths } = require('./paths');
@@ -17,17 +17,44 @@ const modsInfo = require('./mods-info');
 const { UpdateService } = require('./updater');
 const { LaunchManager } = require('./game');
 
-const isDev = process.argv.includes('--dev');
+const isDev = !app.isPackaged && process.argv.includes('--dev');
 
-// Permite arrancar con un userData limpio (pruebas y capturas).
-const userDataArg = process.argv.indexOf('--user-data');
-if (userDataArg > 0 && process.argv[userDataArg + 1]) {
-  app.setPath('userData', path.resolve(process.argv[userDataArg + 1]));
+// Permite arrancar con un userData limpio solo en desarrollo (pruebas y capturas).
+if (!app.isPackaged) {
+  const userDataArg = process.argv.indexOf('--user-data');
+  if (userDataArg > 0 && process.argv[userDataArg + 1]) {
+    app.setPath('userData', path.resolve(process.argv[userDataArg + 1]));
+  }
+}
+
+const ALLOWED_EXTERNAL_HOSTS = new Set([
+  'microsoft.com',
+  'www.microsoft.com',
+  'login.live.com',
+  'github.com',
+  'discord.gg',
+  'discord.com',
+  'chernobyl-z.tebex.store',
+  'www.tiktok.com',
+  'www.youtube.com',
+  'www.instagram.com',
+]);
+
+function openSafeExternal(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl));
+    if (parsed.protocol !== 'https:') return Promise.resolve(false);
+    if (!ALLOWED_EXTERNAL_HOSTS.has(parsed.hostname.toLowerCase())) return Promise.resolve(false);
+    return shell.openExternal(parsed.toString()).then(() => true);
+  } catch {
+    return Promise.resolve(false);
+  }
 }
 
 let mainWindow = null;
 let hiddenByLaunch = false;
 let pickedSkinPath = null;
+let verifiedJavaPath = null;
 let statusCache = { at: 0, value: null };
 
 const launchManager = new LaunchManager();
@@ -48,7 +75,12 @@ function showMainWindow() {
 
 launchManager.on('status', (payload) => send('launch:status', payload));
 launchManager.on('progress', (payload) => send('launch:progress', payload));
-launchManager.on('log', (payload) => send('launch:log', payload));
+launchManager.on('log', (payload) => {
+  if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible() || mainWindow.isMinimized()) {
+    return;
+  }
+  send('launch:log', payload);
+});
 launchManager.on('ready', (payload) => send('launch:ready', payload));
 launchManager.on('synced', (payload) => {
   statusCache = { at: 0, value: null };
@@ -111,7 +143,7 @@ function createWindow() {
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
-  if (!isDev && process.argv.includes('--screenshot')) {
+  if (!app.isPackaged && !isDev && process.argv.includes('--screenshot')) {
     mainWindow.webContents.on('console-message', (_event, _level, message) => {
       console.log(`[renderer] ${message}`);
     });
@@ -121,7 +153,7 @@ function createWindow() {
     mainWindow.show();
     if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
 
-    if (process.argv.includes('--screenshot')) {
+    if (!app.isPackaged && process.argv.includes('--screenshot')) {
       const target = process.argv[process.argv.indexOf('--screenshot') + 1];
       const clickIndex = process.argv.indexOf('--shot-click');
       const clickIds =
@@ -171,8 +203,17 @@ function createWindow() {
     }
   });
 
+  mainWindow.webContents.on('will-navigate', (event) => {
+    event.preventDefault();
+  });
+  mainWindow.webContents.on('will-redirect', (event) => {
+    event.preventDefault();
+  });
+  mainWindow.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault();
+  });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    openSafeExternal(url);
     return { action: 'deny' };
   });
 
@@ -286,7 +327,6 @@ function registerIpc() {
         platform: process.platform,
         arch: process.arch,
         totalMemoryMb: Math.round(os.totalmem() / (1024 * 1024)),
-        userData: paths.data,
         gameDir: effectiveGameDir,
         defaultGameDir: paths.defaultGame,
         gameDirFallback: Boolean(config.gameDir && effectiveGameDir === paths.defaultGame),
@@ -316,6 +356,30 @@ function registerIpc() {
     const safe = {};
     for (const key of allowed) {
       if (key in patch) safe[key] = patch[key];
+    }
+
+    if ('javaPath' in safe) {
+      const rawJava = safe.javaPath == null ? '' : String(safe.javaPath).trim();
+      if (!rawJava) {
+        safe.javaPath = null;
+      } else {
+        const candidate = path.resolve(rawJava);
+        const currentJava = configStore.load().javaPath;
+        const eq = (a, b) =>
+          Boolean(a && b) &&
+          (process.platform === 'win32'
+            ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
+            : path.resolve(a) === path.resolve(b));
+
+        if (
+          javaManager.isValidJavaExecutablePath(candidate) &&
+          (eq(candidate, verifiedJavaPath) || eq(candidate, currentJava))
+        ) {
+          safe.javaPath = candidate;
+        } else {
+          safe.javaPath = currentJava || null;
+        }
+      }
     }
 
     if ('gameDir' in safe) {
@@ -481,9 +545,9 @@ function registerIpc() {
   });
   ipcMain.handle('update:install', () => updateService.install());
 
-  ipcMain.handle('java:detect', async (_event, explicitPath) => {
+  ipcMain.handle('java:detect', async () => {
     const config = configStore.load();
-    return javaManager.detect(explicitPath || config.javaPath);
+    return javaManager.detect(config.javaPath);
   });
 
   ipcMain.handle('server:status', () => serverStatus());
@@ -520,8 +584,14 @@ function registerIpc() {
     });
 
     if (result.canceled || result.filePaths.length === 0) return null;
-    const selected = result.filePaths[0];
+    const selected = path.resolve(result.filePaths[0]);
+    if (!javaManager.isValidJavaExecutablePath(selected)) {
+      return { path: null, version: null };
+    }
     const version = await javaManager.readJavaVersion(selected);
+    if (version && version.major === 17) {
+      verifiedJavaPath = selected;
+    }
     return { path: selected, version };
   });
 
@@ -539,8 +609,7 @@ function registerIpc() {
     if (target === 'game') return shell.openPath(configStore.gameDir()).then(() => true);
     if (target === 'logs') return shell.openPath(paths.logs).then(() => true);
     if (target === 'data') return shell.openPath(paths.data).then(() => true);
-    if (/^https?:\/\//i.test(target)) return shell.openExternal(target).then(() => true);
-    return false;
+    return openSafeExternal(target);
   });
 
   ipcMain.on('window:minimize', () => mainWindow?.minimize());
@@ -582,6 +651,9 @@ if (!gotLock) {
   });
 
   app.whenReady().then(async () => {
+    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+    session.defaultSession.setPermissionCheckHandler(() => false);
+
     ensureDirectories();
     // Las noticias se descargan en segundo plano para no retrasar la apertura.
     refreshNewsInBackground({ force: true });

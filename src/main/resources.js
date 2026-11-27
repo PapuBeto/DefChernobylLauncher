@@ -97,12 +97,53 @@ function normalizeChannels(rawChannels) {
   return Object.keys(map).length > 0 ? map : null;
 }
 
+function isPrivateOrLocalHost(rawHost) {
+  const host = String(rawHost || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
+  if (!host) return true;
+  if (
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host === '::1' ||
+    host === '::' ||
+    host.startsWith('fe80:') ||
+    host.startsWith('fc') ||
+    host.startsWith('fd')
+  ) {
+    return true;
+  }
+
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+  }
+
+  return false;
+}
+
 /** Valida un manifiesto remoto antes de confiar en sus rutas y URLs. */
 function validateManifest(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   if (!Number.isInteger(raw.revision) || raw.revision < 1) return null;
   if (raw.minecraft != null && !/^[0-9A-Za-z._-]+$/.test(String(raw.minecraft))) return null;
   if (raw.forge != null && !/^[0-9A-Za-z._-]+$/.test(String(raw.forge))) return null;
+
+  if (raw.server != null) {
+    if (typeof raw.server !== 'object' || Array.isArray(raw.server)) return null;
+    if (raw.server.host != null && raw.server.host !== '') {
+      if (typeof raw.server.host !== 'string' || isPrivateOrLocalHost(raw.server.host)) return null;
+    }
+    if (raw.server.port != null) {
+      const port = Number(raw.server.port);
+      if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+    }
+  }
 
   const channels = normalizeChannels(raw.channels);
   if (!channels) return null;
@@ -113,7 +154,7 @@ function validateManifest(raw) {
     if (!isSafeRelativePath(file.path)) return null;
     if (!isAllowedUrl(file.url)) return null;
     if (file.size != null && (!Number.isFinite(Number(file.size)) || Number(file.size) < 0)) return null;
-    if (file.sha1 != null && !/^[a-f0-9]{40}$/i.test(String(file.sha1))) return null;
+    if (typeof file.sha1 !== 'string' || !/^[a-f0-9]{40}$/i.test(file.sha1)) return null;
     if (file.extract != null && typeof file.extract !== 'boolean') return null;
     if (file.preserve != null && typeof file.preserve !== 'boolean') return null;
     if (file.channels != null) {
@@ -402,4 +443,5 @@ module.exports = {
   refreshNews,
   loadLinks,
   loadAuth,
+  isAllowedUrl,
 };

@@ -5,6 +5,7 @@ node_modules/
 dist/
 out/
 release/
+build/
 build/*.exe
 build/*.msi
 
@@ -26,6 +27,7 @@ tmp-*/
 pack-sources/
 pack-tmp*/
 *.pack.tmp
+*.part
 
 # OS
 .DS_Store

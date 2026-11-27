@@ -92,7 +92,32 @@ function normalize(config) {
     merged.gameDir = null;
   }
 
-  return merged;
+  let safeJavaPath = null;
+  if (typeof merged.javaPath === 'string' && merged.javaPath.trim()) {
+    const trimmed = merged.javaPath.trim();
+    const expectedExe = process.platform === 'win32' ? 'java.exe' : 'java';
+    const isUnc = trimmed.startsWith('\\\\') || trimmed.startsWith('//');
+    if (!isUnc && path.isAbsolute(trimmed) && path.basename(trimmed).toLowerCase() === expectedExe) {
+      safeJavaPath = path.resolve(trimmed);
+    }
+  }
+
+  return {
+    activeProfile: merged.activeProfile,
+    profiles: merged.profiles,
+    channel: merged.channel,
+    memory: merged.memory,
+    javaPath: safeJavaPath,
+    gameDir: merged.gameDir,
+    resolution: {
+      width: merged.resolution.width,
+      height: merged.resolution.height,
+      fullscreen: merged.resolution.fullscreen,
+    },
+    closeOnLaunch: Boolean(merged.closeOnLaunch),
+    effects: merged.effects,
+    music: merged.music,
+  };
 }
 
 function load() {

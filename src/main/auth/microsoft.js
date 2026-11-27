@@ -27,11 +27,32 @@ const XSTS_ERRORS = {
 
 function authConfig() {
   const auth = loadAuth();
+  const rawTenant = String(auth.tenant || 'consumers').trim();
+  const safeTenant = /^[a-z0-9.-]+$/i.test(rawTenant) ? encodeURIComponent(rawTenant) : 'consumers';
   return {
     clientId: String(auth.clientId || ''),
-    tenant: String(auth.tenant || 'consumers'),
+    tenant: safeTenant,
     scope: String(auth.scope || 'XboxLive.signin offline_access'),
   };
+}
+
+function safeVerificationUri(raw) {
+  try {
+    const parsed = new URL(String(raw || ''));
+    const host = parsed.hostname.toLowerCase();
+    if (
+      parsed.protocol === 'https:' &&
+      (host === 'microsoft.com' ||
+        host === 'www.microsoft.com' ||
+        host === 'login.live.com' ||
+        host.endsWith('.microsoft.com'))
+    ) {
+      return parsed.toString();
+    }
+  } catch {
+    /* fallback seguro */
+  }
+  return 'https://www.microsoft.com/link';
 }
 
 function timeoutSignal(ms, signal) {
@@ -108,7 +129,7 @@ async function requestDeviceCode(signal) {
   return {
     deviceCode: data.device_code,
     userCode: data.user_code,
-    verificationUri: data.verification_uri || 'https://www.microsoft.com/link',
+    verificationUri: safeVerificationUri(data.verification_uri),
     expiresIn: Number(data.expires_in) || 900,
     interval: Number(data.interval) || 5,
     message: data.message || '',

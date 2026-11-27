@@ -2,10 +2,12 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const crypto = require('node:crypto');
+const { StringDecoder } = require('node:string_decoder');
 const { spawn } = require('node:child_process');
 const { EventEmitter } = require('node:events');
-const AdmZip = require('adm-zip');
+const { open: openZip, readAllEntries } = require('@xmcl/unzip');
 const { Agent } = require('undici');
 const { DownloadAgent, DefaultRangePolicy, DownloadAbortError } = require('@xmcl/file-transfer');
 
@@ -28,6 +30,44 @@ const { syncFiles, readState, writeState, sha1File } = require('./mods');
 
 const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
 const within = ([from, to], fraction) => from + (to - from) * clamp01(fraction);
+const MAX_LOG_BYTES = 10 * 1024 * 1024;
+const ZIP_HEAD_BUFFER = Buffer.alloc(4);
+const ZIP_TAIL_BUFFER = Buffer.alloc(65557);
+
+function isHttpsUrl(raw) {
+  try {
+    return new URL(String(raw)).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const HOME_DIR_PATTERNS = (() => {
+  const home = os.homedir();
+  if (!home) return [];
+  const variants = new Set([home, home.replace(/\\/g, '/')]);
+  const flags = process.platform === 'win32' ? 'gi' : 'g';
+  return [...variants].filter(Boolean).map((entry) => new RegExp(escapeRegExp(entry), flags));
+})();
+
+function redactSensitive(text, secretTokens = []) {
+  let out = String(text ?? '');
+  for (const pattern of HOME_DIR_PATTERNS) {
+    out = out.replace(pattern, '~');
+  }
+  for (const token of secretTokens) {
+    if (typeof token === 'string' && token.length >= 8) {
+      out = out.split(token).join('[REDACTED]');
+    }
+  }
+  out = out.replace(/(Bearer\s+)[A-Za-z0-9._~+/-]+=*/gi, '$1[REDACTED]');
+  out = out.replace(/(--accessToken(?:=|\s+))(\S+)/gi, '$1[REDACTED]');
+  return out;
+}
 
 function formatRate(bytesPerSecond) {
   const value = Number(bytesPerSecond);
@@ -409,13 +449,17 @@ function removeFile(file) {
   }
 }
 
-function isForgeInstaller(file) {
+async function isForgeInstaller(file) {
+  let zip = null;
   try {
     if (!fs.existsSync(file) || fs.statSync(file).size < 1_000_000) return false;
-    const zip = new AdmZip(file);
-    return Boolean(zip.getEntry('install_profile.json'));
+    zip = await openZip(file, { lazyEntries: true, autoClose: false });
+    const entries = await readAllEntries(zip);
+    return entries.some((entry) => entry.fileName === 'install_profile.json');
   } catch {
     return false;
+  } finally {
+    zip?.close();
   }
 }
 
@@ -430,6 +474,7 @@ async function fetchText(url, timeoutMs, signal) {
   try {
     const response = await fetch(url, { signal: controller.signal, redirect: 'follow' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!isHttpsUrl(response.url)) throw new Error('Redirección no segura (se requiere HTTPS).');
     return (await response.text()).trim();
   } finally {
     clearTimeout(timer);
@@ -443,15 +488,16 @@ async function downloadForgeInstaller(url, destination, signal, onProgress = () 
     const text = await fetchText(`${url}.sha1`, 15000, signal);
     const value = text.split(/\s+/)[0].toLowerCase();
     if (/^[a-f0-9]{40}$/.test(value)) expected = value;
-  } catch {
-    /* el .sha1 es opcional; el instalador se valida al abrirlo */
+  } catch (error) {
+    if (signal?.aborted) throw new Error('Descarga cancelada.');
+    throw new Error(`No se pudo verificar el checksum SHA-1 de Forge (${error?.message || error}).`);
   }
 
-  if (fs.existsSync(destination) && isForgeInstaller(destination)) {
-    if (!expected) {
-      onProgress(1);
-      return;
-    }
+  if (!expected) {
+    throw new Error('Checksum SHA-1 del instalador de Forge inválido.');
+  }
+
+  if (fs.existsSync(destination) && (await isForgeInstaller(destination))) {
     const local = await sha1File(destination);
     if (local === expected) {
       onProgress(1);
@@ -475,6 +521,9 @@ async function downloadForgeInstaller(url, destination, signal, onProgress = () 
     try {
       const response = await fetch(url, { signal: controller.signal, redirect: 'follow' });
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+      if (!isHttpsUrl(response.url)) {
+        throw new Error('Redirección no segura al descargar Forge (se requiere HTTPS).');
+      }
 
       const total = Number(response.headers.get('content-length')) || 0;
       fs.mkdirSync(path.dirname(destination), { recursive: true });
@@ -496,7 +545,7 @@ async function downloadForgeInstaller(url, destination, signal, onProgress = () 
       }
 
       const sha1 = hash.digest('hex');
-      if (expected && sha1 !== expected) throw new Error('SHA-1 del instalador no coincide.');
+      if (sha1 !== expected) throw new Error('SHA-1 del instalador no coincide.');
       if (size < 1_000_000) throw new Error('El instalador llegó incompleto.');
 
       fs.renameSync(temporary, destination);
@@ -537,7 +586,11 @@ function runForgeInstaller({ installer, javaPath, gameDir, signal, isCancelled, 
     const log = fs.createWriteStream(logPath, { flags: 'w' });
     log.on('error', () => {});
     const executable = javaPath || 'java';
-    log.write(`[launcher] ${new Date().toISOString()} "${executable}" -jar ${installer} --installClient ${gameDir}\n`);
+    log.write(
+      redactSensitive(
+        `[launcher] ${new Date().toISOString()} "${executable}" -jar ${installer} --installClient ${gameDir}\n`,
+      ),
+    );
 
     const child = spawn(executable, ['-Djava.awt.headless=true', '-jar', installer, '--installClient', gameDir], {
       cwd: gameDir,
@@ -605,26 +658,24 @@ function isValidZipFile(filePath) {
     if (!stat.isFile() || stat.size < 22) return false;
 
     fd = fs.openSync(filePath, 'r');
-    const head = Buffer.alloc(4);
-    if (fs.readSync(fd, head, 0, 4, 0) < 4) return false;
-    if (head[0] !== 0x50 || head[1] !== 0x4b) return false;
+    if (fs.readSync(fd, ZIP_HEAD_BUFFER, 0, 4, 0) < 4) return false;
+    if (ZIP_HEAD_BUFFER[0] !== 0x50 || ZIP_HEAD_BUFFER[1] !== 0x4b) return false;
 
-    const tailLen = Math.min(stat.size, 65557);
+    const tailLen = Math.min(stat.size, ZIP_TAIL_BUFFER.length);
     const tailStart = stat.size - tailLen;
-    const tail = Buffer.alloc(tailLen);
-    if (fs.readSync(fd, tail, 0, tailLen, tailStart) < 22) return false;
+    if (fs.readSync(fd, ZIP_TAIL_BUFFER, 0, tailLen, tailStart) < 22) return false;
 
-    for (let i = tail.length - 22; i >= 0; i -= 1) {
+    for (let i = tailLen - 22; i >= 0; i -= 1) {
       if (
-        tail[i] === 0x50 &&
-        tail[i + 1] === 0x4b &&
-        tail[i + 2] === 0x05 &&
-        tail[i + 3] === 0x06
+        ZIP_TAIL_BUFFER[i] === 0x50 &&
+        ZIP_TAIL_BUFFER[i + 1] === 0x4b &&
+        ZIP_TAIL_BUFFER[i + 2] === 0x05 &&
+        ZIP_TAIL_BUFFER[i + 3] === 0x06
       ) {
-        const commentLen = tail.readUInt16LE(i + 20);
-        if (i + 22 + commentLen === tail.length) {
-          const cdOffset = tail.readUInt32LE(i + 16);
-          const cdSize = tail.readUInt32LE(i + 12);
+        const commentLen = ZIP_TAIL_BUFFER.readUInt16LE(i + 20);
+        if (i + 22 + commentLen === tailLen) {
+          const cdOffset = ZIP_TAIL_BUFFER.readUInt32LE(i + 16);
+          const cdSize = ZIP_TAIL_BUFFER.readUInt32LE(i + 12);
           if (cdOffset === 0xffffffff || cdOffset + cdSize <= tailStart + i) {
             return true;
           }
@@ -736,20 +787,25 @@ async function verifyInstanceFiles(folder, minecraftVersion, forgeVersion, versi
 
     const objects = indexData?.objects;
     if (objects && typeof objects === 'object') {
-      for (const entry of Object.values(objects)) {
-        if (!entry?.hash) continue;
-        const head = entry.hash.substring(0, 2);
-        const objPath = folder.getPath('assets', 'objects', head, entry.hash);
-        try {
-          const stat = fs.statSync(objPath);
-          if (!stat.isFile() || (Number.isFinite(entry.size) && stat.size !== entry.size)) {
-            removeFile(objPath);
+      const entries = Object.values(objects).filter((entry) => Boolean(entry?.hash));
+      let cursor = 0;
+      const statWorker = async () => {
+        while (cursor < entries.length) {
+          const entry = entries[cursor++];
+          const head = entry.hash.substring(0, 2);
+          const objPath = folder.getPath('assets', 'objects', head, entry.hash);
+          try {
+            const stat = await fs.promises.stat(objPath);
+            if (!stat.isFile() || (Number.isFinite(entry.size) && stat.size !== entry.size)) {
+              removeFile(objPath);
+              broken += 1;
+            }
+          } catch {
             broken += 1;
           }
-        } catch {
-          broken += 1;
         }
-      }
+      };
+      await Promise.all(Array.from({ length: Math.min(48, entries.length) }, statWorker));
     }
   }
 
@@ -903,6 +959,9 @@ class LaunchManager extends EventEmitter {
     this.abortController = null;
     this.logs = [];
     this.progressFloor = 0;
+    this.logStream = null;
+    this.logBytes = 0;
+    this.activeAccessToken = null;
   }
 
   status(text, phase = 'idle', percent = null) {
@@ -924,26 +983,74 @@ class LaunchManager extends EventEmitter {
     this.emit('progress', { percent: 0, detail: null });
   }
 
+  sanitize(line) {
+    return redactSensitive(line, this.activeAccessToken ? [this.activeAccessToken] : []);
+  }
+
   log(line) {
     if (!line) return;
-    this.logs.push(line);
+    const clean = this.sanitize(line);
+    this.logs.push(clean);
     if (this.logs.length > 800) this.logs.shift();
-    this.emit('log', { line });
+    this.emit('log', { line: clean });
+  }
+
+  closeLogStream() {
+    if (!this.logStream) return;
+    try {
+      this.logStream.end();
+    } catch {
+      /* stream ya cerrado */
+    }
+    this.logStream = null;
+  }
+
+  openLogStream(truncate = false) {
+    this.closeLogStream();
+    try {
+      fs.mkdirSync(paths.logs, { recursive: true });
+      const logFile = path.join(paths.logs, 'launcher.log');
+      this.logStream = fs.createWriteStream(logFile, {
+        flags: truncate ? 'w' : 'a',
+        encoding: 'utf8',
+      });
+      this.logStream.on('error', () => {
+        this.logStream = null;
+      });
+      this.logBytes = truncate ? 0 : (fs.existsSync(logFile) ? fs.statSync(logFile).size : 0);
+    } catch {
+      this.logStream = null;
+      this.logBytes = 0;
+    }
   }
 
   resetLogFile() {
-    try {
-      fs.mkdirSync(paths.logs, { recursive: true });
-      fs.writeFileSync(path.join(paths.logs, 'launcher.log'), '', 'utf8');
-    } catch {
-      /* logging best-effort */
-    }
+    this.openLogStream(true);
   }
 
   appendLogFile(line) {
     try {
-      fs.mkdirSync(paths.logs, { recursive: true });
-      fs.appendFileSync(path.join(paths.logs, 'launcher.log'), `${line}\n`, 'utf8');
+      const clean = `${this.sanitize(line)}\n`;
+      const bytes = Buffer.byteLength(clean, 'utf8');
+      if (!this.logStream) {
+        this.openLogStream(false);
+      }
+      if (this.logBytes + bytes > MAX_LOG_BYTES) {
+        const logFile = path.join(paths.logs, 'launcher.log');
+        const backupFile = path.join(paths.logs, 'launcher.log.1');
+        this.closeLogStream();
+        try {
+          fs.rmSync(backupFile, { force: true });
+          if (fs.existsSync(logFile)) fs.renameSync(logFile, backupFile);
+        } catch {
+          /* rotación best-effort */
+        }
+        this.openLogStream(true);
+      }
+      if (this.logStream) {
+        this.logStream.write(clean);
+        this.logBytes += bytes;
+      }
     } catch {
       /* logging best-effort */
     }
@@ -960,6 +1067,7 @@ class LaunchManager extends EventEmitter {
     this.currentTask = null;
     this.abortController = new AbortController();
     this.progressFloor = 0;
+    this.activeAccessToken = null;
     this.resetLogFile();
 
     const isCancelled = () => this.cancelled;
@@ -992,6 +1100,7 @@ class LaunchManager extends EventEmitter {
       }
 
       const auth = await authManager.sessionForProfile(profile);
+      this.activeAccessToken = auth.accessToken || null;
       this.log(
         `[launcher] Cuenta ${profile.type === 'microsoft' ? 'Microsoft' : 'offline'}: ${auth.name} (${auth.id})`,
       );
@@ -1121,12 +1230,27 @@ class LaunchManager extends EventEmitter {
       this.watcher = createMinecraftProcessWatcher(this.child);
 
       const pipe = (stream, prefix) => {
-        stream?.on('data', (chunk) => {
-          for (const line of chunk.toString('utf8').split(/\r?\n/)) {
-            if (!line.trim()) continue;
-            this.log(`${prefix}${line}`);
-            this.appendLogFile(line);
+        if (!stream) return;
+        const decoder = new StringDecoder('utf8');
+        let pending = '';
+        const flushLine = (rawLine) => {
+          const line = rawLine.replace(/\r$/, '');
+          if (!line.trim()) return;
+          this.log(`${prefix}${line}`);
+          this.appendLogFile(line);
+        };
+        stream.on('data', (chunk) => {
+          pending += decoder.write(chunk);
+          let idx = pending.indexOf('\n');
+          while (idx >= 0) {
+            flushLine(pending.slice(0, idx));
+            pending = pending.slice(idx + 1);
+            idx = pending.indexOf('\n');
           }
+        });
+        stream.on('end', () => {
+          pending += decoder.end();
+          if (pending) flushLine(pending);
         });
       };
 
@@ -1139,6 +1263,7 @@ class LaunchManager extends EventEmitter {
         settled = true;
         this.child = null;
         this.watcher = null;
+        this.activeAccessToken = null;
         if (this.cancelled) {
           this.finishCancelled();
           return;
@@ -1149,6 +1274,7 @@ class LaunchManager extends EventEmitter {
         this.status('Error al iniciar el juego', 'error', 0);
         this.log(`[launcher] ERROR: ${message}`);
         this.appendLogFile(`[launcher] ERROR DETAIL: ${error?.stack || error?.message || error}`);
+        this.closeLogStream();
         this.emit('error', { message });
       };
 
@@ -1164,6 +1290,7 @@ class LaunchManager extends EventEmitter {
         settled = true;
         this.child = null;
         this.watcher = null;
+        this.activeAccessToken = null;
 
         if (this.cancelled) {
           this.finishCancelled();
@@ -1173,19 +1300,21 @@ class LaunchManager extends EventEmitter {
         this.running = false;
         this.resetProgress();
         this.status('Listo para jugar', 'idle', 0);
+        if (crashReport) this.log(`[launcher] Crash report: ${crashReportLocation}`);
+        this.closeLogStream();
         this.emit('exit', {
           code,
           crashed: code !== 0,
           crashReport: crashReport || null,
           crashReportLocation: crashReportLocation || null,
         });
-        if (crashReport) this.log(`[launcher] Crash report: ${crashReportLocation}`);
       });
 
       this.watcher.on('error', failChild);
       this.child.on('error', failChild);
     } catch (error) {
       this.running = false;
+      this.activeAccessToken = null;
       this.resetProgress();
 
       if (this.cancelled) return this.finishCancelled();
@@ -1195,6 +1324,7 @@ class LaunchManager extends EventEmitter {
       this.status(`Error: ${message}`, 'error', 0);
       this.log(`[launcher] ERROR: ${message}`);
       this.appendLogFile(`[launcher] ERROR DETAIL: ${rawDetail}`);
+      this.closeLogStream();
       this.emit('error', { message });
       throw new Error(message);
     }
@@ -1288,6 +1418,8 @@ class LaunchManager extends EventEmitter {
     this.currentTask = null;
     this.child = null;
     this.watcher = null;
+    this.activeAccessToken = null;
+    this.closeLogStream();
     this.resetProgress();
     this.status('Cancelado', 'idle', 0);
     this.emit('cancelled');
@@ -1314,4 +1446,4 @@ class LaunchManager extends EventEmitter {
   }
 }
 
-module.exports = { LaunchManager, ensureInstance, formatLauncherError, ThrottledDownloadAgent, createDownloadEnvironment };
+module.exports = { LaunchManager, ensureInstance, formatLauncherError, ThrottledDownloadAgent, createDownloadEnvironment, redactSensitive };

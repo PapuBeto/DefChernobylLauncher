@@ -56,6 +56,29 @@ function readUrls() {
   }
 }
 
+const MAX_DISK_CACHE_FILES = 100;
+
+function pruneDiskCache() {
+  try {
+    const dir = cacheDir();
+    const files = fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.png'))
+      .map((entry) => {
+        const full = path.join(dir, entry.name);
+        return { full, mtimeMs: fs.statSync(full).mtimeMs };
+      });
+    if (files.length <= MAX_DISK_CACHE_FILES) return;
+    files.sort((a, b) => a.mtimeMs - b.mtimeMs);
+    const excess = files.length - MAX_DISK_CACHE_FILES;
+    for (let i = 0; i < excess; i += 1) {
+      fs.rmSync(files[i].full, { force: true });
+    }
+  } catch {
+    /* poda best-effort */
+  }
+}
+
 function writeUrls(map) {
   try {
     fs.mkdirSync(cacheDir(), { recursive: true });
@@ -194,6 +217,7 @@ async function textureDataUrl(rawUrl) {
 
     fs.mkdirSync(cacheDir(), { recursive: true });
     fs.writeFileSync(file, buffer);
+    pruneDiskCache();
   }
 
   const value = `data:image/png;base64,${buffer.toString('base64')}`;
