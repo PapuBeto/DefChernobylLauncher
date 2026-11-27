@@ -2,7 +2,7 @@
   "name": "Chernobyl Z",
   "minecraft": "1.20.1",
   "forge": "47.4.28",
-  "revision": 10,
+  "revision": 11,
   "manifestUrl": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/modpack.json",
   "server": {
     "name": "Chernobyl Z",
@@ -236,10 +236,10 @@
       ]
     },
     {
-      "path": "mods/chernobylzombies-3.1.0.jar",
-      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobylzombies-3.1.0.jar",
-      "sha1": "82996deeed82fc44cdbf9133e22d98ab3c62ce68",
-      "size": 1277805,
+      "path": "mods/chernobylzombies-3.0.8.jar",
+      "url": "https://github.com/PapuBeto/DefChernobylLauncher/releases/download/modpack-assets/pruebas__mods__chernobylzombies-3.0.8.jar",
+      "sha1": "0a356a79cddfefbae6df25e05a7850200f4fd762",
+      "size": 1160737,
       "channels": [
         "PRUEBAS"
       ]
